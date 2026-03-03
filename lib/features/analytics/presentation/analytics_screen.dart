@@ -1,80 +1,103 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/glass_header.dart';
+import '../../../core/widgets/kpi_card.dart';
+import '../../../core/widgets/modern_card.dart';
 
-class AnalyticsScreen extends StatefulWidget {
+class AnalyticsScreen extends StatelessWidget {
   static const routeName = '/analytics';
 
   const AnalyticsScreen({super.key});
 
   @override
-  State<AnalyticsScreen> createState() => _AnalyticsScreenState();
-}
-
-class _AnalyticsScreenState extends State<AnalyticsScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  String _range = 'Today';
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 4, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Scaffold(
+      body: Column(
         children: [
-          Text(
-            'Analytics & Reports',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-          const SizedBox(height: 16),
-          _buildRangeSelector(context),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              _buildRangeKpiCard('Sales', '₹12,300', Icons.sell),
+          GlassHeader(
+            title: 'Analytics',
+            subtitle: 'Deep dive into your store performance',
+            actions: [
+              OutlinedButton.icon(
+                onPressed: () {},
+                icon: Icon(LucideIcons.calendar),
+                label: const Text('Last 30 Days'),
+              ),
               const SizedBox(width: 12),
-              _buildRangeKpiCard('Transactions', '87', Icons.receipt_long),
-              const SizedBox(width: 12),
-              _buildRangeKpiCard('Profit', '₹3,450', Icons.trending_up),
-              const SizedBox(width: 12),
-              _buildRangeKpiCard('Customers', '53', Icons.people),
+              ElevatedButton.icon(
+                onPressed: () {},
+                icon: Icon(LucideIcons.download),
+                label: const Text('Export Report'),
+              ),
             ],
           ),
-          const SizedBox(height: 16),
-          TabBar(
-            controller: _tabController,
-            tabs: const [
-              Tab(text: 'Sales Overview'),
-              Tab(text: 'Best & Worst Sellers'),
-              Tab(text: 'Profit Analysis'),
-              Tab(text: 'Customer Insights'),
-            ],
-          ),
-          const SizedBox(height: 12),
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: const [
-                _SalesOverviewTab(),
-                _BestWorstSellersTab(),
-                _ProfitAnalysisTab(),
-                _CustomerInsightsTab(),
+            child: ListView(
+              padding: const EdgeInsets.all(24.0),
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: KpiCard(
+                        title: 'Total Revenue',
+                        value: 'Rs 124,500.00',
+                        icon: LucideIcons.indianRupee,
+                        trend: '+14.5%',
+                        isTrendPositive: true,
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      child: KpiCard(
+                        title: 'Avg Order Value',
+                        value: 'Rs 840.50',
+                        icon: LucideIcons.shoppingCart,
+                        trend: '+2.1%',
+                        isTrendPositive: true,
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      child: KpiCard(
+                        title: 'Net Profit',
+                        value: 'Rs 32,450.00',
+                        icon: LucideIcons.trendingUp,
+                        trend: '+18.2%',
+                        isTrendPositive: true,
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      child: KpiCard(
+                        title: 'Refunds',
+                        value: 'Rs 1,200.00',
+                        icon: LucideIcons.cornerUpLeft,
+                        trend: '-5.4%',
+                        isTrendPositive: true, // fewer refunds = good
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: _RevenueChartCard(),
+                    ),
+                    SizedBox(width: 24),
+                    Expanded(
+                      flex: 1,
+                      child: _TopCategoriesCard(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                const _TopProductsTableCard(),
               ],
             ),
           ),
@@ -82,78 +105,79 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
       ),
     );
   }
+}
 
-  Widget _buildRangeSelector(BuildContext context) {
-    final ranges = [
-      'Today',
-      'Yesterday',
-      'This Week',
-      'This Month',
-      'Last Month',
-      'Custom Range',
-    ];
-    return Row(
-      children: [
-        Wrap(
-          spacing: 8,
-          children: ranges.map((r) {
-            final selected = _range == r;
-            return ChoiceChip(
-              label: Text(r),
-              selected: selected,
-              onSelected: (_) async {
-                if (r == 'Custom Range') {
-                  // You would show a date range picker here.
-                }
-                setState(() => _range = r);
-              },
-            );
-          }).toList(),
-        ),
-        const Spacer(),
-        ElevatedButton.icon(
-          onPressed: () {
-            // Export logic goes here
-          },
-          icon: const Icon(Icons.download),
-          label: const Text('Export to PDF/Excel'),
-        ),
-      ],
-    );
-  }
+class _RevenueChartCard extends StatelessWidget {
+  const _RevenueChartCard();
 
-  Widget _buildRangeKpiCard(
-    String title,
-    String value,
-    IconData icon,
-  ) {
-    return Expanded(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Row(
-            children: [
-              Icon(icon, color: AppColors.primary),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = AppColors.primary;
+
+    return ModernCard(
+      title: 'Revenue Over Time',
+      padding: const EdgeInsets.all(24.0),
+      child: SizedBox(
+        height: 300,
+        child: BarChart(
+          BarChartData(
+            gridData: FlGridData(
+              show: true,
+              drawVerticalLine: false,
+              getDrawingHorizontalLine: (value) => FlLine(
+                color: Theme.of(context).dividerTheme.color,
+                strokeWidth: 1,
+                dashArray: [4, 4],
+              ),
+            ),
+            borderData: FlBorderData(show: false),
+            titlesData: FlTitlesData(
+              show: true,
+              rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 40,
+                  getTitlesWidget: (value, meta) => Text(
+                    '${(value / 1000).toStringAsFixed(0)}k',
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
-                  Text(
-                    value,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
+                ),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (value, meta) {
+                    final days = ['1', '5', '10', '15', '20', '25', '30'];
+                    if (value.toInt() >= 0 && value.toInt() < days.length) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          days[value.toInt()],
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      );
+                    }
+                    return const SizedBox();
+                  },
+                ),
+              ),
+            ),
+            barGroups: [
+              for (int i = 0; i < 7; i++)
+                BarChartGroupData(
+                  x: i,
+                  barRods: [
+                    BarChartRodData(
+                      toY: (i * 2000.0) % 15000 + 5000,
+                      color: primaryColor,
+                      width: 16,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
                     ),
-                  ),
-                ],
-              )
+                  ],
+                ),
             ],
           ),
         ),
@@ -162,495 +186,94 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
   }
 }
 
-class _SalesOverviewTab extends StatelessWidget {
-  const _SalesOverviewTab();
+class _TopCategoriesCard extends StatelessWidget {
+  const _TopCategoriesCard();
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: const [
-                      Icon(Icons.show_chart, color: AppColors.primary),
-                      SizedBox(width: 8),
-                      Text(
-                        'Sales Trend',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: LineChart(
-                      LineChartData(
-                        titlesData: FlTitlesData(show: false),
-                        gridData: FlGridData(show: true),
-                        borderData: FlBorderData(show: true),
-                        lineBarsData: [
-                          LineChartBarData(
-                            isCurved: true,
-                            spots: [
-                              FlSpot(0, 5),
-                              FlSpot(1, 8),
-                              FlSpot(2, 12),
-                              FlSpot(3, 10),
-                              FlSpot(4, 14),
-                              FlSpot(5, 18),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+    final categories = [
+      {'name': 'Beverages', 'amount': 'Rs 45K', 'percent': 1.0},
+      {'name': 'Groceries', 'amount': 'Rs 32K', 'percent': 0.7},
+      {'name': 'Snacks', 'amount': 'Rs 28K', 'percent': 0.6},
+      {'name': 'Cleaning', 'amount': 'Rs 12K', 'percent': 0.3},
+      {'name': 'Dairy', 'amount': 'Rs 7K', 'percent': 0.15},
+    ];
+
+    return ModernCard(
+      title: 'Top Categories',
+      child: Column(
+        children: categories.map((c) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 20.0),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(c['name'] as String, style: const TextStyle(fontWeight: FontWeight.w500)),
+                    Text(c['amount'] as String, style: TextStyle(color: Theme.of(context).colorScheme.secondary)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                LinearProgressIndicator(
+                  value: c['percent'] as double,
+                  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                  valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
+                  minHeight: 6,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ],
             ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Expanded(
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: const [
-                      Icon(Icons.timelapse, color: AppColors.info),
-                      SizedBox(width: 8),
-                      Text(
-                        'Sales by Hour',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: BarChart(
-                      BarChartData(
-                        titlesData: FlTitlesData(show: false),
-                        gridData: FlGridData(show: false),
-                        barGroups: [
-                          BarChartGroupData(x: 9, barRods: [
-                            BarChartRodData(toY: 8),
-                          ]),
-                          BarChartGroupData(x: 10, barRods: [
-                            BarChartRodData(toY: 12),
-                          ]),
-                          BarChartGroupData(x: 11, barRods: [
-                            BarChartRodData(toY: 16),
-                          ]),
-                          BarChartGroupData(x: 12, barRods: [
-                            BarChartRodData(toY: 10),
-                          ]),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
+          );
+        }).toList(),
+      ),
     );
   }
 }
 
-class _BestWorstSellersTab extends StatelessWidget {
-  const _BestWorstSellersTab();
+class _TopProductsTableCard extends StatelessWidget {
+  const _TopProductsTableCard();
 
   @override
   Widget build(BuildContext context) {
-    final best = [
-      {'name': 'Bottled Water 1L', 'qty': 50},
-      {'name': 'Chips Masala', 'qty': 40},
-      {'name': 'Cold Drink 500ml', 'qty': 35},
-    ];
-    final worst = [
-      {'name': 'Exotic Jam', 'qty': 1},
-      {'name': 'Premium Cereal', 'qty': 2},
-      {'name': 'Imported Sauce', 'qty': 3},
-    ];
-
-    return Row(
-      children: [
-        Expanded(
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: const [
-                      Icon(Icons.trending_up, color: AppColors.success),
-                      SizedBox(width: 8),
-                      Text(
-                        'Top 10 Products',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: best.length,
-                      itemBuilder: (context, index) {
-                        final item = best[index];
-                        return ListTile(
-                          leading: CircleAvatar(
-                            radius: 14,
-                            backgroundColor:
-                                AppColors.success.withOpacity(0.1),
-                            child: Text(
-                              '${index + 1}',
-                              style: const TextStyle(
-                                color: AppColors.success,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          title: Text(item['name'] as String),
-                          trailing: Text('x${item['qty']}'),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
+    return ModernCard(
+      title: 'Top Selling Products',
+      padding: EdgeInsets.zero,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          dividerThickness: 1,
+          headingRowColor: WidgetStateProperty.resolveWith(
+            (states) => Theme.of(context).scaffoldBackgroundColor,
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: const [
-                      Icon(Icons.trending_down, color: AppColors.error),
-                      SizedBox(width: 8),
-                      Text(
-                        'Bottom 10 Products',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: worst.length,
-                      itemBuilder: (context, index) {
-                        final item = worst[index];
-                        return ListTile(
-                          leading: CircleAvatar(
-                            radius: 14,
-                            backgroundColor:
-                                AppColors.error.withOpacity(0.1),
-                            child: Text(
-                              '${index + 1}',
-                              style: const TextStyle(
-                                color: AppColors.error,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          title: Text(item['name'] as String),
-                          trailing: Text('x${item['qty']}'),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ProfitAnalysisTab extends StatelessWidget {
-  const _ProfitAnalysisTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          children: const [
-            _ProfitSummaryCard(
-              label: 'Gross Profit',
-              value: '₹4,560',
-            ),
-            SizedBox(width: 12),
-            _ProfitSummaryCard(
-              label: 'Profit Margin',
-              value: '28%',
-            ),
+          columns: const [
+            DataColumn(label: Text('Product')),
+            DataColumn(label: Text('Units Sold')),
+            DataColumn(label: Text('Revenue')),
+            DataColumn(label: Text('Net Profit')),
+            DataColumn(label: Text('Margin')),
+          ],
+          rows: [
+            _buildRow(context, 'Mineral Water 1L', 450, 18000, 4500, 25),
+            _buildRow(context, 'Wheat Bread', 380, 15200, 3100, 20),
+            _buildRow(context, 'Potato Chips - Salted', 310, 6200, 2400, 38),
+            _buildRow(context, 'Dishwashing Liquid', 240, 12000, 4800, 40),
+            _buildRow(context, 'Cold Drink 500ml', 190, 7600, 1900, 25),
           ],
         ),
-        const SizedBox(height: 16),
-        Expanded(
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Profit by Category',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: BarChart(
-                      BarChartData(
-                        titlesData: FlTitlesData(show: false),
-                        barGroups: [
-                          BarChartGroupData(x: 0, barRods: [
-                            BarChartRodData(toY: 16),
-                          ]),
-                          BarChartGroupData(x: 1, barRods: [
-                            BarChartRodData(toY: 12),
-                          ]),
-                          BarChartGroupData(x: 2, barRods: [
-                            BarChartRodData(toY: 10),
-                          ]),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Expanded(
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Product Profitability',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: DataTable(
-                        columns: const [
-                          DataColumn(label: Text('Product')),
-                          DataColumn(label: Text('Units Sold')),
-                          DataColumn(label: Text('Revenue')),
-                          DataColumn(label: Text('COGS')),
-                          DataColumn(label: Text('Profit')),
-                          DataColumn(label: Text('Margin')),
-                        ],
-                        rows: [
-                          _profitRow('Bottled Water 1L', 50, 2500, 1500),
-                          _profitRow('Chips Masala', 40, 1600, 900),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
-  static DataRow _profitRow(
-    String name,
-    int units,
-    double revenue,
-    double cost,
-  ) {
-    final profit = revenue - cost;
-    final margin = profit / revenue * 100;
+  DataRow _buildRow(BuildContext context, String name, int units, double revenue, double profit, double margin) {
     return DataRow(
       cells: [
-        DataCell(Text(name)),
+        DataCell(Text(name, style: const TextStyle(fontWeight: FontWeight.w500))),
         DataCell(Text(units.toString())),
-        DataCell(Text('₹${revenue.toStringAsFixed(0)}')),
-        DataCell(Text('₹${cost.toStringAsFixed(0)}')),
-        DataCell(Text('₹${profit.toStringAsFixed(0)}')),
+        DataCell(Text('Rs ${revenue.toStringAsFixed(0)}')),
+        DataCell(Text('Rs ${profit.toStringAsFixed(0)}')),
         DataCell(Text('${margin.toStringAsFixed(1)}%')),
       ],
     );
   }
 }
-
-class _CustomerInsightsTab extends StatelessWidget {
-  const _CustomerInsightsTab();
-
-  @override
-  Widget build(BuildContext context) {
-    final topCustomers = [
-      {'name': 'Rahul', 'spent': 3200.0},
-      {'name': 'Sneha', 'spent': 2800.0},
-      {'name': 'Amit', 'spent': 2100.0},
-    ];
-
-    return Column(
-      children: [
-        Expanded(
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Top 10 Customers by Spending',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: topCustomers.length,
-                      itemBuilder: (context, index) {
-                        final c = topCustomers[index];
-                        return ListTile(
-                          leading: CircleAvatar(
-                            child: Text(
-                              (c['name'] as String)
-                                  .substring(0, 1)
-                                  .toUpperCase(),
-                            ),
-                          ),
-                          title: Text(c['name'] as String),
-                          trailing: Text(
-                            '₹${(c['spent'] as double).toStringAsFixed(0)}',
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Expanded(
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Customer Count Over Time',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: LineChart(
-                      LineChartData(
-                        titlesData: FlTitlesData(show: false),
-                        lineBarsData: [
-                          LineChartBarData(
-                            spots: [
-                              FlSpot(0, 4),
-                              FlSpot(1, 6),
-                              FlSpot(2, 5),
-                              FlSpot(3, 7),
-                              FlSpot(4, 9),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ProfitSummaryCard extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _ProfitSummaryCard({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 18,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-

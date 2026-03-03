@@ -32,6 +32,8 @@ dependencies:
 
   # Window controls (optional enhancements for desktop)
   bitsdojo_window: ^0.1.6
+  lucide_icons: ^0.257.0
+  shared_preferences: ^2.5.4
 
 dev_dependencies:
   flutter_test:
