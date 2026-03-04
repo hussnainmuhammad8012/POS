@@ -1,4 +1,4 @@
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart' hide Transaction;
 
 import '../database/app_database.dart';
 import '../models/entities.dart';
@@ -95,6 +95,19 @@ class TransactionRepository {
     return value?.toDouble() ?? 0;
   }
 
+  Future<List<Transaction>> getTransactionsByDateRange(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final rows = await _db.query(
+      'transactions',
+      where: 'created_at >= ? AND created_at < ?',
+      whereArgs: [start.toIso8601String(), end.toIso8601String()],
+      orderBy: 'created_at DESC',
+    );
+    return rows.map(_fromRow).toList();
+  }
+
   Future<Map<DateTime, double>> getDailySalesForLastNDays(int days) async {
     final now = DateTime.now();
     final start = DateTime(now.year, now.month, now.day)
@@ -113,7 +126,7 @@ class TransactionRepository {
     for (final row in rows) {
       final dayStr = row['day'] as String;
       final total = (row['total'] as num).toDouble();
-      result[DateTime.parse('$dayStrT00:00:00')] = total;
+      result[DateTime.parse('${dayStr}T00:00:00')] = total;
     }
     return result;
   }
