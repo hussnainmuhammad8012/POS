@@ -241,7 +241,7 @@ class _NavItemState extends State<_NavItem> {
               const SizedBox(width: 12),
               Icon(
                 widget.icon, 
-                color: widget.isActive ? primaryColor : color, 
+                color: color, 
                 size: 20,
               ),
               const SizedBox(width: 16),
