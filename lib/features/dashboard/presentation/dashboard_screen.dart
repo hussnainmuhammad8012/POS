@@ -66,7 +66,9 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildKpiRow(BuildContext context, DailyKpi kpi) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final isStarAdmin = theme.primaryColor == AppColors.STAR_PRIMARY;
     final salesSubtitle = kpi.salesUpVsYesterday ? '+5.2%' : '-1.4%';
 
     return IntrinsicHeight(
@@ -80,9 +82,9 @@ class DashboardScreen extends StatelessWidget {
               icon: LucideIcons.indianRupee,
               trend: salesSubtitle,
               isTrendPositive: kpi.salesUpVsYesterday,
-              isPrimary: !isDark, 
-              accentColor: isDark ? AppColors.PRIMARY_ACCENT_DARK : AppColors.PRIMARY_ACCENT_LIGHT,
-              softBackground: isDark ? null : AppColors.LIGHT_PRIMARY_SOFT,
+              isPrimary: isStarAdmin || !isDark, 
+              accentColor: isStarAdmin ? AppColors.STAR_PRIMARY : (isDark ? AppColors.PRIMARY_ACCENT_DARK : AppColors.PRIMARY_ACCENT_LIGHT),
+              softBackground: isDark ? null : (isStarAdmin ? AppColors.STAR_PRIMARY.withAlpha(20) : AppColors.LIGHT_PRIMARY_SOFT),
             ),
           ),
           const SizedBox(width: 24),
@@ -92,8 +94,8 @@ class DashboardScreen extends StatelessWidget {
               value: kpi.transactions.toString(),
               icon: LucideIcons.receipt,
               trend: '+12%',
-              accentColor: isDark ? AppColors.INFO_DARK : AppColors.INFO,
-              softBackground: isDark ? null : AppColors.LIGHT_INFO_SOFT,
+              accentColor: isStarAdmin ? AppColors.STAR_BLUE : (isDark ? AppColors.INFO_DARK : AppColors.INFO),
+              softBackground: isDark ? null : (isStarAdmin ? AppColors.STAR_BLUE.withAlpha(20) : AppColors.LIGHT_INFO_SOFT),
               isTrendPositive: true,
             ),
           ),
@@ -104,8 +106,8 @@ class DashboardScreen extends StatelessWidget {
               value: kpi.activeCustomers.toString(),
               icon: LucideIcons.users,
               trend: '+2.1%',
-              accentColor: isDark ? AppColors.SUCCESS_DARK : AppColors.SUCCESS,
-              softBackground: isDark ? null : AppColors.LIGHT_SUCCESS_SOFT,
+              accentColor: isStarAdmin ? AppColors.STAR_TEAL : (isDark ? AppColors.SUCCESS_DARK : AppColors.SUCCESS),
+              softBackground: isDark ? null : (isStarAdmin ? AppColors.STAR_TEAL.withAlpha(20) : AppColors.LIGHT_SUCCESS_SOFT),
               isTrendPositive: true,
             ),
           ),
@@ -115,8 +117,8 @@ class DashboardScreen extends StatelessWidget {
               title: 'Low Stock Alerts',
               value: kpi.lowStockItems.toString(),
               icon: LucideIcons.packageMinus,
-              accentColor: isDark ? AppColors.WARNING_DARK : AppColors.WARNING,
-              softBackground: isDark ? null : AppColors.LIGHT_WARNING_SOFT,
+              accentColor: isStarAdmin ? AppColors.STAR_YELLOW : (isDark ? AppColors.WARNING_DARK : AppColors.WARNING),
+              softBackground: isDark ? null : (isStarAdmin ? AppColors.STAR_YELLOW.withAlpha(20) : AppColors.LIGHT_WARNING_SOFT),
             ),
           ),
         ],
@@ -248,7 +250,7 @@ class _SalesByCategoryTodayCard extends StatelessWidget {
                         sections: [
                           for (var i = 0; i < data.length; i++)
                             PieChartSectionData(
-                              color: _getChartColor(i, Theme.of(context).brightness == Brightness.dark),
+                              color: _getChartColor(context, i),
                               value: data[i]['value'] as double,
                               title: '',
                               radius: 40,
@@ -264,7 +266,7 @@ class _SalesByCategoryTodayCard extends StatelessWidget {
                       itemCount: data.length,
                       itemBuilder: (context, index) {
                         final item = data[index];
-                        final color = _getChartColor(index, Theme.of(context).brightness == Brightness.dark);
+                        final color = _getChartColor(context, index);
                         final percent = ((item['value'] as double) / total * 100).toStringAsFixed(1);
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -303,7 +305,15 @@ class _SalesByCategoryTodayCard extends StatelessWidget {
     );
   }
 
-  Color _getChartColor(int index, bool isDark) {
+  Color _getChartColor(BuildContext context, int index) {
+    final theme = Theme.of(context);
+    final isStarAdmin = theme.primaryColor == AppColors.STAR_PRIMARY;
+
+    if (isStarAdmin) {
+      final colors = [AppColors.STAR_PRIMARY, AppColors.STAR_BLUE, AppColors.STAR_TEAL, AppColors.STAR_YELLOW];
+      return colors[index % colors.length];
+    }
+
     final colors = [AppColors.primary, AppColors.success, AppColors.info, AppColors.warning, AppColors.danger];
     return colors[index % colors.length];
   }

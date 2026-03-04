@@ -116,7 +116,7 @@ class SettingsScreen extends StatelessWidget {
                               const SizedBox(width: 16),
                               Expanded(
                                 child: _ThemeModeSelector(
-                                  label: 'System',
+                                  label: 'System (StarAdmin)',
                                   isSelected: themeProvider.themeMode == ThemeMode.system,
                                   icon: LucideIcons.monitor,
                                   onTap: () => themeProvider.setThemeMode(ThemeMode.system),

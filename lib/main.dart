@@ -41,7 +41,9 @@ class UtilityStorePosApp extends StatelessWidget {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
             title: 'Utility Store POS',
-            theme: AppTheme.lightTheme,
+            theme: themeProvider.themeMode == ThemeMode.light 
+                ? AppTheme.lightTheme 
+                : AppTheme.starAdminTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: themeProvider.themeMode,
             home: NavShell(),

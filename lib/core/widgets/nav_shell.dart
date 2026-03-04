@@ -82,15 +82,21 @@ class _Sidebar extends StatelessWidget {
       {'icon': LucideIcons.lineChart, 'label': 'Analytics'},
     ];
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final isStarAdmin = theme.primaryColor == AppColors.STAR_PRIMARY;
+
+    final sidebarColor = isDark 
+        ? AppColors.DARK_SIDEBAR 
+        : (isStarAdmin ? AppColors.STAR_SIDEBAR : AppColors.LIGHT_SIDEBAR);
 
     return Container(
       width: 240,
       decoration: BoxDecoration(
-        color: isDark ? AppColors.DARK_SIDEBAR : AppColors.LIGHT_SIDEBAR,
+        color: sidebarColor,
         border: Border(
           right: BorderSide(
-            color: isDark ? Colors.transparent : AppColors.LIGHT_BORDER_PROMINENT,
+            color: isDark ? Colors.transparent : (isStarAdmin ? Colors.transparent : AppColors.LIGHT_BORDER_PROMINENT),
             width: 1,
           ),
         ),
@@ -107,12 +113,12 @@ class _Sidebar extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: (isDark ? AppColors.PRIMARY_ACCENT_DARK : AppColors.PRIMARY_ACCENT_LIGHT).withAlpha(40),
+                    color: (isDark ? AppColors.PRIMARY_ACCENT_DARK : theme.primaryColor).withAlpha(40),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     LucideIcons.store, 
-                    color: isDark ? AppColors.PRIMARY_ACCENT_DARK : AppColors.PRIMARY_ACCENT_LIGHT, 
+                    color: isDark ? AppColors.PRIMARY_ACCENT_DARK : theme.primaryColor, 
                     size: 24,
                   ),
                 ),
@@ -123,7 +129,7 @@ class _Sidebar extends StatelessWidget {
                     fontFamily: 'Poppins',
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
-                    color: isDark ? AppColors.DARK_TEXT_PRIMARY : AppColors.LIGHT_TEXT_PRIMARY,
+                    color: (isDark || isStarAdmin) ? Colors.white : AppColors.LIGHT_TEXT_PRIMARY,
                   ),
                 ),
               ],
@@ -183,20 +189,30 @@ class _NavItemState extends State<_NavItem> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = isDark ? AppColors.PRIMARY_ACCENT_DARK : AppColors.PRIMARY_ACCENT_LIGHT;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final isStarAdmin = theme.primaryColor == AppColors.STAR_PRIMARY;
+    final primaryColor = isDark ? AppColors.PRIMARY_ACCENT_DARK : theme.primaryColor;
     
     // Sidebar text/icon color
-    final color = widget.isActive 
-        ? (isDark ? AppColors.DARK_TEXT_PRIMARY : AppColors.LIGHT_ACTIVE)
-        : (isDark ? AppColors.DARK_TEXT_SECONDARY : AppColors.LIGHT_TEXT_SECONDARY);
+    // In StarAdmin, icons/text should be light/white because the sidebar is dark
+    final color;
+    if (widget.isActive) {
+      color = (isDark || isStarAdmin) ? Colors.white : AppColors.LIGHT_ACTIVE;
+    } else {
+      color = (isDark || isStarAdmin) ? AppColors.STAR_TEXT_SECONDARY : AppColors.LIGHT_TEXT_SECONDARY;
+    }
     
     // Consistent background color for hover and active
     final Color? bgColor;
     if (widget.isActive) {
-      bgColor = isDark ? AppColors.DARK_HOVER : AppColors.LIGHT_PRIMARY_SOFT;
+      if (isStarAdmin) {
+        bgColor = AppColors.STAR_PRIMARY;
+      } else {
+        bgColor = isDark ? AppColors.DARK_HOVER : AppColors.LIGHT_PRIMARY_SOFT;
+      }
     } else if (_isHovered) {
-      bgColor = isDark ? Colors.white.withAlpha(15) : AppColors.LIGHT_PRIMARY_SOFT.withAlpha(15);
+      bgColor = (isDark || isStarAdmin) ? Colors.white.withAlpha(15) : AppColors.LIGHT_PRIMARY_SOFT.withAlpha(15);
     } else {
       bgColor = Colors.transparent;
     }
@@ -211,12 +227,12 @@ class _NavItemState extends State<_NavItem> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           curve: Curves.easeInOut,
-          margin: const EdgeInsets.only(bottom: 4),
+          margin: const EdgeInsets.only(bottom: 6, left: 8, right: 8),
           height: 44,
           decoration: BoxDecoration(
             color: bgColor,
             borderRadius: BorderRadius.circular(8),
-            border: widget.isActive
+            border: (widget.isActive && !isStarAdmin)
                 ? Border(left: BorderSide(color: primaryColor, width: 3))
                 : const Border(left: BorderSide(color: Colors.transparent, width: 3)),
           ),
