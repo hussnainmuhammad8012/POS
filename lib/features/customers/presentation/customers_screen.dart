@@ -23,6 +23,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final provider = context.watch<CustomersProvider>();
     final customers = provider.customers.where((c) {
       if (_searchQuery.isEmpty) return true;
@@ -81,14 +82,14 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                                   leading: CircleAvatar(
                                     backgroundColor: isSelected 
-                                      ? Theme.of(context).colorScheme.primary 
-                                      : Theme.of(context).scaffoldBackgroundColor,
+                                      ? theme.primaryColor 
+                                      : theme.scaffoldBackgroundColor,
                                     child: Text(
                                       customer.name[0].toUpperCase(),
                                       style: TextStyle(
                                         color: isSelected 
-                                          ? Theme.of(context).colorScheme.onPrimary 
-                                          : Theme.of(context).colorScheme.primary,
+                                          ? theme.colorScheme.onPrimary 
+                                          : theme.primaryColor,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -131,13 +132,13 @@ class _CustomersScreenState extends State<CustomersScreen> {
                               children: [
                                 CircleAvatar(
                                   radius: 32,
-                                  backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                  backgroundColor: theme.primaryColor.withOpacity(0.1),
                                   child: Text(
                                     _selectedCustomer!.name[0].toUpperCase(),
                                     style: TextStyle(
                                       fontSize: 24,
                                       fontWeight: FontWeight.w600,
-                                      color: Theme.of(context).colorScheme.primary,
+                                      color: theme.primaryColor,
                                     ),
                                   ),
                                 ),

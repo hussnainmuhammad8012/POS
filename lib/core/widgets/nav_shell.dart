@@ -267,7 +267,8 @@ class _TopHeaderBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final surfaceColor = isDark ? AppColors.DARK_SURFACE : AppColors.LIGHT_SURFACE;
     final borderColor = isDark ? AppColors.DARK_BORDER_PROMINENT : AppColors.LIGHT_BORDER_PROMINENT;
 
@@ -348,11 +349,11 @@ class _TopHeaderBar extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 16,
-                    backgroundColor: (isDark ? AppColors.PRIMARY_ACCENT_DARK : AppColors.PRIMARY_ACCENT_LIGHT).withAlpha(40),
+                    backgroundColor: theme.primaryColor.withAlpha(40),
                     child: Text(
                       'A',
                       style: TextStyle(
-                        color: isDark ? AppColors.PRIMARY_ACCENT_DARK : AppColors.PRIMARY_ACCENT_LIGHT,
+                        color: theme.primaryColor,
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
                       ),

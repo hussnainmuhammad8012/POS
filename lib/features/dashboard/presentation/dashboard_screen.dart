@@ -349,11 +349,11 @@ class _RecentTransactionsCard extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: AppColors.primary.withOpacity(0.1),
+                  backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
                   child: Text(
                     item['customer']!.toString().substring(0, 1),
                     style: TextStyle(
-                      color: AppColors.primary,
+                      color: Theme.of(context).primaryColor,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
