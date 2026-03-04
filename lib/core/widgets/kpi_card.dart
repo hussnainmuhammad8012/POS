@@ -36,10 +36,11 @@ class _KpiCardState extends State<KpiCard> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final primaryAccent = widget.accentColor ?? (isDark ? AppColors.PRIMARY_ACCENT_DARK : AppColors.PRIMARY_ACCENT_LIGHT);
+    final primaryColor = theme.primaryColor;
+    final primaryAccent = widget.accentColor ?? primaryColor;
     final bgColor = widget.softBackground ?? (widget.isPrimary 
         ? null 
-        : (isDark ? AppColors.DARK_CARD : AppColors.LIGHT_CARD));
+        : theme.cardTheme.color);
     
     final textColor = widget.isPrimary ? Colors.white : theme.textTheme.displayMedium?.color;
     final secondaryColor = widget.isPrimary ? Colors.white.withAlpha(200) : theme.colorScheme.secondary;

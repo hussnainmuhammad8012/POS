@@ -27,7 +27,7 @@ class _ModernCardState extends State<ModernCard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final primaryAccent = isDark ? AppColors.PRIMARY_ACCENT_DARK : AppColors.PRIMARY_ACCENT_LIGHT;
+    final primaryColor = theme.primaryColor;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -42,7 +42,7 @@ class _ModernCardState extends State<ModernCard> {
           borderRadius: BorderRadius.circular(AppRadius.md),
           border: Border.all(
             color: _isHovered 
-                ? (isDark ? AppColors.DARK_BORDER_PROMINENT : AppColors.LIGHT_BORDER_PROMINENT)
+                ? primaryColor.withAlpha(100)
                 : Colors.transparent,
             width: 1,
           ),
@@ -55,7 +55,7 @@ class _ModernCardState extends State<ModernCard> {
                 spreadRadius: -4,
               ),
               BoxShadow(
-                color: primaryAccent.withValues(alpha: 0.05),
+                color: primaryColor.withValues(alpha: 0.05),
                 blurRadius: 20,
                 offset: const Offset(0, 4),
               ),

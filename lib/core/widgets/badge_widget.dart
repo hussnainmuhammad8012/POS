@@ -15,31 +15,34 @@ class BadgeWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.primaryColor;
+
     Color bg;
     Color fg;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     switch (type) {
       case BadgeType.success:
-        bg = AppColors.success.withOpacity(isDark ? 0.2 : 0.1);
-        fg = isDark ? AppColors.success : AppColors.successForeground;
+        bg = AppColors.SUCCESS.withOpacity(isDark ? 0.2 : 0.1);
+        fg = isDark ? AppColors.SUCCESS_DARK : AppColors.SUCCESS;
         break;
       case BadgeType.warning:
-        bg = AppColors.warning.withOpacity(isDark ? 0.2 : 0.1);
-        fg = isDark ? AppColors.warning : AppColors.warningForeground;
+        bg = AppColors.WARNING.withOpacity(isDark ? 0.2 : 0.1);
+        fg = isDark ? AppColors.WARNING_DARK : AppColors.WARNING;
         break;
       case BadgeType.error:
-        bg = AppColors.danger.withOpacity(isDark ? 0.2 : 0.1);
-        fg = isDark ? AppColors.danger : AppColors.dangerForeground;
+        bg = AppColors.DANGER.withOpacity(isDark ? 0.2 : 0.1);
+        fg = isDark ? AppColors.DANGER_DARK : AppColors.DANGER;
         break;
       case BadgeType.info:
-        bg = AppColors.info.withOpacity(isDark ? 0.2 : 0.1);
-        fg = isDark ? AppColors.info : AppColors.infoForeground;
+        bg = AppColors.INFO.withOpacity(isDark ? 0.2 : 0.1);
+        fg = isDark ? AppColors.INFO_DARK : AppColors.INFO;
         break;
       case BadgeType.neutral:
       default:
-        bg = isDark ? AppColors.darkBorder : AppColors.border;
-        fg = isDark ? AppColors.darkText : AppColors.textPrimary;
+        bg = primaryColor.withOpacity(0.1);
+        fg = primaryColor;
         break;
     }
 

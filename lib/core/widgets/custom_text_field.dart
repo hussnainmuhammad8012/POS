@@ -76,7 +76,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
             boxShadow: isFocused
                 ? [
                     BoxShadow(
-                      color: AppColors.primary.withAlpha(50), // 20% opacity primary shadow
+                      color: Theme.of(context).primaryColor.withAlpha(50), 
                       blurRadius: 8,
                       offset: const Offset(0, 0),
                       spreadRadius: 2,

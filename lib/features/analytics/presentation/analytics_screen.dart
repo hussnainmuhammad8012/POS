@@ -113,7 +113,7 @@ class _RevenueChartCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = AppColors.primary;
+    final primaryColor = Theme.of(context).primaryColor;
 
     return ModernCard(
       title: 'Revenue Over Time',

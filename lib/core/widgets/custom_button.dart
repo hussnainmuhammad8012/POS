@@ -23,9 +23,11 @@ class _PrimaryButtonState extends State<PrimaryButton> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryColor = theme.primaryColor;
     final isDisabled = widget.onPressed == null;
     final scale = _isPressed ? 0.98 : (_isHovered ? 1.03 : 1.0);
-    final intensity = _isPressed ? -0.1 : (_isHovered ? 0.1 : 0.0); // Brightness simulation
+    final intensity = _isPressed ? -0.1 : (_isHovered ? 0.05 : 0.0);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -42,15 +44,15 @@ class _PrimaryButtonState extends State<PrimaryButton> {
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           decoration: BoxDecoration(
             color: isDisabled
-                ? AppColors.primary.withAlpha(128)
-                : HSLColor.fromColor(AppColors.primary)
-                    .withLightness((HSLColor.fromColor(AppColors.primary).lightness + intensity).clamp(0.0, 1.0))
+                ? primaryColor.withAlpha(128)
+                : HSLColor.fromColor(primaryColor)
+                    .withLightness((HSLColor.fromColor(primaryColor).lightness + intensity).clamp(0.0, 1.0))
                     .toColor(),
             borderRadius: BorderRadius.circular(10),
             boxShadow: _isHovered && !isDisabled && !_isPressed
                 ? [
                     BoxShadow(
-                      color: AppColors.primary.withAlpha(50),
+                      color: primaryColor.withAlpha(50),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     )
@@ -104,10 +106,11 @@ class _SecondaryButtonState extends State<SecondaryButton> {
 
   @override
   Widget build(BuildContext context) {
-    final isDisabled = widget.onPressed == null;
-    final scale = _isPressed ? 0.98 : (_isHovered ? 1.03 : 1.0);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.primaryColor;
+    final isDisabled = widget.onPressed == null;
+    final scale = _isPressed ? 0.98 : (_isHovered ? 1.03 : 1.0);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -124,11 +127,11 @@ class _SecondaryButtonState extends State<SecondaryButton> {
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           decoration: BoxDecoration(
             color: _isHovered && !isDisabled 
-              ? (isDark ? AppColors.darkSurface : const Color(0xFFF3F4F6)) 
+              ? (isDark ? Colors.white.withAlpha(15) : primaryColor.withAlpha(20)) 
               : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: isDisabled ? AppColors.primary.withAlpha(128) : AppColors.primary,
+              color: isDisabled ? primaryColor.withAlpha(128) : primaryColor,
               width: 2,
             ),
           ),
@@ -137,18 +140,18 @@ class _SecondaryButtonState extends State<SecondaryButton> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (widget.icon != null) ...[
-                Icon(widget.icon, color: AppColors.primary, size: 18),
+                Icon(widget.icon, color: primaryColor, size: 18),
                 const SizedBox(width: 8),
               ],
-              Text(
-                widget.text,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: isDisabled ? AppColors.primary.withAlpha(128) : AppColors.primary,
+                child: Text(
+                  widget.text,
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isDisabled ? primaryColor.withAlpha(128) : primaryColor,
+                  ),
                 ),
-              ),
             ],
           ),
         ),
@@ -198,15 +201,15 @@ class _DangerButtonState extends State<DangerButton> {
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           decoration: BoxDecoration(
             color: isDisabled
-                ? AppColors.danger.withAlpha(128)
-                : HSLColor.fromColor(AppColors.danger)
-                    .withLightness((HSLColor.fromColor(AppColors.danger).lightness + intensity).clamp(0.0, 1.0))
+                ? AppColors.DANGER.withAlpha(128)
+                : HSLColor.fromColor(AppColors.DANGER)
+                    .withLightness((HSLColor.fromColor(AppColors.DANGER).lightness + intensity).clamp(0.0, 1.0))
                     .toColor(),
             borderRadius: BorderRadius.circular(10),
             boxShadow: _isHovered && !isDisabled && !_isPressed
                 ? [
                     BoxShadow(
-                      color: AppColors.danger.withAlpha(50),
+                      color: AppColors.DANGER.withAlpha(50),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     )
@@ -283,7 +286,7 @@ class _CustomIconButtonState extends State<CustomIconButton> {
           height: 40,
           decoration: BoxDecoration(
             color: _isHovered && !isDisabled
-                ? (isDark ? AppColors.darkSurface : const Color(0xFFF3F4F6))
+                ? (isDark ? Colors.white.withAlpha(20) : theme.primaryColor.withAlpha(20))
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
@@ -291,8 +294,8 @@ class _CustomIconButtonState extends State<CustomIconButton> {
             widget.icon,
             size: widget.size,
             color: isDisabled
-                ? (widget.color ?? AppColors.textPrimary).withAlpha(128)
-                : (widget.color ?? AppColors.textPrimary),
+                ? (widget.color ?? theme.textTheme.bodyLarge?.color ?? Colors.black).withAlpha(128)
+                : (widget.color ?? theme.textTheme.bodyLarge?.color ?? Colors.black),
           ),
         ),
       ),

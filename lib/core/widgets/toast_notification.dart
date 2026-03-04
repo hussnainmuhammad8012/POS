@@ -27,20 +27,20 @@ class ToastNotification extends StatelessWidget {
     IconData icon;
     switch (type) {
       case ToastType.success:
-        color = AppColors.success;
+        color = isDark ? AppColors.SUCCESS_DARK : AppColors.SUCCESS;
         icon = LucideIcons.checkCircle2;
         break;
       case ToastType.error:
-        color = AppColors.danger;
+        color = isDark ? AppColors.DANGER_DARK : AppColors.DANGER;
         icon = LucideIcons.xCircle;
         break;
       case ToastType.warning:
-        color = AppColors.warning;
+        color = isDark ? AppColors.WARNING_DARK : AppColors.WARNING;
         icon = LucideIcons.alertTriangle;
         break;
       case ToastType.info:
       default:
-        color = AppColors.info;
+        color = isDark ? AppColors.INFO_DARK : AppColors.INFO;
         icon = LucideIcons.info;
         break;
     }
@@ -49,12 +49,12 @@ class ToastNotification extends StatelessWidget {
       width: 380,
       margin: const EdgeInsets.only(bottom: 24, right: 24),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.surface,
+        color: theme.cardTheme.color,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
+        border: Border.all(color: theme.dividerTheme.color ?? (isDark ? AppColors.DARK_BORDER_SUBTLE : AppColors.LIGHT_BORDER_SUBTLE)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(isDark ? 50 : 20),
+            color: Colors.black.withAlpha(isDark ? 80 : 20),
             blurRadius: 24,
             offset: const Offset(0, 8),
           )

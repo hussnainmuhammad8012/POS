@@ -136,7 +136,7 @@ class _SalesTrendCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final data = analytics.last7DaysSales;
-    final primaryColor = AppColors.primary;
+    final primaryColor = Theme.of(context).primaryColor;
 
     return ModernCard(
       title: 'Sales Trend',
