@@ -5,15 +5,19 @@ import '../theme/app_theme.dart';
 class ModernCard extends StatefulWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
+  final EdgeInsetsGeometry? margin;
   final String? title;
   final Widget? trailing;
+  final MainAxisSize mainAxisSize;
 
   const ModernCard({
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(24.0),
+    this.margin,
     this.title,
     this.trailing,
+    this.mainAxisSize = MainAxisSize.min,
   });
 
   @override
@@ -35,6 +39,7 @@ class _ModernCardState extends State<ModernCard> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
+        margin: widget.margin,
         transform: Matrix4.identity()..scale(_isHovered ? 1.02 : 1.0),
         transformAlignment: Alignment.center,
         decoration: BoxDecoration(
@@ -78,7 +83,7 @@ class _ModernCardState extends State<ModernCard> {
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: widget.mainAxisSize,
             children: [
               if (widget.title != null || widget.trailing != null)
                 Padding(
@@ -95,10 +100,18 @@ class _ModernCardState extends State<ModernCard> {
                     ],
                   ),
                 ),
-              Padding(
-                padding: widget.padding,
-                child: widget.child,
-              ),
+              if (widget.mainAxisSize == MainAxisSize.max)
+                Expanded(
+                  child: Padding(
+                    padding: widget.padding,
+                    child: widget.child,
+                  ),
+                )
+              else
+                Padding(
+                  padding: widget.padding,
+                  child: widget.child,
+                ),
             ],
           ),
         ),

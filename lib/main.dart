@@ -5,11 +5,13 @@ import 'core/theme/app_theme.dart';
 import 'core/widgets/nav_shell.dart';
 import 'core/application/theme_provider.dart';
 
-
-
-
 import 'features/pos/application/pos_provider.dart';
 import 'features/inventory/application/inventory_provider.dart';
+import 'features/inventory/application/stock_provider.dart';
+import 'features/inventory/data/repositories/category_repository.dart';
+import 'features/inventory/data/repositories/product_repository.dart';
+import 'features/inventory/data/repositories/carton_repository.dart';
+import 'features/inventory/data/repositories/stock_movement_repository.dart';
 import 'features/customers/application/customers_provider.dart';
 import 'features/analytics/application/analytics_provider.dart';
 import 'features/transactions/application/transactions_provider.dart';
@@ -25,10 +27,34 @@ class UtilityStorePosApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final db = AppDatabase.instance;
+    final categoryRepo = CategoryRepository(database: db);
+    final productRepo = ProductRepository(database: db);
+    final cartonRepo = CartonRepository(database: db);
+    final movementRepo = StockMovementRepository(database: db);
+
     return MultiProvider(
       providers: [
+        // Repositories
+        Provider<CategoryRepository>.value(value: categoryRepo),
+        Provider<ProductRepository>.value(value: productRepo),
+        Provider<CartonRepository>.value(value: cartonRepo),
+        Provider<StockMovementRepository>.value(value: movementRepo),
+        
+        // Providers
         ChangeNotifierProvider(create: (_) => PosProvider()),
-        ChangeNotifierProvider(create: (_) => InventoryProvider()),
+        ChangeNotifierProvider(
+          create: (_) => InventoryProvider(
+            categoryRepository: categoryRepo,
+            productRepository: productRepo,
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => StockProvider(
+            cartonRepository: cartonRepo,
+            movementRepository: movementRepo,
+          ),
+        ),
         ChangeNotifierProvider(create: (_) => CustomersProvider()),
         ChangeNotifierProvider(create: (_) => AnalyticsProvider()),
         ChangeNotifierProvider(create: (_) => TransactionsProvider()),

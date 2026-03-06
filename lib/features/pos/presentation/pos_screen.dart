@@ -2,18 +2,41 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/models/entities.dart';
+import '../../../core/models/entities.dart' hide Category, Product, StockMovement, Transaction;
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/app_dropdown.dart';
 import '../../../core/widgets/custom_text_field.dart';
 import '../../../core/widgets/glass_header.dart';
 import '../../../core/widgets/modern_card.dart';
 import '../../customers/application/customers_provider.dart';
+import '../../inventory/application/inventory_provider.dart';
+import '../../inventory/data/repositories/product_repository.dart';
 import '../application/pos_provider.dart';
+import '../application/product_scanner.dart';
 
-class PosScreen extends StatelessWidget {
+class PosScreen extends StatefulWidget {
   static const routeName = '/pos';
 
   const PosScreen({super.key});
+
+  @override
+  State<PosScreen> createState() => _PosScreenState();
+}
+
+class _PosScreenState extends State<PosScreen> {
+  final _barcodeController = TextEditingController();
+  late ProductScanner _scanner;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize scanner with required dependencies
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final inventoryProvider = context.read<InventoryProvider>();
+      // We need a way to get the repository, or pass the provider
+      // For simplicity, let's assume we can use the provider's logic or move scanning to provider
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,15 +81,29 @@ class PosScreen extends StatelessWidget {
                               const SizedBox(width: 16),
                               Expanded(
                                 child: CustomTextField(
+                                  controller: _barcodeController,
                                   label: 'Scan Barcode',
                                   hint: 'Enter barcode...',
                                   prefixIcon: LucideIcons.scanLine,
                                   autofocus: true,
-                                  onSubmitted: (barcode) {
+                                  onSubmitted: (barcode) async {
                                     if (barcode.isEmpty) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Product lookup not wired yet.')),
+                                    
+                                    final success = await pos.handleBarcode(
+                                      barcode, 
+                                      context.read<ProductRepository>(),
                                     );
+
+                                    if (!success && mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(pos.error ?? 'Product not found'),
+                                          backgroundColor: Theme.of(context).colorScheme.error,
+                                        ),
+                                      );
+                                    }
+                                    
+                                    _barcodeController.clear();
                                   },
                                 ),
                               ),
@@ -74,13 +111,12 @@ class PosScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 24),
-                        // Usually you'd put a grid of quick-add products here
                         Expanded(
                           child: Container(
                             decoration: BoxDecoration(
                               color: Theme.of(context).cardTheme.color,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Theme.of(context).dividerTheme.color!),
+                              border: Border.all(color: Theme.of(context).dividerTheme.color ?? Colors.grey.shade300),
                             ),
                             child: const Center(
                               child: Text('Product Grid Placeholder\n(Quick access categories)'),
@@ -100,7 +136,7 @@ class PosScreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: Theme.of(context).cardTheme.color,
               border: Border(
-                left: BorderSide(color: Theme.of(context).dividerTheme.color!),
+                left: BorderSide(color: Theme.of(context).dividerTheme.color ?? Colors.grey.shade300),
               ),
             ),
             child: Column(
@@ -115,23 +151,28 @@ class PosScreen extends StatelessWidget {
                           Text('Current Order', style: Theme.of(context).textTheme.titleLarge),
                           IconButton(
                             onPressed: () {},
-                            icon: Icon(LucideIcons.moreHorizontal),
+                            icon: const Icon(LucideIcons.moreHorizontal),
                           ),
                         ],
                       ),
                       const SizedBox(height: 16),
-                      DropdownButtonFormField<Customer?>(
+                      AppDropdown<dynamic>(
+                        hint: 'Select Customer',
+                        prefixIcon: LucideIcons.user,
                         value: pos.selectedCustomer,
-                        decoration: InputDecoration(
-                          hintText: 'Select Customer',
-                          prefixIcon: Icon(LucideIcons.user, size: 18),
-                          filled: true,
-                          fillColor: Theme.of(context).scaffoldBackgroundColor,
-                        ),
                         items: [
-                          const DropdownMenuItem<Customer?>(value: null, child: Text('Walk-in Customer')),
+                          const AppDropdownItem<dynamic>(
+                            value: null,
+                            label: 'Walk-in Customer',
+                            icon: LucideIcons.userX,
+                          ),
                           ...customers.map(
-                            (c) => DropdownMenuItem<Customer?>(value: c, child: Text(c.name)),
+                            (c) => AppDropdownItem<dynamic>(
+                              value: c,
+                              label: c.name,
+                              subtitle: c.phone,
+                              icon: LucideIcons.userCheck,
+                            ),
                           ),
                         ],
                         onChanged: (c) => pos.setCustomer(c),
@@ -151,7 +192,7 @@ class PosScreen extends StatelessWidget {
                   ),
                 ),
                 const Divider(height: 1),
-                _CheckoutSummary(),
+                const _CheckoutSummary(),
               ],
             ),
           ),
@@ -180,9 +221,9 @@ class _ModernCartRow extends StatelessWidget {
             decoration: BoxDecoration(
               color: Theme.of(context).scaffoldBackgroundColor,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Theme.of(context).dividerTheme.color!),
+              border: Border.all(color: Theme.of(context).dividerTheme.color ?? Colors.grey.shade300),
             ),
-            child: Icon(LucideIcons.package, size: 20),
+            child: const Icon(LucideIcons.package, size: 20),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -190,12 +231,17 @@ class _ModernCartRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item.product.name,
+                  item.productName,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
                 ),
+                if (item.variantName.isNotEmpty)
+                  Text(
+                    item.variantName,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                 const SizedBox(height: 4),
                 Text(
-                  'Rs ${item.product.sellingPrice.toStringAsFixed(2)}',
+                  'Rs ${item.unitPrice.toStringAsFixed(2)}',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.secondary,
                   ),
@@ -205,7 +251,7 @@ class _ModernCartRow extends StatelessWidget {
                   children: [
                     _QuantityButton(
                       icon: LucideIcons.minus,
-                      onTap: () => pos.decrementQuantity(item.product),
+                      onTap: () => pos.decrementQuantity(item.variantId),
                     ),
                     SizedBox(
                       width: 40,
@@ -217,7 +263,7 @@ class _ModernCartRow extends StatelessWidget {
                     ),
                     _QuantityButton(
                       icon: LucideIcons.plus,
-                      onTap: () => pos.incrementQuantity(item.product),
+                      onTap: () => pos.incrementQuantity(item.variantId),
                     ),
                   ],
                 ),
@@ -233,9 +279,9 @@ class _ModernCartRow extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               IconButton(
-                icon: Icon(LucideIcons.trash2, size: 18),
+                icon: const Icon(LucideIcons.trash2, size: 18),
                 color: Theme.of(context).colorScheme.error,
-                onPressed: () => pos.removeProduct(item.product),
+                onPressed: () => pos.removeFromCart(item.variantId),
               ),
             ],
           ),
@@ -259,7 +305,7 @@ class _QuantityButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          border: Border.all(color: Theme.of(context).dividerTheme.color!),
+          border: Border.all(color: Theme.of(context).dividerTheme.color ?? Colors.grey.shade300),
           borderRadius: BorderRadius.circular(4),
         ),
         child: Icon(icon, size: 14),
@@ -269,6 +315,8 @@ class _QuantityButton extends StatelessWidget {
 }
 
 class _CheckoutSummary extends StatelessWidget {
+  const _CheckoutSummary();
+
   @override
   Widget build(BuildContext context) {
     final pos = context.watch<PosProvider>();
@@ -279,16 +327,16 @@ class _CheckoutSummary extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Subtotal', style: Theme.of(context).textTheme.bodyMedium),
-              Text('Rs ${pos.total.toStringAsFixed(2)}', style: Theme.of(context).textTheme.bodyMedium),
+              const Text('Subtotal'),
+              Text('Rs ${pos.subtotal.toStringAsFixed(2)}'),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Tax', style: Theme.of(context).textTheme.bodyMedium),
-              Text('Rs 0.00', style: Theme.of(context).textTheme.bodyMedium),
+              const Text('Tax'),
+              Text('Rs ${pos.taxAmount.toStringAsFixed(2)}'),
             ],
           ),
           const SizedBox(height: 16),
@@ -297,7 +345,7 @@ class _CheckoutSummary extends StatelessWidget {
             children: [
               Text('Total', style: Theme.of(context).textTheme.titleLarge),
               Text(
-                'Rs ${pos.total.toStringAsFixed(2)}',
+                'Rs ${pos.totalAmount.toStringAsFixed(2)}',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
               ),
             ],
@@ -306,11 +354,26 @@ class _CheckoutSummary extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: pos.cartItems.isEmpty ? null : () {},
+              onPressed: pos.cartItems.isEmpty ? null : () {
+                pos.processCheckout(
+                  onSuccess: (id, inv) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Checkout successful! Invoice: $inv')),
+                    );
+                  },
+                  onError: (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e')),
+                    );
+                  },
+                );
+              },
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 20),
               ),
-              child: const Text('Checkout', style: TextStyle(fontSize: 16)),
+              child: pos.isProcessing 
+                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : const Text('Checkout', style: TextStyle(fontSize: 16)),
             ),
           ),
           const SizedBox(height: 12),

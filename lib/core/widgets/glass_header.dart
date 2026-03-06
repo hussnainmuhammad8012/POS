@@ -20,7 +20,7 @@ class GlassHeader extends StatelessWidget {
         color: Theme.of(context).scaffoldBackgroundColor,
         border: Border(
           bottom: BorderSide(
-            color: Theme.of(context).dividerTheme.color!,
+            color: Theme.of(context).dividerTheme.color ?? Colors.grey.shade300,
             width: 1,
           ),
         ),

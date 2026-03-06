@@ -2,17 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/models/entities.dart';
-import '../../../core/widgets/badge_widget.dart';
-import '../../../core/widgets/custom_text_field.dart';
 import '../../../core/widgets/glass_header.dart';
-import '../../../core/widgets/modern_card.dart';
 import '../application/inventory_provider.dart';
+import '../application/stock_provider.dart';
+import 'widgets/category_tab.dart';
+import 'widgets/products_tab.dart';
+import 'widgets/stock_tab.dart';
+import 'widgets/add_category_dialog.dart';
+import 'widgets/add_product_dialog.dart';
 
-class InventoryScreen extends StatelessWidget {
+class InventoryScreen extends StatefulWidget {
   static const routeName = '/inventory';
 
   const InventoryScreen({super.key});
+
+  @override
+  State<InventoryScreen> createState() => _InventoryScreenState();
+}
+
+class _InventoryScreenState extends State<InventoryScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Initialize providers when the screen is first loaded
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<InventoryProvider>().initialize();
+      context.read<StockProvider>().initialize();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,14 +43,14 @@ class InventoryScreen extends StatelessWidget {
             actions: [
               OutlinedButton.icon(
                 onPressed: () {},
-                icon: Icon(LucideIcons.download),
+                icon: const Icon(LucideIcons.download),
                 label: const Text('Export'),
               ),
               const SizedBox(width: 12),
               ElevatedButton.icon(
-                onPressed: () {},
-                icon: Icon(LucideIcons.plus),
-                label: const Text('Add Product'),
+                onPressed: () => _showAddDialog(context),
+                icon: const Icon(LucideIcons.plus),
+                label: const Text('Add New'),
               ),
             ],
           ),
@@ -41,6 +58,42 @@ class InventoryScreen extends StatelessWidget {
             child: _InventoryTabs(),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showAddDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('What would you like to add?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(LucideIcons.package),
+              title: const Text('New Product'),
+              onTap: () {
+                Navigator.pop(context);
+                showDialog(
+                  context: context,
+                  builder: (context) => const AddProductDialog(),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(LucideIcons.folder),
+              title: const Text('New Category'),
+              onTap: () {
+                Navigator.pop(context);
+                showDialog(
+                  context: context,
+                  builder: (context) => const AddCategoryDialog(),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -74,10 +127,11 @@ class _InventoryTabsState extends State<_InventoryTabs>
     return Column(
       children: [
         Container(
+          height: 50,
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                color: Theme.of(context).dividerTheme.color!,
+                color: Theme.of(context).dividerTheme.color ?? Colors.grey.shade300,
               ),
             ),
           ),
@@ -86,15 +140,15 @@ class _InventoryTabsState extends State<_InventoryTabs>
             child: TabBar(
               controller: _tabController,
               isScrollable: true,
-              labelPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              labelPadding: const EdgeInsets.symmetric(horizontal: 24),
               indicatorColor: Theme.of(context).colorScheme.primary,
-              indicatorWeight: 2,
-              labelColor: Theme.of(context).textTheme.bodyLarge?.color,
-              unselectedLabelColor: Theme.of(context).colorScheme.secondary,
+              indicatorWeight: 3,
+              labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
               tabs: const [
-                Text('Products'),
-                Text('Categories'),
-                Text('Stock Movements'),
+                Tab(text: 'Products'),
+                Tab(text: 'Categories'),
+                Tab(text: 'Stock Movements'),
               ],
             ),
           ),
@@ -102,144 +156,14 @@ class _InventoryTabsState extends State<_InventoryTabs>
         Expanded(
           child: TabBarView(
             controller: _tabController,
-            children: [
-              _ProductsTab(),
-              Center(child: Text('Categories Content')),
-              Center(child: Text('Stock Movements Content')),
+            children: const [
+              ProductsTab(),
+              CategoryTab(),
+              StockTab(),
             ],
           ),
         ),
       ],
-    );
-  }
-}
-
-class _ProductsTab extends StatefulWidget {
-  const _ProductsTab();
-
-  @override
-  State<_ProductsTab> createState() => _ProductsTabState();
-}
-
-class _ProductsTabState extends State<_ProductsTab> {
-  String _searchQuery = '';
-
-  @override
-  Widget build(BuildContext context) {
-    final provider = context.watch<InventoryProvider>();
-    final products = provider.products.where((p) {
-      if (_searchQuery.isEmpty) return true;
-      return p.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          (p.barcode != null && p.barcode!.contains(_searchQuery));
-    }).toList();
-
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: ModernCard(
-        padding: EdgeInsets.zero,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: CustomTextField(
-                label: 'Search Products',
-                prefixIcon: LucideIcons.search,
-                hint: 'Filter by name or barcode...',
-                onChanged: (v) => setState(() => _searchQuery = v),
-              ),
-            ),
-            const Divider(height: 1),
-            if (products.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 48.0),
-                child: Center(
-                  child: Column(
-                    children: [
-                      Icon(LucideIcons.packageSearch, size: 48, color: Theme.of(context).colorScheme.secondary.withOpacity(0.5)),
-                      const SizedBox(height: 16),
-                      Text('No products found', style: Theme.of(context).textTheme.bodyLarge),
-                    ],
-                  ),
-                ),
-              )
-            else
-              Expanded(
-                child: SingleChildScrollView(
-                  child: DataTable(
-                    dividerThickness: 1,
-                    headingRowColor: WidgetStateProperty.resolveWith(
-                      (states) => Theme.of(context).scaffoldBackgroundColor,
-                    ),
-                    columns: const [
-                      DataColumn(label: Text('Name')),
-                      DataColumn(label: Text('Barcode')),
-                      DataColumn(label: Text('Price')),
-                      DataColumn(label: Text('Stock')),
-                      DataColumn(label: Text('Status')),
-                      DataColumn(label: Text('')),
-                    ],
-                    rows: products.map((product) {
-                      final bool isLow = product.currentStock <= product.lowStockThreshold;
-                      final bool isOut = product.currentStock <= 0;
-                      
-                      BadgeType type = BadgeType.success;
-                      String label = 'In Stock';
-                      if (isOut) {
-                        type = BadgeType.error;
-                        label = 'Out of Stock';
-                      } else if (isLow) {
-                        type = BadgeType.warning;
-                        label = 'Low Stock';
-                      }
-
-                      return DataRow(
-                        cells: [
-                          DataCell(
-                            Row(
-                              children: [
-                                Container(
-                                  width: 32,
-                                  height: 32,
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context).scaffoldBackgroundColor,
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(color: Theme.of(context).dividerTheme.color!),
-                                  ),
-                                  child: Icon(LucideIcons.package, size: 16),
-                                ),
-                                const SizedBox(width: 12),
-                                Text(product.name, style: const TextStyle(fontWeight: FontWeight.w500)),
-                              ],
-                            )
-                          ),
-                          DataCell(Text(product.barcode ?? '-', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.secondary))),
-                          DataCell(Text('Rs ${product.sellingPrice.toStringAsFixed(2)}')),
-                          DataCell(Text(product.currentStock.toString())),
-                          DataCell(BadgeWidget(label: label, type: type)),
-                          DataCell(
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: Icon(LucideIcons.pencil, size: 18),
-                                  onPressed: () {},
-                                ),
-                                IconButton(
-                                  icon: Icon(LucideIcons.trash2, size: 18, color: Theme.of(context).colorScheme.error),
-                                  onPressed: () {},
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
     );
   }
 }

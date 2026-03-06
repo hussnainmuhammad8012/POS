@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
 class CustomTextField extends StatefulWidget {
-  final String label;
+  final String? label;
   final String? hint;
   final IconData? prefixIcon;
   final TextInputType keyboardType;
@@ -14,10 +14,12 @@ class CustomTextField extends StatefulWidget {
   final bool autofocus;
   final String? initialValue;
   final FocusNode? focusNode;
+  final String? Function(String?)? validator;
+  final int? maxLines;
 
   const CustomTextField({
     super.key,
-    required this.label,
+    this.label,
     this.hint,
     this.prefixIcon,
     this.keyboardType = TextInputType.text,
@@ -28,6 +30,8 @@ class CustomTextField extends StatefulWidget {
     this.autofocus = false,
     this.initialValue,
     this.focusNode,
+    this.validator,
+    this.maxLines = 1,
   });
 
   @override
@@ -62,13 +66,15 @@ class _CustomTextFieldState extends State<CustomTextField> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          widget.label,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-        ),
-        const SizedBox(height: 6),
+        if (widget.label != null) ...[  
+          Text(
+            widget.label!,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          const SizedBox(height: 6),
+        ],
         AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           decoration: BoxDecoration(
@@ -93,6 +99,8 @@ class _CustomTextFieldState extends State<CustomTextField> {
             onChanged: widget.onChanged,
             onFieldSubmitted: widget.onSubmitted,
             autofocus: widget.autofocus,
+            validator: widget.validator,
+            maxLines: widget.maxLines,
             decoration: InputDecoration(
               hintText: widget.hint,
               prefixIcon: widget.prefixIcon != null ? Icon(widget.prefixIcon, size: 18) : null,

@@ -1,104 +1,235 @@
-import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-
-import '../../../core/models/entities.dart';
-
-class CartItem {
-  final Product product;
-  int quantity;
-
-  CartItem({required this.product, this.quantity = 1});
-
-  double get subtotal => product.sellingPrice * quantity;
-}
+// lib/features/pos/application/pos_provider.dart
+import 'package:flutter/foundation.dart' hide Category, Transaction;
+import '../../../core/models/entities.dart'; 
+import '../../inventory/data/repositories/product_repository.dart';
 
 class PosProvider extends ChangeNotifier {
-  final Map<int, CartItem> _items = {};
-  String _currentBarcode = '';
+  // Cart items
+  List<CartItem> _cartItems = [];
+
+  // Transaction details
+  dynamic _selectedCustomer; 
+  String _paymentMethod = 'CASH'; 
+  double _discountAmount = 0;
+  double _taxPercentage = 0;
+  
+  // UI State
   int _bulkQuantity = 1;
-  Customer? _selectedCustomer;
 
-  String get currentBarcode => _currentBarcode;
+  // State
+  bool _isProcessing = false;
+  String? _error;
+
+  PosProvider();
+
+  // Getters
+  List<CartItem> get cartItems => _cartItems;
+  dynamic get selectedCustomer => _selectedCustomer;
+  String get paymentMethod => _paymentMethod;
+  double get discountAmount => _discountAmount;
+  double get taxPercentage => _taxPercentage;
   int get bulkQuantity => _bulkQuantity;
-  Customer? get selectedCustomer => _selectedCustomer;
+  bool get isProcessing => _isProcessing;
+  String? get error => _error;
 
-  List<CartItem> get cartItems => _items.values.toList();
+  // Calculations
+  double get subtotal =>
+      _cartItems.fold(0, (sum, item) => sum + (item.quantity * item.unitPrice));
 
-  double get total =>
-      _items.values.fold(0, (sum, item) => sum + item.subtotal);
+  double get taxAmount => subtotal * (_taxPercentage / 100);
 
-  void setBarcode(String value) {
-    _currentBarcode = value;
+  double get totalAmount => subtotal + taxAmount - _discountAmount;
+
+  double get total => totalAmount;
+
+  int get itemCount => _cartItems.length;
+
+  // UI Helpers
+  void setBulkQuantity(int quantity) {
+    _bulkQuantity = quantity;
     notifyListeners();
   }
 
-  void setBulkQuantity(int value) {
-    _bulkQuantity = value.clamp(1, 9999);
-    notifyListeners();
-  }
-
-  void setCustomer(Customer? customer) {
+  void setCustomer(dynamic customer) {
     _selectedCustomer = customer;
     notifyListeners();
   }
 
-  /// Adds a product to the cart. In a full implementation this would look up
-  /// the product from a repository by barcode; here we accept an instance so
-  /// the UI can wire it to data access.
-  void addProduct(Product product) {
-    final qtyToAdd = _bulkQuantity;
-    _bulkQuantity = 1;
-    _currentBarcode = '';
+  // Scanning Integration
+  Future<bool> handleBarcode(String barcode, ProductRepository repository) async {
+    try {
+      final variant = await repository.getVariantByBarcode(barcode);
+      if (variant == null) {
+        _error = 'Product not found for barcode: $barcode';
+        notifyListeners();
+        return false;
+      }
 
-    if (product.id == null) return;
-    final existing = _items[product.id!];
-    if (existing != null) {
-      existing.quantity += qtyToAdd;
-    } else {
-      _items[product.id!] = CartItem(product: product, quantity: qtyToAdd);
+      final productWithVariants = await repository.getProductWithVariants(variant.productId);
+      if (productWithVariants == null) return false;
+
+      final product = productWithVariants['product'];
+
+      addToCart(
+        variantId: variant.id,
+        productName: product.name,
+        variantName: variant.variantName ?? '',
+        unitPrice: variant.retailPrice,
+        quantity: _bulkQuantity,
+        profitMargin: variant.retailPrice - variant.costPrice,
+      );
+
+      _error = null;
+      return true;
+    } catch (e) {
+      _error = 'Error scanning barcode: $e';
+      notifyListeners();
+      return false;
     }
+  }
+
+  // Cart Operations
+  void addToCart({
+    required String variantId,
+    required String productName,
+    required String variantName,
+    required double unitPrice,
+    required int quantity,
+    String? cartonId,
+    double profitMargin = 0,
+  }) {
+    final existingIndex =
+        _cartItems.indexWhere((item) => item.variantId == variantId);
+
+    if (existingIndex >= 0) {
+      _cartItems[existingIndex].quantity += quantity;
+    } else {
+      _cartItems.add(
+        CartItem(
+          id: 'cart_${DateTime.now().millisecondsSinceEpoch}',
+          variantId: variantId,
+          productName: productName,
+          variantName: variantName,
+          unitPrice: unitPrice,
+          quantity: quantity,
+          cartonId: cartonId,
+          profitMargin: profitMargin,
+        ),
+      );
+    }
+
+    _error = null;
     notifyListeners();
   }
 
-  void incrementQuantity(Product product) {
-    if (product.id == null) return;
-    final existing = _items[product.id!];
-    if (existing != null) {
-      existing.quantity++;
+  void incrementQuantity(String variantId) {
+    final index = _cartItems.indexWhere((item) => item.variantId == variantId);
+    if (index >= 0) {
+      _cartItems[index].quantity += 1;
       notifyListeners();
     }
   }
 
-  void decrementQuantity(Product product) {
-    if (product.id == null) return;
-    final existing = _items[product.id!];
-    if (existing != null) {
-      if (existing.quantity > 1) {
-        existing.quantity--;
+  void decrementQuantity(String variantId) {
+    final index = _cartItems.indexWhere((item) => item.variantId == variantId);
+    if (index >= 0) {
+      if (_cartItems[index].quantity > 1) {
+        _cartItems[index].quantity -= 1;
       } else {
-        _items.remove(product.id!);
+        _cartItems.removeAt(index);
       }
       notifyListeners();
     }
   }
 
-  void removeProduct(Product product) {
-    if (product.id == null) return;
-    _items.remove(product.id!);
+  void removeFromCart(String variantId) {
+    _cartItems.removeWhere((item) => item.variantId == variantId);
     notifyListeners();
+  }
+  
+  void removeProduct(dynamic product) {
+    removeFromCart(product.id.toString());
   }
 
   void clearCart() {
-    _items.clear();
+    _cartItems.clear();
     _selectedCustomer = null;
-    _currentBarcode = '';
+    _paymentMethod = 'CASH';
+    _discountAmount = 0;
     _bulkQuantity = 1;
     notifyListeners();
   }
 
-  String generateInvoiceNumber() {
-    final now = DateTime.now();
-    return 'INV-${DateFormat('yyyyMMdd-HHmmss').format(now)}';
+  // Payment & Discount
+  void setPaymentMethod(String method) {
+    _paymentMethod = method;
+    _error = null;
+    notifyListeners();
+  }
+
+  void setDiscountAmount(double amount) {
+    _discountAmount = amount;
+    notifyListeners();
+  }
+
+  // Checkout
+  Future<String?> processCheckout({
+    required Function(String transactionId, String invoice) onSuccess,
+    required Function(dynamic error) onError,
+  }) async {
+    if (_cartItems.isEmpty) {
+      _error = 'Cart is empty';
+      notifyListeners();
+      return null;
+    }
+
+    _isProcessing = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await Future.delayed(const Duration(seconds: 1)); 
+      
+      final transactionId = 'txn_${DateTime.now().millisecondsSinceEpoch}';
+      final invoiceNumber = 'INV-${DateTime.now().millisecondsSinceEpoch}';
+
+      _isProcessing = false;
+      notifyListeners();
+
+      onSuccess(transactionId, invoiceNumber);
+      clearCart();
+
+      return transactionId;
+    } catch (e) {
+      _error = 'Checkout failed: $e';
+      _isProcessing = false;
+      notifyListeners();
+      onError(e);
+      return null;
+    }
   }
 }
 
+class CartItem {
+  final String id;
+  final String variantId;
+  final String productName;
+  final String variantName;
+  final double unitPrice;
+  int quantity;
+  final String? cartonId;
+  final double profitMargin;
+
+  CartItem({
+    required this.id,
+    required this.variantId,
+    required this.productName,
+    required this.variantName,
+    required this.unitPrice,
+    required this.quantity,
+    this.cartonId,
+    required this.profitMargin,
+  });
+
+  double get subtotal => unitPrice * quantity;
+}
