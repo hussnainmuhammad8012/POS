@@ -3,10 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../../application/inventory_provider.dart';
+import '../../data/models/product_summary_model.dart';
 import '../../../../core/widgets/modern_card.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../../../../core/widgets/badge_widget.dart';
 import '../../../../core/widgets/app_dropdown.dart';
+import '../product_details_screen.dart';
+import 'add_product_dialog.dart';
 
 class ProductsTab extends StatefulWidget {
   const ProductsTab({super.key});
@@ -30,47 +33,114 @@ class _ProductsTabState extends State<ProductsTab> {
           children: [
             Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              child: Column(
                 children: [
-                  // Search bar — no label so it sits flush with the dropdown
-                  Expanded(
-                    child: CustomTextField(
-                      prefixIcon: LucideIcons.search,
-                      hint: 'Filter by name or SKU...',
-                      onChanged: (v) => provider.setSearchQuery(v),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Category filter using AppDropdown, fixed width for clean parallel look
-                  SizedBox(
-                    width: 220,
-                    child: AppDropdown<String?>(
-                      hint: 'All Categories',
-                      prefixIcon: LucideIcons.layoutGrid,
-                      value: provider.selectedCategoryId,
-                      items: [
-                        const AppDropdownItem<String?>(
-                          value: null,
-                          label: 'All Categories',
-                          icon: LucideIcons.layoutGrid,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      // Search bar — no label so it sits flush with the dropdown
+                      Expanded(
+                        flex: 2,
+                        child: CustomTextField(
+                          prefixIcon: LucideIcons.search,
+                          hint: 'Filter by name or SKU...',
+                          onChanged: (v) => provider.setSearchQuery(v),
                         ),
-                        ...provider.categories.expand((c) => [
-                          AppDropdownItem<String?>(
-                            value: c.id,
-                            label: c.name,
-                            icon: LucideIcons.folder,
+                      ),
+                      const SizedBox(width: 12),
+                      // Category filter using AppDropdown, fixed width for clean parallel look
+                      Expanded(
+                        flex: 1,
+                        child: AppDropdown<String?>(
+                          hint: 'All Categories',
+                          prefixIcon: LucideIcons.layoutGrid,
+                          value: provider.selectedCategoryId,
+                          items: [
+                            const AppDropdownItem<String?>(
+                              value: null,
+                              label: 'All Categories',
+                              icon: LucideIcons.layoutGrid,
+                            ),
+                            ...provider.categories.expand((c) => [
+                              AppDropdownItem<String?>(
+                                value: c.id,
+                                label: c.name,
+                                icon: LucideIcons.folder,
+                              ),
+                              ...c.subcategories.map((s) => AppDropdownItem<String?>(
+                                value: s.id,
+                                label: s.name,
+                                subtitle: c.name,
+                                icon: LucideIcons.folderOpen,
+                              )),
+                            ]),
+                          ],
+                          onChanged: (v) => provider.setSelectedCategory(v),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CustomTextField(
+                          prefixIcon: LucideIcons.dollarSign,
+                          hint: 'Min Price',
+                          keyboardType: TextInputType.number,
+                          onChanged: (v) => provider.setPriceRange(
+                            double.tryParse(v) ?? 0, 
+                            provider.maxPrice,
                           ),
-                          ...c.subcategories.map((s) => AppDropdownItem<String?>(
-                            value: s.id,
-                            label: s.name,
-                            subtitle: c.name,
-                            icon: LucideIcons.folderOpen,
-                          )),
-                        ]),
-                      ],
-                      onChanged: (v) => provider.setSelectedCategory(v),
-                    ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: CustomTextField(
+                          prefixIcon: LucideIcons.dollarSign,
+                          hint: 'Max Price',
+                          keyboardType: TextInputType.number,
+                          onChanged: (v) => provider.setPriceRange(
+                            provider.minPrice, 
+                            double.tryParse(v) ?? double.infinity,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: CustomTextField(
+                          prefixIcon: LucideIcons.boxes,
+                          hint: 'Min Stock',
+                          keyboardType: TextInputType.number,
+                          onChanged: (v) => provider.setStockRange(
+                            int.tryParse(v) ?? 0, 
+                            provider.maxStock,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: CustomTextField(
+                          prefixIcon: LucideIcons.boxes,
+                          hint: 'Max Stock',
+                          keyboardType: TextInputType.number,
+                          onChanged: (v) => provider.setStockRange(
+                            provider.minStock, 
+                            int.tryParse(v) ?? 999999,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: provider.showLowStockOnly,
+                            onChanged: (v) => provider.setShowLowStockOnly(v ?? false),
+                          ),
+                          const Text('Low Stock Only', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                        ],
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -91,11 +161,12 @@ class _ProductsTabState extends State<ProductsTab> {
                         DataColumn(label: Text('Product')),
                         DataColumn(label: Text('SKU')),
                         DataColumn(label: Text('Category')),
+                        DataColumn(label: Text('Prices')),
+                        DataColumn(label: Text('Current Stock')),
                         DataColumn(label: Text('Unit')),
-                        DataColumn(label: Text('Status')),
                         DataColumn(label: Text('Actions')),
                       ],
-                      rows: products.map((product) => _buildProductRow(context, product)).toList(),
+                      rows: products.map((product) => _buildProductRow(context, product, provider)).toList(),
                     ),
                   ),
                 ),
@@ -107,26 +178,102 @@ class _ProductsTabState extends State<ProductsTab> {
   }
 
 
-  DataRow _buildProductRow(BuildContext context, dynamic product) {
+  DataRow _buildProductRow(BuildContext context, ProductSummary summary, InventoryProvider provider) {
+    final product = summary.product;
     return DataRow(
+      color: WidgetStateProperty.resolveWith<Color?>(
+        (Set<WidgetState> states) {
+          if (summary.isLowStockWarning) {
+            return Colors.orange.withOpacity(0.1);
+          }
+          return null; // Use default value for other states and when not in warning
+        },
+      ),
       cells: [
         DataCell(Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold))),
         DataCell(Text(product.baseSku)),
-        DataCell(Text('Category ID: ${product.categoryId}')), // Replace with category name lookup if needed
+        DataCell(Text(summary.categoryName ?? 'Unknown')),
+        DataCell(Text(summary.priceRange)),
+        DataCell(
+          Text(
+            summary.totalStock.toString(),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: summary.isLowStockWarning ? Colors.orange.shade700 : null,
+            ),
+          )
+        ),
         DataCell(Text(product.unitType)),
-        DataCell(BadgeWidget(
-          label: product.isActive ? 'Active' : 'Inactive',
-          type: product.isActive ? BadgeType.success : BadgeType.error,
-        )),
         DataCell(
           Row(
             children: [
-              IconButton(icon: const Icon(LucideIcons.eye, size: 18), onPressed: () {}),
-              IconButton(icon: const Icon(LucideIcons.pencil, size: 18), onPressed: () {}),
+              IconButton(icon: const Icon(LucideIcons.eye, size: 18), onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ProductDetailsScreen(productSummary: summary),
+                  ),
+                );
+              }),
+              IconButton(icon: const Icon(LucideIcons.pencil, size: 18), onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AddProductDialog(initialProduct: summary),
+                );
+              }),
+              IconButton(
+                icon: const Icon(LucideIcons.trash2, size: 18, color: Colors.red), 
+                onPressed: () {
+                  _showDeleteConfirmation(context, summary, provider);
+                }
+              ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  void _showDeleteConfirmation(BuildContext context, ProductSummary summary, InventoryProvider provider) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(LucideIcons.alertTriangle, color: Colors.red),
+            const SizedBox(width: 8),
+            const Text('Delete Product'),
+          ],
+        ),
+        content: Text('Are you sure you want to delete ${summary.product.name}? This action cannot be undone and will soft-delete its variants as well.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await provider.deleteProduct(summary.product.id);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Product deleted successfully'), backgroundColor: Colors.green),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to delete: $e'), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
     );
   }
 

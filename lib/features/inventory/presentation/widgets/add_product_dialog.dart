@@ -8,9 +8,12 @@ import '../../application/inventory_provider.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../../../../core/widgets/app_dropdown.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../data/models/product_summary_model.dart';
 
 class AddProductDialog extends StatefulWidget {
-  const AddProductDialog({super.key});
+  final ProductSummary? initialProduct;
+
+  const AddProductDialog({super.key, this.initialProduct});
 
   @override
   State<AddProductDialog> createState() => _AddProductDialogState();
@@ -18,6 +21,7 @@ class AddProductDialog extends StatefulWidget {
 
 class _AddProductDialogState extends State<AddProductDialog> {
   final _formKey = GlobalKey<FormState>();
+  final _scrollController = ScrollController();
   int _currentStep = 0;
   bool _isSaving = false;
 
@@ -40,6 +44,40 @@ class _AddProductDialogState extends State<AddProductDialog> {
   final _initialStockController = TextEditingController(text: '0');
   final _lowStockThresholdController = TextEditingController(text: '10');
 
+  bool get isEditing => widget.initialProduct != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (isEditing) {
+      final p = widget.initialProduct!.product;
+      _nameController.text = p.name;
+      _skuController.text = p.baseSku;
+      _descriptionController.text = p.description ?? '';
+      _selectedCategoryId = p.categoryId;
+      _selectedImagePath = p.mainImagePath;
+      _unitController.text = p.unitType;
+      
+      // Pricing
+      _costPriceController.text = widget.initialProduct!.costPrice?.toString() ?? '';
+      _retailPriceController.text = widget.initialProduct!.minPrice.toString();
+      _wholesalePriceController.text = widget.initialProduct!.wholesalePrice?.toString() ?? '';
+      _mrpController.text = widget.initialProduct!.mrp?.toString() ?? '';
+      _barcodeController.text = widget.initialProduct!.barcode ?? '';
+
+      // Stock
+      _initialStockController.text = widget.initialProduct!.totalStock.toString();
+      // Assume lowStockThreshold defaults to 10 if we didn't fetch it explicitly in summary, 
+      // but if we did, we would map it here. For now, leave it as default or clear it.
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<InventoryProvider>();
@@ -49,7 +87,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
         children: [
           Icon(LucideIcons.packagePlus, color: Theme.of(context).primaryColor),
           const SizedBox(width: 12),
-          const Text('New Product Creation'),
+          Text(isEditing ? 'Edit Product' : 'New Product Creation'),
         ],
       ),
       content: Container(
@@ -72,8 +110,10 @@ class _AddProductDialogState extends State<AddProductDialog> {
                   ),
                 ),
                 child: Scrollbar(
+                  controller: _scrollController,
                   thumbVisibility: true,
                   child: SingleChildScrollView(
+                    controller: _scrollController,
                     child: Padding(
                       padding: const EdgeInsets.only(right: 16.0),
                       child: Form(
@@ -108,7 +148,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
           onPressed: _isSaving ? null : () => _handleNext(provider),
           child: _isSaving 
             ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : Text(_currentStep < 2 ? 'Next' : 'Create Product'),
+            : Text(_currentStep < 2 ? 'Next' : (isEditing ? 'Save Changes' : 'Create Product')),
         ),
       ],
     );
@@ -434,6 +474,37 @@ class _AddProductDialogState extends State<AddProductDialog> {
     if (_currentStep < 2) {
       setState(() => _currentStep++);
     } else {
+      if (isEditing) {
+        setState(() => _isSaving = true);
+        try {
+          await provider.updateProduct(
+            widget.initialProduct!.product.id,
+            categoryId: _selectedCategoryId!,
+            name: _nameController.text,
+            baseSku: _skuController.text,
+            description: _descriptionController.text,
+            mainImagePath: _selectedImagePath,
+            unitType: _unitController.text,
+            costPrice: double.tryParse(_costPriceController.text) ?? 0.0,
+            retailPrice: double.tryParse(_retailPriceController.text) ?? 0.0,
+            wholesalePrice: _wholesalePriceController.text.isEmpty ? null : double.tryParse(_wholesalePriceController.text),
+            mrp: _mrpController.text.isEmpty ? null : double.tryParse(_mrpController.text),
+            barcode: _barcodeController.text.isEmpty ? null : _barcodeController.text,
+            initialStock: int.tryParse(_initialStockController.text) ?? 0,
+            lowStockThreshold: int.tryParse(_lowStockThresholdController.text) ?? 10,
+          );
+          if (mounted) Navigator.pop(context);
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.DANGER),
+            );
+          }
+        } finally {
+          if (mounted) setState(() => _isSaving = false);
+        }
+        return;
+      }
       setState(() => _isSaving = true);
       try {
         // 1. Create Product

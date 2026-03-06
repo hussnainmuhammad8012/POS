@@ -2,6 +2,7 @@
 import 'package:flutter/foundation.dart' hide Category;
 import '../data/models/category_model.dart';
 import '../data/models/product_model.dart';
+import '../data/models/product_summary_model.dart';
 import '../data/models/product_variant_model.dart';
 import '../data/repositories/category_repository.dart';
 import '../data/repositories/product_repository.dart';
@@ -12,7 +13,7 @@ class InventoryProvider extends ChangeNotifier {
 
   // State
   List<Category> _categories = [];
-  List<Product> _products = [];
+  List<ProductSummary> _products = [];
   
   // Filters
   String? _selectedCategoryId;
@@ -35,12 +36,16 @@ class InventoryProvider extends ChangeNotifier {
 
   // Getters
   List<Category> get categories => _categories;
-  List<Product> get filteredProducts => _getFilteredProducts();
+  List<ProductSummary> get filteredProducts => _getFilteredProducts();
   bool get isLoading => _isLoading;
   String? get error => _error;
   String? get selectedCategoryId => _selectedCategoryId;
-
-  // Initialize
+  
+  double get minPrice => _minPrice;
+  double get maxPrice => _maxPrice;
+  int get minStock => _minStock;
+  int get maxStock => _maxStock;
+  bool get showLowStockOnly => _showLowStockOnly;
   Future<void> initialize() async {
     _setLoading(true);
     try {
@@ -67,7 +72,7 @@ class InventoryProvider extends ChangeNotifier {
   // Load products
   Future<void> loadProducts() async {
     try {
-      _products = await _productRepository.getAllProducts();
+      _products = await _productRepository.getAllProductSummaries();
       notifyListeners();
     } catch (e) {
       _error = 'Failed to load products: $e';
@@ -125,6 +130,36 @@ class InventoryProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> updateProduct(String id, {
+    String? categoryId,
+    String? name,
+    String? baseSku,
+    String? description,
+    String? mainImagePath,
+    String? unitType,
+    double? costPrice,
+    double? retailPrice,
+    double? wholesalePrice,
+    double? mrp,
+    String? barcode,
+    int? initialStock,
+    int? lowStockThreshold,
+  }) async {
+    try {
+      await _productRepository.updateProduct(id, 
+        categoryId: categoryId, name: name, baseSku: baseSku, 
+        description: description, mainImagePath: mainImagePath, unitType: unitType,
+        costPrice: costPrice, retailPrice: retailPrice, wholesalePrice: wholesalePrice,
+        mrp: mrp, barcode: barcode, initialStock: initialStock, lowStockThreshold: lowStockThreshold,
+      );
+      await loadProducts();
+    } catch (e) {
+      _error = 'Failed to update product: $e';
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   Future<String> createProductVariant({
     required String productId,
     String? variantName,
@@ -161,6 +196,18 @@ class InventoryProvider extends ChangeNotifier {
     }
   }
 
+  // Delete product
+  Future<void> deleteProduct(String productId) async {
+    try {
+      await _productRepository.deleteProduct(productId);
+      await loadProducts();
+    } catch (e) {
+      _error = 'Failed to delete product: $e';
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   // Filtering
   void setSelectedCategory(String? categoryId) {
     _selectedCategoryId = categoryId;
@@ -172,17 +219,54 @@ class InventoryProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setPriceRange(double min, double max) {
+    _minPrice = min;
+    _maxPrice = max;
+    notifyListeners();
+  }
+
+  void setStockRange(int min, int max) {
+    _minStock = min;
+    _maxStock = max;
+    notifyListeners();
+  }
+
+  void setShowLowStockOnly(bool value) {
+    _showLowStockOnly = value;
+    notifyListeners();
+  }
+
+  void clearFilters() {
+    _selectedCategoryId = null;
+    _searchQuery = '';
+    _minPrice = 0;
+    _maxPrice = double.infinity;
+    _minStock = 0;
+    _maxStock = 999999;
+    _showLowStockOnly = false;
+    notifyListeners();
+  }
+
   // Private helper for filtering
-  List<Product> _getFilteredProducts() {
+  List<ProductSummary> _getFilteredProducts() {
     var filtered = _products;
     if (_selectedCategoryId != null) {
-      filtered = filtered.where((p) => p.categoryId == _selectedCategoryId).toList();
+      filtered = filtered.where((p) => p.product.categoryId == _selectedCategoryId).toList();
     }
     if (_searchQuery.isNotEmpty) {
       filtered = filtered.where((p) => 
-        p.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-        p.baseSku.toLowerCase().contains(_searchQuery.toLowerCase())
+        p.product.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+        p.product.baseSku.toLowerCase().contains(_searchQuery.toLowerCase())
       ).toList();
+    }
+    if (_minPrice > 0 || _maxPrice < double.infinity) {
+      filtered = filtered.where((p) => p.minPrice >= _minPrice && p.maxPrice <= _maxPrice).toList();
+    }
+    if (_minStock > 0 || _maxStock < 999999) {
+      filtered = filtered.where((p) => p.totalStock >= _minStock && p.totalStock <= _maxStock).toList();
+    }
+    if (_showLowStockOnly) {
+      filtered = filtered.where((p) => p.isLowStockWarning).toList();
     }
     return filtered;
   }
