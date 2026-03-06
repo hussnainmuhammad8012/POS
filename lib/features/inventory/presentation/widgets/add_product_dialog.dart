@@ -496,8 +496,16 @@ class _AddProductDialogState extends State<AddProductDialog> {
           if (mounted) Navigator.pop(context);
         } catch (e) {
           if (mounted) {
+            String errorMsg = e.toString();
+            if (errorMsg.contains('UNIQUE constraint failed: products.base_sku')) {
+              errorMsg = 'A product with this Base SKU already exists.';
+            } else if (errorMsg.contains('UNIQUE constraint failed: product_variants.barcode')) {
+              errorMsg = 'A product with this Barcode already exists.';
+            } else if (errorMsg.contains('UNIQUE constraint failed: product_variants.sku')) {
+              errorMsg = 'A product variant with this SKU already exists.';
+            }
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.DANGER),
+              SnackBar(content: Text(errorMsg), backgroundColor: AppColors.DANGER),
             );
           }
         } finally {
@@ -534,8 +542,16 @@ class _AddProductDialogState extends State<AddProductDialog> {
         if (mounted) Navigator.pop(context);
       } catch (e) {
         if (mounted) {
+            String errorMsg = e.toString();
+            if (errorMsg.contains('UNIQUE constraint failed: products.base_sku')) {
+              errorMsg = 'A product with this Base SKU already exists.';
+            } else if (errorMsg.contains('UNIQUE constraint failed: product_variants.barcode')) {
+              errorMsg = 'A product with this Barcode already exists.';
+            } else if (errorMsg.contains('UNIQUE constraint failed: product_variants.sku')) {
+              errorMsg = 'A product variant with this SKU already exists.';
+            }
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.DANGER),
+            SnackBar(content: Text(errorMsg), backgroundColor: AppColors.DANGER),
           );
         }
       } finally {
