@@ -21,6 +21,8 @@ class TransactionRepository {
         'discount': transaction.discount,
         'tax': transaction.tax,
         'final_amount': transaction.finalAmount,
+        'cash_paid': transaction.cashPaid,
+        'credit_amount': transaction.creditAmount,
         'payment_method': transaction.paymentMethod,
         'payment_status': transaction.paymentStatus,
         'created_at': transaction.createdAt.toIso8601String(),
@@ -78,6 +80,26 @@ class TransactionRepository {
         });
       }
 
+      // Automatically register Split Payment debts onto the Ledger
+      if (transaction.creditAmount > 0 && transaction.customerId != null) {
+         final ledgerId = 'cred_${DateTime.now().microsecondsSinceEpoch}';
+         await txn.insert('credit_ledgers', {
+            'id': ledgerId,
+            'customer_id': transaction.customerId,
+            'transaction_id': txId,
+            'type': 'CREDIT',
+            'amount': transaction.creditAmount,
+            'notes': 'POS Checkout Due',
+            'created_at': transaction.createdAt.toIso8601String(),
+         });
+
+         // Update the customer's aggregate cache directly in the transaction boundary
+         await txn.rawUpdate(
+           'UPDATE customers SET current_credit = current_credit + ? WHERE id = ?',
+           [transaction.creditAmount, transaction.customerId]
+         );
+      }
+
       return Transaction(
         id: txId,
         invoiceNumber: transaction.invoiceNumber,
@@ -86,6 +108,8 @@ class TransactionRepository {
         discount: transaction.discount,
         tax: transaction.tax,
         finalAmount: transaction.finalAmount,
+        cashPaid: transaction.cashPaid,
+        creditAmount: transaction.creditAmount,
         paymentMethod: transaction.paymentMethod,
         paymentStatus: transaction.paymentStatus,
         createdAt: transaction.createdAt,
@@ -171,6 +195,8 @@ class TransactionRepository {
       discount: (row['discount'] as num).toDouble(),
       tax: (row['tax'] as num).toDouble(),
       finalAmount: (row['final_amount'] as num).toDouble(),
+      cashPaid: (row['cash_paid'] as num?)?.toDouble() ?? 0.0,
+      creditAmount: (row['credit_amount'] as num?)?.toDouble() ?? 0.0,
       paymentMethod: row['payment_method'] as String,
       paymentStatus: row['payment_status'] as String,
       createdAt: DateTime.parse(row['created_at'] as String),

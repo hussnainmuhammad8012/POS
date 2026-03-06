@@ -95,9 +95,13 @@ class Customer {
   final String? id;
   final String name;
   final String? phone;
+  final String? whatsappNumber;
+  final String? address;
   final String? email;
   final int loyaltyPoints;
   final double totalSpent;
+  final double currentCredit;
+  final double creditLimit;
   final DateTime? lastPurchaseDate;
   final DateTime createdAt;
 
@@ -105,9 +109,13 @@ class Customer {
     this.id,
     required this.name,
     this.phone,
+    this.whatsappNumber,
+    this.address,
     this.email,
     this.loyaltyPoints = 0,
     this.totalSpent = 0,
+    this.currentCredit = 0.0,
+    this.creditLimit = 0.0,
     this.lastPurchaseDate,
     required this.createdAt,
   });
@@ -116,9 +124,13 @@ class Customer {
     String? id,
     String? name,
     String? phone,
+    String? whatsappNumber,
+    String? address,
     String? email,
     int? loyaltyPoints,
     double? totalSpent,
+    double? currentCredit,
+    double? creditLimit,
     DateTime? lastPurchaseDate,
     DateTime? createdAt,
   }) {
@@ -126,9 +138,13 @@ class Customer {
       id: id ?? this.id,
       name: name ?? this.name,
       phone: phone ?? this.phone,
+      whatsappNumber: whatsappNumber ?? this.whatsappNumber,
+      address: address ?? this.address,
       email: email ?? this.email,
       loyaltyPoints: loyaltyPoints ?? this.loyaltyPoints,
       totalSpent: totalSpent ?? this.totalSpent,
+      currentCredit: currentCredit ?? this.currentCredit,
+      creditLimit: creditLimit ?? this.creditLimit,
       lastPurchaseDate: lastPurchaseDate ?? this.lastPurchaseDate,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -144,6 +160,8 @@ class Transaction {
   final double discount;
   final double tax;
   final double finalAmount;
+  final double cashPaid;
+  final double creditAmount;
   final String paymentMethod;
   final String paymentStatus;
   final DateTime createdAt;
@@ -156,8 +174,33 @@ class Transaction {
     this.discount = 0,
     this.tax = 0,
     required this.finalAmount,
+    this.cashPaid = 0.0,
+    this.creditAmount = 0.0,
     required this.paymentMethod,
     required this.paymentStatus,
+    required this.createdAt,
+  });
+}
+
+@immutable
+class CreditLedger {
+  final String id;
+  final String customerId;
+  final String? transactionId;
+  final String type; // 'CREDIT' or 'PAYMENT'
+  final double amount;
+  final DateTime? dueDate;
+  final String? notes;
+  final DateTime createdAt;
+
+  const CreditLedger({
+    required this.id,
+    required this.customerId,
+    this.transactionId,
+    required this.type,
+    required this.amount,
+    this.dueDate,
+    this.notes,
     required this.createdAt,
   });
 }

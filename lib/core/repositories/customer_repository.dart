@@ -15,15 +15,22 @@ class CustomerRepository {
   }
 
   Future<Customer> insert(Customer customer) async {
-    final id = await _db.insert('customers', {
+    final id = customer.id ?? 'cust_${DateTime.now().microsecondsSinceEpoch}';
+    final payload = {
+      'id': id,
       'name': customer.name,
       'phone': customer.phone,
+      'whatsapp_number': customer.whatsappNumber,
+      'address': customer.address,
       'email': customer.email,
       'loyalty_points': customer.loyaltyPoints,
       'total_spent': customer.totalSpent,
+      'current_credit': customer.currentCredit,
+      'credit_limit': customer.creditLimit,
       'last_purchase_date': customer.lastPurchaseDate?.toIso8601String(),
       'created_at': customer.createdAt.toIso8601String(),
-    });
+    };
+    await _db.insert('customers', payload);
     return customer.copyWith(id: id);
   }
 
@@ -36,11 +43,14 @@ class CustomerRepository {
       {
         'name': customer.name,
         'phone': customer.phone,
+        'whatsapp_number': customer.whatsappNumber,
+        'address': customer.address,
         'email': customer.email,
         'loyalty_points': customer.loyaltyPoints,
         'total_spent': customer.totalSpent,
-        'last_purchase_date':
-            customer.lastPurchaseDate?.toIso8601String(),
+        'current_credit': customer.currentCredit,
+        'credit_limit': customer.creditLimit,
+        'last_purchase_date': customer.lastPurchaseDate?.toIso8601String(),
       },
       where: 'id = ?',
       whereArgs: [customer.id],
@@ -48,14 +58,26 @@ class CustomerRepository {
     return customer;
   }
 
+  Future<void> delete(String id) async {
+    await _db.delete(
+      'customers',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   Customer _fromRow(Map<String, Object?> row) {
     return Customer(
-      id: row['id'] as int,
+      id: row['id'] as String?,
       name: row['name'] as String,
       phone: row['phone'] as String?,
+      whatsappNumber: row['whatsapp_number'] as String?,
+      address: row['address'] as String?,
       email: row['email'] as String?,
-      loyaltyPoints: row['loyalty_points'] as int,
-      totalSpent: (row['total_spent'] as num).toDouble(),
+      loyaltyPoints: (row['loyalty_points'] as num?)?.toInt() ?? 0,
+      totalSpent: (row['total_spent'] as num?)?.toDouble() ?? 0.0,
+      currentCredit: (row['current_credit'] as num?)?.toDouble() ?? 0.0,
+      creditLimit: (row['credit_limit'] as num?)?.toDouble() ?? 0.0,
       lastPurchaseDate: row['last_purchase_date'] != null
           ? DateTime.parse(row['last_purchase_date'] as String)
           : null,

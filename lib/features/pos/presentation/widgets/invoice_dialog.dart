@@ -155,7 +155,10 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
           ),
           const SizedBox(height: 16),
           _buildReceiptRow('Date', DateFormat('MM/dd/yyyy HH:mm').format(widget.transaction.createdAt)),
+          if (widget.transaction.customerId != null)
+             _buildReceiptRow('Customer ID', widget.transaction.customerId!),
           _buildReceiptRow('Payment Method', widget.transaction.paymentMethod),
+          _buildReceiptRow('Status', widget.transaction.paymentStatus),
           const Divider(height: 32),
           
           ...widget.cartItems.map((CartItem item) => Padding(
@@ -202,6 +205,11 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
               ),
             ],
           ),
+          if (widget.transaction.creditAmount > 0) ...[
+            const Divider(height: 32),
+            _buildTotalRow('Paid in Cash', widget.transaction.cashPaid),
+            _buildTotalRow('Remaining Credit', widget.transaction.creditAmount),
+          ],
         ],
       ),
     );
@@ -305,6 +313,23 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
                   pw.Text(_currencyFormat.format(widget.transaction.finalAmount), style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
                 ],
               ),
+              if (widget.transaction.creditAmount > 0) ...[
+                pw.SizedBox(height: 5),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Cash Paid:', style: const pw.TextStyle(fontSize: 10)),
+                    pw.Text(_currencyFormat.format(widget.transaction.cashPaid), style: const pw.TextStyle(fontSize: 10)),
+                  ],
+                ),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('On Credit:', style: const pw.TextStyle(fontSize: 10)),
+                    pw.Text(_currencyFormat.format(widget.transaction.creditAmount), style: const pw.TextStyle(fontSize: 10)),
+                  ],
+                ),
+              ],
               pw.SizedBox(height: 20),
               pw.Center(
                 child: pw.Text('Thank you for shopping!', style: const pw.TextStyle(fontSize: 10)),

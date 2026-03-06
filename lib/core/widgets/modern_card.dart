@@ -9,6 +9,8 @@ class ModernCard extends StatefulWidget {
   final String? title;
   final Widget? trailing;
   final MainAxisSize mainAxisSize;
+  final VoidCallback? onTap;
+  final Color? borderColor;
 
   const ModernCard({
     super.key,
@@ -18,6 +20,8 @@ class ModernCard extends StatefulWidget {
     this.title,
     this.trailing,
     this.mainAxisSize = MainAxisSize.min,
+    this.onTap,
+    this.borderColor,
   });
 
   @override
@@ -33,7 +37,7 @@ class _ModernCardState extends State<ModernCard> {
     final isDark = theme.brightness == Brightness.dark;
     final primaryColor = theme.primaryColor;
 
-    return MouseRegion(
+    Widget current = MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: AnimatedContainer(
@@ -46,10 +50,10 @@ class _ModernCardState extends State<ModernCard> {
           color: theme.cardTheme.color,
           borderRadius: BorderRadius.circular(AppRadius.md),
           border: Border.all(
-            color: _isHovered 
+            color: widget.borderColor ?? (_isHovered 
                 ? primaryColor.withAlpha(100)
-                : Colors.transparent,
-            width: 1,
+                : Colors.transparent),
+            width: widget.borderColor != null || _isHovered ? 1 : 0,
           ),
           boxShadow: [
             if (_isHovered) ...[
@@ -117,5 +121,15 @@ class _ModernCardState extends State<ModernCard> {
         ),
       ),
     );
+
+    if (widget.onTap != null) {
+      current = InkWell(
+        onTap: widget.onTap,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: current,
+      );
+    }
+
+    return current;
   }
 }

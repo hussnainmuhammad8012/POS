@@ -12,7 +12,10 @@ import 'features/inventory/data/repositories/category_repository.dart';
 import 'features/inventory/data/repositories/product_repository.dart';
 import 'features/inventory/data/repositories/carton_repository.dart';
 import 'features/inventory/data/repositories/stock_movement_repository.dart';
+import 'core/repositories/customer_repository.dart';
+import 'core/repositories/credit_ledger_repository.dart';
 import 'features/customers/application/customers_provider.dart';
+import 'features/customers/application/credit_ledger_provider.dart';
 import 'features/analytics/application/analytics_provider.dart';
 import 'features/transactions/application/transactions_provider.dart';
 import 'core/repositories/transaction_repository.dart';
@@ -33,6 +36,8 @@ class UtilityStorePosApp extends StatelessWidget {
     final productRepo = ProductRepository(database: db);
     final cartonRepo = CartonRepository(database: db);
     final movementRepo = StockMovementRepository(database: db);
+    final customerRepo = CustomerRepository();
+    final creditLedgerRepo = CreditLedgerRepository();
     final transactionRepo = TransactionRepository();
 
     return MultiProvider(
@@ -42,6 +47,8 @@ class UtilityStorePosApp extends StatelessWidget {
         Provider<ProductRepository>.value(value: productRepo),
         Provider<CartonRepository>.value(value: cartonRepo),
         Provider<StockMovementRepository>.value(value: movementRepo),
+        Provider<CustomerRepository>.value(value: customerRepo),
+        Provider<CreditLedgerRepository>.value(value: creditLedgerRepo),
         Provider<TransactionRepository>.value(value: transactionRepo),
         
         // Providers
@@ -58,7 +65,8 @@ class UtilityStorePosApp extends StatelessWidget {
             movementRepository: movementRepo,
           ),
         ),
-        ChangeNotifierProvider(create: (_) => CustomersProvider()),
+        ChangeNotifierProvider(create: (_) => CustomersProvider(repository: customerRepo)),
+        ChangeNotifierProvider(create: (_) => CreditLedgerProvider(creditLedgerRepo)),
         ChangeNotifierProvider(create: (_) => AnalyticsProvider()),
         ChangeNotifierProvider(create: (_) => TransactionsProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),

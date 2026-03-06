@@ -7,6 +7,7 @@ import '../../features/inventory/presentation/inventory_screen.dart';
 import '../../features/customers/presentation/customers_screen.dart';
 import '../../features/transactions/presentation/transactions_screen.dart';
 import '../../features/analytics/presentation/analytics_screen.dart';
+import '../../features/customers/presentation/credits_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../theme/app_theme.dart';
 
@@ -26,6 +27,7 @@ class _NavShellState extends State<NavShell> {
     InventoryScreen(),
     CustomersScreen(),
     TransactionsScreen(),
+    CreditsScreen(),
     AnalyticsScreen(),
     SettingsScreen(),
   ];
@@ -82,6 +84,7 @@ class _Sidebar extends StatelessWidget {
       {'icon': LucideIcons.package2, 'label': 'Inventory'},
       {'icon': LucideIcons.users, 'label': 'Customers'},
       {'icon': LucideIcons.receipt, 'label': 'Transactions'},
+      {'icon': LucideIcons.landmark, 'label': 'Credits'},
       {'icon': LucideIcons.lineChart, 'label': 'Analytics'},
     ];
 
@@ -160,8 +163,8 @@ class _Sidebar extends StatelessWidget {
             child: _NavItem(
               icon: LucideIcons.settings,
               label: 'Settings',
-              isActive: selectedIndex == 6,
-              onTap: () => onDestinationSelected(6),
+              isActive: selectedIndex == 7,
+              onTap: () => onDestinationSelected(7),
             ),
           ),
         ],

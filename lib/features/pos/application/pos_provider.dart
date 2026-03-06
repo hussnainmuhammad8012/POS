@@ -204,6 +204,8 @@ class PosProvider extends ChangeNotifier {
 
   // Checkout
   Future<String?> processCheckout({
+    double? cashPaid,
+    double? creditAmount,
     required Function(Transaction transaction) onSuccess,
     required Function(dynamic error) onError,
   }) async {
@@ -224,13 +226,15 @@ class PosProvider extends ChangeNotifier {
       final tx = Transaction(
         id: transactionId,
         invoiceNumber: invoiceNumber,
-        customerId: _selectedCustomer?.id, // Assuming selectedCustomer has an 'id'
+        customerId: _selectedCustomer?.id,
         totalAmount: subtotal,
         discount: _discountAmount,
         tax: taxAmount,
         finalAmount: totalAmount,
+        cashPaid: cashPaid ?? totalAmount,
+        creditAmount: creditAmount ?? 0.0,
         paymentMethod: _paymentMethod,
-        paymentStatus: 'COMPLETED',
+        paymentStatus: (creditAmount ?? 0.0) > 0 ? 'PARTIAL' : 'COMPLETED',
         createdAt: DateTime.now(),
       );
 

@@ -11,9 +11,11 @@ import '../../../core/widgets/modern_card.dart';
 import '../../customers/application/customers_provider.dart';
 import '../../inventory/application/inventory_provider.dart';
 import '../../inventory/data/repositories/product_repository.dart';
+import '../../customers/presentation/widgets/add_customer_dialog.dart';
 import '../application/pos_provider.dart';
 import '../application/product_scanner.dart';
 import 'widgets/invoice_dialog.dart';
+import 'widgets/searchable_customer_dropdown.dart';
 
 class PosScreen extends StatefulWidget {
   static const routeName = '/pos';
@@ -157,26 +159,26 @@ class _PosScreenState extends State<PosScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      AppDropdown<dynamic>(
-                        hint: 'Select Customer',
-                        prefixIcon: LucideIcons.user,
-                        value: pos.selectedCustomer,
-                        items: [
-                          const AppDropdownItem<dynamic>(
-                            value: null,
-                            label: 'Walk-in Customer',
-                            icon: LucideIcons.userX,
-                          ),
-                          ...customers.map(
-                            (c) => AppDropdownItem<dynamic>(
-                              value: c,
-                              label: c.name,
-                              subtitle: c.phone,
-                              icon: LucideIcons.userCheck,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SearchableCustomerDropdown(
+                              value: pos.selectedCustomer,
+                              onChanged: (c) => pos.setCustomer(c),
                             ),
                           ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) => const AddCustomerDialog(),
+                              );
+                            },
+                            icon: const Icon(LucideIcons.userPlus),
+                            tooltip: 'Add New Customer',
+                          ),
                         ],
-                        onChanged: (c) => pos.setCustomer(c),
                       ),
                     ],
                   ),
@@ -356,10 +358,25 @@ class _CheckoutSummary extends StatelessWidget {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: pos.cartItems.isEmpty ? null : () async {
+                double cashPaid = pos.totalAmount;
+                double creditAmount = 0.0;
+
+                if (pos.selectedCustomer != null) {
+                  final result = await showDialog<Map<String, double>>(
+                    context: context,
+                    builder: (context) => _SplitPaymentDialog(total: pos.totalAmount),
+                  );
+                  if (result == null) return;
+                  cashPaid = result['cash']!;
+                  creditAmount = result['credit']!;
+                }
+
                 // Copy cart items before processing because processCheckout clears them
                 final itemsSnapshot = List<CartItem>.from(pos.cartItems);
                 
                 await pos.processCheckout(
+                  cashPaid: cashPaid,
+                  creditAmount: creditAmount,
                   onSuccess: (savedTx) {
                     if (context.mounted) {
                       showDialog(
@@ -402,6 +419,84 @@ class _CheckoutSummary extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _SplitPaymentDialog extends StatefulWidget {
+  final double total;
+
+  const _SplitPaymentDialog({required this.total});
+
+  @override
+  State<_SplitPaymentDialog> createState() => _SplitPaymentDialogState();
+}
+
+class _SplitPaymentDialogState extends State<_SplitPaymentDialog> {
+  late TextEditingController _cashController;
+  double _creditAmount = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _cashController = TextEditingController(text: widget.total.toStringAsFixed(2));
+    _cashController.addListener(_updateCredit);
+  }
+
+  void _updateCredit() {
+    final cash = double.tryParse(_cashController.text) ?? 0.0;
+    setState(() {
+      _creditAmount = (widget.total - cash).clamp(0, widget.total);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Confirm Payment'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Total Amount:'),
+              Text('Rs ${widget.total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 24),
+          CustomTextField(
+            controller: _cashController,
+            label: 'Cash Received',
+            prefixIcon: LucideIcons.banknote,
+            keyboardType: TextInputType.number,
+            autofocus: true,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Remaining to Credit:'),
+              Text('Rs ${_creditAmount.toStringAsFixed(2)}', 
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: _creditAmount > 0 ? AppColors.DANGER : Colors.green,
+                )
+              ),
+            ],
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        ElevatedButton(
+          onPressed: () {
+            final cash = double.tryParse(_cashController.text) ?? 0.0;
+            Navigator.pop(context, {'cash': cash, 'credit': _creditAmount});
+          },
+          child: const Text('Complete Sale'),
+        ),
+      ],
     );
   }
 }

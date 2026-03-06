@@ -13,11 +13,12 @@ import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'migrations/migration_v2.dart';
 import 'migrations/migration_v3.dart';
+import 'migrations/migration_v4.dart';
 
 /// Centralized SQLite database initialization and access.
 class AppDatabase {
   static const String _databaseName = 'utility_store_pos.db';
-  static const int _databaseVersion = 3; // Increment to 3 for UUID Transaction Types
+  static const int _databaseVersion = 4; // Increment to 4 for Customers & Ledgers
 
   static final AppDatabase instance = AppDatabase._();
 
@@ -52,6 +53,7 @@ class AppDatabase {
         onCreate: (db, version) async {
           await migrateToV2(db);
           await migrateToV3(db);
+          await migrateToV4(db);
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) {
@@ -59,6 +61,9 @@ class AppDatabase {
           }
           if (oldVersion < 3) {
             await migrateToV3(db);
+          }
+          if (oldVersion < 4) {
+            await migrateToV4(db);
           }
         },
       ),

@@ -3,10 +3,12 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/models/entities.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/custom_text_field.dart';
 import '../../../core/widgets/glass_header.dart';
 import '../../../core/widgets/modern_card.dart';
 import '../application/customers_provider.dart';
+import 'widgets/add_customer_dialog.dart';
 
 class CustomersScreen extends StatefulWidget {
   static const routeName = '/customers';
@@ -39,8 +41,13 @@ class _CustomersScreenState extends State<CustomersScreen> {
             subtitle: 'Manage client relationships and loyalty',
             actions: [
               ElevatedButton.icon(
-                onPressed: () {},
-                icon: Icon(LucideIcons.userPlus),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => const AddCustomerDialog(),
+                  );
+                },
+                icon: const Icon(LucideIcons.userPlus),
                 label: const Text('Add Customer'),
               ),
             ],
@@ -146,16 +153,44 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(_selectedCustomer!.name, style: Theme.of(context).textTheme.displayMedium),
-                                    const SizedBox(height: 4),
-                                    Text('Customer since ${_selectedCustomer!.createdAt.toString().split(' ')[0]}',
-                                      style: TextStyle(color: Theme.of(context).colorScheme.secondary),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 32),
+                                      Text(_selectedCustomer!.name, style: Theme.of(context).textTheme.displayMedium),
+                                      const SizedBox(height: 4),
+                                      Text('Customer since ${_selectedCustomer!.createdAt.toString().split(' ')[0]}',
+                                        style: TextStyle(color: Theme.of(context).colorScheme.secondary),
+                                      ),
+                                    ],
+                                  ),
+                                  const Spacer(),
+                                  OutlinedButton.icon(
+                                    onPressed: () {
+                                      showDialog(
+                                        context: context,
+                                        builder: (context) => AddCustomerDialog(initialCustomer: _selectedCustomer),
+                                      );
+                                    },
+                                    icon: const Icon(LucideIcons.edit3, size: 16),
+                                    label: const Text('Edit'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  OutlinedButton.icon(
+                                    onPressed: () => _confirmDelete(context, _selectedCustomer!),
+                                    icon: const Icon(LucideIcons.trash2, size: 16),
+                                    label: const Text('Delete'),
+                                    style: OutlinedButton.styleFrom(foregroundColor: AppColors.DANGER),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 32),
+                              Row(
+                                children: [
+                                  _buildContactInfo(LucideIcons.phone, 'Phone', _selectedCustomer!.phone ?? 'N/A'),
+                                  const SizedBox(width: 24),
+                                  _buildContactInfo(LucideIcons.messageCircle, 'WhatsApp', _selectedCustomer!.whatsappNumber ?? 'N/A'),
+                                  const SizedBox(width: 24),
+                                  _buildContactInfo(LucideIcons.mapPin, 'Address', _selectedCustomer!.address ?? 'N/A'),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
                             Row(
                               children: [
                                 Expanded(
@@ -178,15 +213,23 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text('Loyalty Points', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.secondary)),
+                                        Text('Current Credit', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.secondary)),
                                         const SizedBox(height: 8),
-                                        Text('0', style: Theme.of(context).textTheme.displaySmall),
+                                        Text('Rs ${_selectedCustomer!.currentCredit.toStringAsFixed(2)}', 
+                                          style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                                            color: _selectedCustomer!.currentCredit > 0 ? AppColors.DANGER : Colors.green
+                                          )
+                                        ),
                                       ],
                                     ),
                                   ),
                                 ),
                               ],
                             ),
+                            if (_selectedCustomer!.creditLimit > 0) ...[
+                              const SizedBox(height: 16),
+                              Text('Credit Limit: Rs ${_selectedCustomer!.creditLimit.toStringAsFixed(2)}', style: TextStyle(color: Theme.of(context).colorScheme.secondary)),
+                            ],
                           ],
                         ),
                       ),
@@ -212,5 +255,46 @@ class _CustomersScreenState extends State<CustomersScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildContactInfo(IconData icon, String label, String value) {
+    if (value == 'N/A' || value.isEmpty) return const SizedBox.shrink();
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: Theme.of(context).colorScheme.secondary),
+        const SizedBox(width: 8),
+        Text(value, style: TextStyle(color: Theme.of(context).colorScheme.secondary)),
+      ],
+    );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, Customer customer) async {
+    final provider = context.read<CustomersProvider>();
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Customer'),
+        content: Text('Are you sure you want to permanently remove ${customer.name}? This action cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.DANGER, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await provider.deleteCustomer(customer.id!);
+        setState(() => _selectedCustomer = null);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.DANGER));
+        }
+      }
+    }
   }
 }
