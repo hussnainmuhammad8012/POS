@@ -3,7 +3,11 @@ import 'package:flutter/foundation.dart' hide Category, Transaction;
 import '../../../core/models/entities.dart'; 
 import '../../inventory/data/repositories/product_repository.dart';
 
+import '../../../core/repositories/transaction_repository.dart';
+
 class PosProvider extends ChangeNotifier {
+  final TransactionRepository _transactionRepository;
+
   // Cart items
   List<CartItem> _cartItems = [];
 
@@ -20,7 +24,7 @@ class PosProvider extends ChangeNotifier {
   bool _isProcessing = false;
   String? _error;
 
-  PosProvider();
+  PosProvider(this._transactionRepository);
 
   // Getters
   List<CartItem> get cartItems => _cartItems;
@@ -174,7 +178,7 @@ class PosProvider extends ChangeNotifier {
 
   // Checkout
   Future<String?> processCheckout({
-    required Function(String transactionId, String invoice) onSuccess,
+    required Function(Transaction transaction) onSuccess,
     required Function(dynamic error) onError,
   }) async {
     if (_cartItems.isEmpty) {
@@ -188,18 +192,44 @@ class PosProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await Future.delayed(const Duration(seconds: 1)); 
-      
-      final transactionId = 'txn_${DateTime.now().millisecondsSinceEpoch}';
+      final transactionId = 'txn_${DateTime.now().microsecondsSinceEpoch}';
       final invoiceNumber = 'INV-${DateTime.now().millisecondsSinceEpoch}';
+      
+      final tx = Transaction(
+        id: transactionId,
+        invoiceNumber: invoiceNumber,
+        customerId: _selectedCustomer?.id, // Assuming selectedCustomer has an 'id'
+        totalAmount: subtotal,
+        discount: _discountAmount,
+        tax: taxAmount,
+        finalAmount: totalAmount,
+        paymentMethod: _paymentMethod,
+        paymentStatus: 'COMPLETED',
+        createdAt: DateTime.now(),
+      );
+
+      final txItems = _cartItems.map((item) => TransactionItem(
+        id: 'txi_${DateTime.now().microsecondsSinceEpoch}_${item.variantId}',
+        transactionId: transactionId,
+        variantId: item.variantId,
+        quantity: item.quantity,
+        priceAtTime: item.unitPrice,
+        costAtTime: item.unitPrice - item.profitMargin, // Assuming profitMargin = unitPrice - costPrice
+        subtotal: item.subtotal,
+      )).toList();
+
+      final savedTx = await _transactionRepository.insertTransaction(
+        transaction: tx,
+        items: txItems,
+      );
 
       _isProcessing = false;
       notifyListeners();
 
-      onSuccess(transactionId, invoiceNumber);
+      onSuccess(savedTx);
       clearCart();
 
-      return transactionId;
+      return savedTx.id;
     } catch (e) {
       _error = 'Checkout failed: $e';
       _isProcessing = false;

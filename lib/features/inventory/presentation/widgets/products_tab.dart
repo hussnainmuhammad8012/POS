@@ -184,7 +184,7 @@ class _ProductsTabState extends State<ProductsTab> {
       color: WidgetStateProperty.resolveWith<Color?>(
         (Set<WidgetState> states) {
           if (summary.isLowStockWarning) {
-            return Colors.orange.withOpacity(0.1);
+            return Theme.of(context).colorScheme.error.withOpacity(0.1);
           }
           return null; // Use default value for other states and when not in warning
         },
@@ -199,7 +199,7 @@ class _ProductsTabState extends State<ProductsTab> {
             summary.totalStock.toString(),
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: summary.isLowStockWarning ? Colors.orange.shade700 : null,
+              color: summary.isLowStockWarning ? Theme.of(context).colorScheme.error : null,
             ),
           )
         ),

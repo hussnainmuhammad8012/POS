@@ -13,6 +13,7 @@ import '../../inventory/application/inventory_provider.dart';
 import '../../inventory/data/repositories/product_repository.dart';
 import '../application/pos_provider.dart';
 import '../application/product_scanner.dart';
+import 'widgets/invoice_dialog.dart';
 
 class PosScreen extends StatefulWidget {
   static const routeName = '/pos';
@@ -354,17 +355,29 @@ class _CheckoutSummary extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: pos.cartItems.isEmpty ? null : () {
-                pos.processCheckout(
-                  onSuccess: (id, inv) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Checkout successful! Invoice: $inv')),
-                    );
+              onPressed: pos.cartItems.isEmpty ? null : () async {
+                // Copy cart items before processing because processCheckout clears them
+                final itemsSnapshot = List<CartItem>.from(pos.cartItems);
+                
+                await pos.processCheckout(
+                  onSuccess: (savedTx) {
+                    if (context.mounted) {
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (context) => InvoiceDialog(
+                          transaction: savedTx,
+                          cartItems: itemsSnapshot,
+                        ),
+                      );
+                    }
                   },
                   onError: (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error: $e')),
-                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
+                    }
                   },
                 );
               },

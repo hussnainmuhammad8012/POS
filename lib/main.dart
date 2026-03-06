@@ -15,6 +15,7 @@ import 'features/inventory/data/repositories/stock_movement_repository.dart';
 import 'features/customers/application/customers_provider.dart';
 import 'features/analytics/application/analytics_provider.dart';
 import 'features/transactions/application/transactions_provider.dart';
+import 'core/repositories/transaction_repository.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,6 +33,7 @@ class UtilityStorePosApp extends StatelessWidget {
     final productRepo = ProductRepository(database: db);
     final cartonRepo = CartonRepository(database: db);
     final movementRepo = StockMovementRepository(database: db);
+    final transactionRepo = TransactionRepository();
 
     return MultiProvider(
       providers: [
@@ -40,9 +42,10 @@ class UtilityStorePosApp extends StatelessWidget {
         Provider<ProductRepository>.value(value: productRepo),
         Provider<CartonRepository>.value(value: cartonRepo),
         Provider<StockMovementRepository>.value(value: movementRepo),
+        Provider<TransactionRepository>.value(value: transactionRepo),
         
         // Providers
-        ChangeNotifierProvider(create: (_) => PosProvider()),
+        ChangeNotifierProvider(create: (_) => PosProvider(transactionRepo)),
         ChangeNotifierProvider(
           create: (_) => InventoryProvider(
             categoryRepository: categoryRepo,

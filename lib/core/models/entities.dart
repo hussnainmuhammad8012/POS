@@ -92,7 +92,7 @@ class Product {
 
 @immutable
 class Customer {
-  final int? id;
+  final String? id;
   final String name;
   final String? phone;
   final String? email;
@@ -113,7 +113,7 @@ class Customer {
   });
 
   Customer copyWith({
-    int? id,
+    String? id,
     String? name,
     String? phone,
     String? email,
@@ -137,9 +137,9 @@ class Customer {
 
 @immutable
 class Transaction {
-  final int? id;
+  final String? id;
   final String invoiceNumber;
-  final int? customerId;
+  final String? customerId;
   final double totalAmount;
   final double discount;
   final double tax;
@@ -164,9 +164,9 @@ class Transaction {
 
 @immutable
 class TransactionItem {
-  final int? id;
-  final int transactionId;
-  final int productId;
+  final String? id;
+  final String transactionId;
+  final String variantId;
   final int quantity;
   final double priceAtTime;
   final double? costAtTime;
@@ -175,7 +175,7 @@ class TransactionItem {
   const TransactionItem({
     this.id,
     required this.transactionId,
-    required this.productId,
+    required this.variantId,
     required this.quantity,
     required this.priceAtTime,
     this.costAtTime,

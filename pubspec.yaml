@@ -36,6 +36,9 @@ dependencies:
   lucide_icons: ^0.257.0
   shared_preferences: ^2.5.4
   sqlite3_flutter_libs: ^0.6.0+eol
+  printing: ^5.14.2
+  pdf: ^3.11.3
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

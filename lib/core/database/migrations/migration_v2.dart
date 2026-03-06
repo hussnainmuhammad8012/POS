@@ -128,14 +128,50 @@ Future<void> migrateToV2(Database db) async {
       )
     ''');
 
-    // 7. Update transactions table
-    print('Updating transactions table...');
-    try {
-      await db.execute('ALTER TABLE transactions ADD COLUMN payment_method TEXT DEFAULT "CASH"');
-    } catch (_) {}
-    try {
-      await db.execute('ALTER TABLE transactions ADD COLUMN payment_status TEXT DEFAULT "COMPLETED"');
-    } catch (_) {}
+    // 7. Create Customers & Transactions tables (Missing in V2 start)
+    print('Creating customers, transactions, and transaction_items tables...');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS customers (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        phone TEXT,
+        email TEXT,
+        loyalty_points INTEGER DEFAULT 0,
+        total_spent REAL DEFAULT 0.0,
+        last_purchase_date DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS transactions (
+        id TEXT PRIMARY KEY,
+        invoice_number TEXT NOT NULL UNIQUE,
+        customer_id TEXT,
+        total_amount REAL NOT NULL,
+        discount REAL DEFAULT 0,
+        tax REAL DEFAULT 0,
+        final_amount REAL NOT NULL,
+        payment_method TEXT DEFAULT "CASH",
+        payment_status TEXT DEFAULT "COMPLETED",
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
+      )
+    ''');
+    
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS transaction_items (
+        id TEXT PRIMARY KEY,
+        transaction_id TEXT NOT NULL,
+        product_variant_id TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        price_at_time REAL NOT NULL,
+        cost_at_time REAL,
+        subtotal REAL NOT NULL,
+        FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_variant_id) REFERENCES product_variants(id) ON DELETE RESTRICT
+      )
+    ''');
 
     // 8. Create indexes
     print('Creating indexes...');

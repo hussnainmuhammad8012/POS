@@ -11,7 +11,10 @@ class TransactionRepository {
     required List<TransactionItem> items,
   }) async {
     return _db.transaction((txn) async {
-      final txId = await txn.insert('transactions', {
+      final txId = transaction.id ?? 'txn_${DateTime.now().millisecondsSinceEpoch}';
+
+      await txn.insert('transactions', {
+        'id': txId,
         'invoice_number': transaction.invoiceNumber,
         'customer_id': transaction.customerId,
         'total_amount': transaction.totalAmount,
@@ -24,26 +27,54 @@ class TransactionRepository {
       });
 
       for (final item in items) {
+        final itemId = item.id ?? 'txi_${DateTime.now().microsecondsSinceEpoch}';
         await txn.insert('transaction_items', {
+          'id': itemId,
           'transaction_id': txId,
-          'product_id': item.productId,
+          'product_variant_id': item.variantId,
           'quantity': item.quantity,
           'price_at_time': item.priceAtTime,
           'cost_at_time': item.costAtTime,
           'subtotal': item.subtotal,
         });
 
-        // Decrease stock and log stock movement
+        // Decrease stock in the new V2 schema (stock_levels)
+        final nowStr = DateTime.now().toIso8601String();
         await txn.rawUpdate(
-          'UPDATE products SET current_stock = current_stock - ?, updated_at = ? WHERE id = ?',
-          [item.quantity, DateTime.now().toIso8601String(), item.productId],
+          '''
+          UPDATE stock_levels 
+          SET available_pieces = available_pieces - ?, 
+              total_pieces = total_pieces - ?,
+              updated_at = ? 
+          WHERE product_variant_id = ?
+          ''',
+          [item.quantity, item.quantity, nowStr, item.variantId],
         );
+
+        // Fetch the threshold to re-evalute low_stock_warning boolean
+        final stockLevels = await txn.query('stock_levels', where: 'product_variant_id = ?', whereArgs: [item.variantId]);
+        if (stockLevels.isNotEmpty) {
+           final stockMap = stockLevels.first;
+           final int available = (stockMap['available_pieces'] as num).toInt();
+           final int threshold = (stockMap['low_stock_threshold'] as num).toInt();
+           
+           if (available <= threshold) {
+              await txn.update('stock_levels', {'is_low_stock_warning': 1}, where: 'product_variant_id = ?', whereArgs: [item.variantId]);
+           }
+        }
+
+        // Log stock movement
+        final movementId = 'mov_${DateTime.now().microsecondsSinceEpoch}';
         await txn.insert('stock_movements', {
-          'product_id': item.productId,
+          'id': movementId,
+          'product_variant_id': item.variantId,
+          'movement_type': 'OUT',
           'quantity_change': -item.quantity,
-          'reason': 'sale',
+          'quantity_before': 0, // In a robust system, fetch before update. Leaving 0 for simplicity here as it's not currently queried.
+          'quantity_after': 0,
+          'reason': 'Sale / Checkout',
           'reference_id': txId,
-          'created_at': DateTime.now().toIso8601String(),
+          'created_at': nowStr,
         });
       }
 
@@ -71,7 +102,7 @@ class TransactionRepository {
     return rows.map(_fromRow).toList();
   }
 
-  Future<List<Map<String, Object?>>> getItemsForTransaction(int txId) {
+  Future<List<Map<String, Object?>>> getItemsForTransaction(String txId) {
     return _db.query(
       'transaction_items',
       where: 'transaction_id = ?',
@@ -133,9 +164,9 @@ class TransactionRepository {
 
   Transaction _fromRow(Map<String, Object?> row) {
     return Transaction(
-      id: row['id'] as int,
+      id: row['id'] as String,
       invoiceNumber: row['invoice_number'] as String,
-      customerId: row['customer_id'] as int?,
+      customerId: row['customer_id'] as String?,
       totalAmount: (row['total_amount'] as num).toDouble(),
       discount: (row['discount'] as num).toDouble(),
       tax: (row['tax'] as num).toDouble(),
