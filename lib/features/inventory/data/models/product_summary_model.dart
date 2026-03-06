@@ -11,6 +11,7 @@ class ProductSummary {
   final double? mrp;
   final String? barcode;
   final int totalStock;
+  final int lowStockThreshold;
   final bool isLowStockWarning;
 
   ProductSummary({
@@ -23,6 +24,7 @@ class ProductSummary {
     this.mrp,
     this.barcode,
     required this.totalStock,
+    required this.lowStockThreshold,
     required this.isLowStockWarning,
   });
 

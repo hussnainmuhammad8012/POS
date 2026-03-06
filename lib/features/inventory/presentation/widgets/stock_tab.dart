@@ -64,7 +64,7 @@ class StockTab extends StatelessWidget {
   }
 
   Widget _buildMovementItem(BuildContext context, dynamic movement) {
-    final bool isIn = movement.movementType == 'IN';
+    final bool isIn = movement.quantityChange > 0;
     return ListTile(
       leading: CircleAvatar(
         backgroundColor: isIn ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
@@ -74,8 +74,22 @@ class StockTab extends StatelessWidget {
           size: 20,
         ),
       ),
-      title: Text(movement.reason, style: const TextStyle(fontWeight: FontWeight.bold)),
-      subtitle: Text('Recorded by: ${movement.recordedBy ?? 'System'}'),
+      title: Text(movement.productName ?? 'Unknown Product', style: const TextStyle(fontWeight: FontWeight.bold)),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              const Icon(LucideIcons.tag, size: 14, color: Colors.grey),
+              const SizedBox(width: 4),
+              Text(movement.categoryName ?? 'Uncategorized', style: const TextStyle(color: Colors.grey)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text('${movement.reason} • By: ${movement.recordedBy ?? 'System'}'),
+        ],
+      ),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -88,12 +102,14 @@ class StockTab extends StatelessWidget {
               color: isIn ? Colors.green : Colors.red,
             ),
           ),
+          const SizedBox(height: 4),
           Text(
             movement.createdAt.toString().split('.')[0], // Simple format
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
       ),
+      isThreeLine: true,
     );
   }
 

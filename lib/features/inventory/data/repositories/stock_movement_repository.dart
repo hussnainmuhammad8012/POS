@@ -18,30 +18,37 @@ class StockMovementRepository {
     DateTime? startDate,
     DateTime? endDate,
   }) async {
-    String query = 'SELECT * FROM stock_movements WHERE 1=1';
+    String query = '''
+      SELECT m.*, p.name as product_name, c.name as category_name
+      FROM stock_movements m
+      JOIN product_variants v ON m.product_variant_id = v.id
+      JOIN products p ON v.product_id = p.id
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE 1=1
+    ''';
     List<dynamic> args = [];
 
     if (productVariantId != null) {
-      query += ' AND product_variant_id = ?';
+      query += ' AND m.product_variant_id = ?';
       args.add(productVariantId);
     }
 
     if (movementType != null && movementType != 'ALL') {
-      query += ' AND movement_type = ?';
+      query += ' AND m.movement_type = ?';
       args.add(movementType);
     }
 
     if (startDate != null) {
-      query += ' AND created_at >= ?';
+      query += ' AND m.created_at >= ?';
       args.add(startDate.toIso8601String());
     }
 
     if (endDate != null) {
-      query += ' AND created_at <= ?';
+      query += ' AND m.created_at <= ?';
       args.add(endDate.toIso8601String());
     }
 
-    query += ' ORDER BY created_at DESC';
+    query += ' ORDER BY m.created_at DESC';
 
     final result = await _db.rawQuery(query, args);
     return [for (var json in result) StockMovement.fromJson(json)];

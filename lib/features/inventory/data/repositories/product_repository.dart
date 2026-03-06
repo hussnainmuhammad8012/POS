@@ -103,17 +103,29 @@ class ProductRepository {
         }
 
         if (sUpdates.length > 1) {
-          // Recompute warning
-          if (initialStock != null && lowStockThreshold != null) {
-            sUpdates['is_low_stock_warning'] = initialStock <= lowStockThreshold ? 1 : 0;
-          } else {
-            // Fetch current stock to see if threshold is broken
-            final stocks = await txn.query('stock_levels', where: 'product_variant_id = ?', whereArgs: [variantId]);
-            if (stocks.isNotEmpty) {
-               final int currStock = initialStock ?? (stocks.first['available_pieces'] as int?) ?? 0;
-               final int currThreshold = lowStockThreshold ?? (stocks.first['low_stock_threshold'] as int?) ?? 0;
-               sUpdates['is_low_stock_warning'] = currStock <= currThreshold ? 1 : 0;
-            }
+          // Fetch current stock to see if threshold is broken and log diffments
+          final stocks = await txn.query('stock_levels', where: 'product_variant_id = ?', whereArgs: [variantId]);
+          int prevStock = 0;
+          
+          if (stocks.isNotEmpty) {
+             prevStock = (stocks.first['available_pieces'] as int?) ?? 0;
+             final int currStock = initialStock ?? prevStock;
+             final int currThreshold = lowStockThreshold ?? (stocks.first['low_stock_threshold'] as int?) ?? 0;
+             sUpdates['is_low_stock_warning'] = currStock <= currThreshold ? 1 : 0;
+          }
+
+          if (initialStock != null && initialStock != prevStock) {
+             final int diff = initialStock - prevStock;
+             await txn.insert('stock_movements', {
+               'id': 'mov_${DateTime.now().microsecondsSinceEpoch}',
+               'product_variant_id': variantId,
+               'movement_type': diff > 0 ? 'ADJUSTMENT' : 'OUT',
+               'quantity_change': diff,
+               'quantity_before': prevStock,
+               'quantity_after': initialStock,
+               'reason': 'Manual Adjustment from Product Form',
+               'created_at': now,
+             });
           }
 
           await txn.update('stock_levels', sUpdates, where: 'product_variant_id = ?', whereArgs: [variantId]);
@@ -210,6 +222,7 @@ class ProductRepository {
         MIN(v.mrp) as mrp,
         MAX(v.barcode) as barcode,
         SUM(s.available_pieces) as total_stock,
+        MAX(s.low_stock_threshold) as low_stock_threshold,
         MAX(s.is_low_stock_warning) as is_low_stock_warning
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
@@ -273,6 +286,7 @@ class ProductRepository {
         mrp: (row['mrp'] as num?)?.toDouble(),
         barcode: row['barcode'] as String?,
         totalStock: (row['total_stock'] as num?)?.toInt() ?? 0,
+        lowStockThreshold: (row['low_stock_threshold'] as num?)?.toInt() ?? 10,
         isLowStockWarning: (row['is_low_stock_warning'] as int?) == 1,
       );
     }).toList();
@@ -357,9 +371,22 @@ class ProductRepository {
     });
   }
 
+  // Get stock level by variant ID
+  Future<StockLevel?> getStockLevelByVariantId(String variantId) async {
+    final result = await _db.query(
+      'stock_levels',
+      where: 'product_variant_id = ?',
+      whereArgs: [variantId],
+    );
+
+    if (result.isEmpty) return null;
+    return StockLevel.fromJson(result.first);
+  }
+
   // Private helper to create stock level
   Future<void> _createStockLevel(String variantId, int initialStock, int threshold) async {
     final id = 'stk_${DateTime.now().millisecondsSinceEpoch}';
+    final now = DateTime.now().toIso8601String();
     await _db.insert('stock_levels', {
       'id': id,
       'product_variant_id': variantId,
@@ -370,8 +397,21 @@ class ProductRepository {
       'low_stock_threshold': threshold,
       'reorder_point': threshold * 2,
       'is_low_stock_warning': initialStock <= threshold ? 1 : 0,
-      'created_at': DateTime.now().toIso8601String(),
-      'updated_at': DateTime.now().toIso8601String(),
+      'created_at': now,
+      'updated_at': now,
     });
+    
+    if (initialStock > 0) {
+      await _db.insert('stock_movements', {
+        'id': 'mov_${DateTime.now().microsecondsSinceEpoch}',
+        'product_variant_id': variantId,
+        'movement_type': 'IN',
+        'quantity_change': initialStock,
+        'quantity_before': 0,
+        'quantity_after': initialStock,
+        'reason': 'Initial Stock Configured',
+        'created_at': now,
+      });
+    }
   }
 }

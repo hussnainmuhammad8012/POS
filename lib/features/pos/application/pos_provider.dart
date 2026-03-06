@@ -74,6 +74,15 @@ class PosProvider extends ChangeNotifier {
 
       final product = productWithVariants['product'];
 
+      final stockLevel = await repository.getStockLevelByVariantId(variant.id);
+      final availableStock = stockLevel?.availablePieces ?? 0;
+
+      if (availableStock <= 0) {
+        _error = 'Product out of stock!';
+        notifyListeners();
+        return false;
+      }
+
       addToCart(
         variantId: variant.id,
         productName: product.name,
@@ -81,10 +90,10 @@ class PosProvider extends ChangeNotifier {
         unitPrice: variant.retailPrice,
         quantity: _bulkQuantity,
         profitMargin: variant.retailPrice - variant.costPrice,
+        availableStock: availableStock,
       );
 
-      _error = null;
-      return true;
+      return _error == null;
     } catch (e) {
       _error = 'Error scanning barcode: $e';
       notifyListeners();
@@ -101,35 +110,52 @@ class PosProvider extends ChangeNotifier {
     required int quantity,
     String? cartonId,
     double profitMargin = 0,
+    required int availableStock,
   }) {
     final existingIndex =
         _cartItems.indexWhere((item) => item.variantId == variantId);
 
     if (existingIndex >= 0) {
-      _cartItems[existingIndex].quantity += quantity;
+      final newQty = _cartItems[existingIndex].quantity + quantity;
+      if (newQty > availableStock) {
+        _error = 'Insufficient stock. Only $availableStock available.';
+      } else {
+        _cartItems[existingIndex].quantity = newQty;
+        _error = null;
+      }
     } else {
-      _cartItems.add(
-        CartItem(
-          id: 'cart_${DateTime.now().millisecondsSinceEpoch}',
-          variantId: variantId,
-          productName: productName,
-          variantName: variantName,
-          unitPrice: unitPrice,
-          quantity: quantity,
-          cartonId: cartonId,
-          profitMargin: profitMargin,
-        ),
-      );
+      if (quantity > availableStock) {
+        _error = 'Insufficient stock. Only $availableStock available.';
+      } else {
+        _cartItems.add(
+          CartItem(
+            id: 'cart_${DateTime.now().millisecondsSinceEpoch}',
+            variantId: variantId,
+            productName: productName,
+            variantName: variantName,
+            unitPrice: unitPrice,
+            quantity: quantity,
+            cartonId: cartonId,
+            profitMargin: profitMargin,
+            availableStock: availableStock,
+          ),
+        );
+        _error = null;
+      }
     }
 
-    _error = null;
     notifyListeners();
   }
 
   void incrementQuantity(String variantId) {
     final index = _cartItems.indexWhere((item) => item.variantId == variantId);
     if (index >= 0) {
-      _cartItems[index].quantity += 1;
+      if (_cartItems[index].quantity < _cartItems[index].availableStock) {
+        _cartItems[index].quantity += 1;
+        _error = null;
+      } else {
+        _error = 'Cannot exceed available stock of ${_cartItems[index].availableStock}.';
+      }
       notifyListeners();
     }
   }
@@ -249,6 +275,7 @@ class CartItem {
   int quantity;
   final String? cartonId;
   final double profitMargin;
+  final int availableStock;
 
   CartItem({
     required this.id,
@@ -259,6 +286,7 @@ class CartItem {
     required this.quantity,
     this.cartonId,
     required this.profitMargin,
+    required this.availableStock,
   });
 
   double get subtotal => unitPrice * quantity;

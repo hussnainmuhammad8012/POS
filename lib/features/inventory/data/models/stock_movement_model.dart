@@ -11,6 +11,8 @@ class StockMovement {
   final String? referenceId; // Links to transaction_id, purchase_order_id, etc.
   final String? notes;
   final String? recordedBy;
+  final String? productName;
+  final String? categoryName;
   final DateTime createdAt;
 
   StockMovement({
@@ -25,6 +27,8 @@ class StockMovement {
     this.referenceId,
     this.notes,
     this.recordedBy,
+    this.productName,
+    this.categoryName,
     required this.createdAt,
   });
 
@@ -45,6 +49,8 @@ class StockMovement {
     referenceId: json['reference_id'],
     notes: json['notes'],
     recordedBy: json['recorded_by'],
+    productName: json['product_name'],
+    categoryName: json['category_name'],
     createdAt: DateTime.parse(json['created_at']),
   );
 

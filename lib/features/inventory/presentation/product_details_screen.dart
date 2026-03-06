@@ -152,6 +152,7 @@ class ProductDetailsScreen extends StatelessWidget {
                                   const Divider(height: 32),
                                   _buildInfoRow(LucideIcons.boxes, 'Current Stock', '${productSummary.totalStock}', 
                                     valueColor: productSummary.isLowStockWarning ? Colors.orange.shade700 : null),
+                                  _buildInfoRow(LucideIcons.alertTriangle, 'Low Stock At', '${productSummary.lowStockThreshold}'),
                                 ],
                               ),
                             ),

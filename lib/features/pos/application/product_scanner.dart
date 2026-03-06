@@ -24,6 +24,11 @@ class ProductScanner {
 
       final product = productWithVariants['product'];
 
+      final stockLevel = await _productRepository.getStockLevelByVariantId(variant.id);
+      final int availableStock = stockLevel?.availablePieces ?? 0;
+
+      if (availableStock < quantity) return false;
+
       _posProvider.addToCart(
         variantId: variant.id,
         productName: product.name,
@@ -31,6 +36,7 @@ class ProductScanner {
         unitPrice: variant.retailPrice,
         quantity: quantity,
         profitMargin: variant.retailPrice - variant.costPrice,
+        availableStock: availableStock,
       );
 
       return true;
