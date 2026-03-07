@@ -55,7 +55,7 @@ class NotificationProvider extends ChangeNotifier {
     await _repository.clearAll();
     await _loadNotifications();
   }
-
+  // notifications 
   /// Check for overdue credits and generate notifications
   Future<void> checkOverdueCredits() async {
     final db = AppDatabase.instance.db;
