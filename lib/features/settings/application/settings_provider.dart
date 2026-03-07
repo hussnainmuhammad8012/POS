@@ -1,7 +1,8 @@
-// lib/features/settings/application/settings_provider.dart
-import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/services/database_backup_service.dart';
 
 class SettingsProvider extends ChangeNotifier {
   final SharedPreferences _prefs;
@@ -26,6 +27,12 @@ class SettingsProvider extends ChangeNotifier {
     return methods;
   }
 
+  // Backup Settings
+  bool get autoBackupEnabled => _prefs.getBool('auto_backup_enabled') ?? true;
+  String? get lastBackupDate => _prefs.getString('last_backup_date');
+
+  final _backupService = DatabaseBackupService();
+
   // Setters
   Future<void> updateStoreInfo({
     String? name,
@@ -45,6 +52,68 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setAutoBackup(bool enabled) async {
+    await _prefs.setBool('auto_backup_enabled', enabled);
+    notifyListeners();
+  }
+
+  // Backup & Restore Actions
+  Future<void> manualExport(String targetPath) async {
+    await _backupService.exportDatabase(targetPath);
+    await _updateLastBackupTimestamp();
+  }
+
+  Future<void> restoreBackup(String sourcePath) async {
+    await _backupService.restoreDatabase(sourcePath);
+    notifyListeners(); // Refresh UI after database change
+  }
+
+  Future<void> clearDatabase() async {
+    await _backupService.clearDatabase();
+    notifyListeners();
+  }
+
+  Future<void> checkAndPerformAutoBackup() async {
+    if (!autoBackupEnabled) return;
+
+    final now = DateTime.now();
+    final lastStr = lastBackupDate;
+    
+    bool needsBackup = false;
+    if (lastStr == null) {
+      needsBackup = true;
+    } else {
+      final last = DateTime.parse(lastStr);
+      if (now.difference(last).inDays >= 1) {
+        needsBackup = true;
+      }
+    }
+
+    if (needsBackup) {
+      try {
+        final currentDir = Directory.current;
+        final backupDir = Directory(p.join(currentDir.path, 'backups', 'auto'));
+        if (!await backupDir.exists()) {
+          await backupDir.create(recursive: true);
+        }
+        
+        final timestamp = now.toIso8601String().replaceAll(':', '-').split('.').first;
+        final targetPath = p.join(backupDir.path, 'auto_backup_$timestamp.db');
+        
+        await _backupService.exportDatabase(targetPath);
+        await _updateLastBackupTimestamp();
+        print('Auto-backup completed: $targetPath');
+      } catch (e) {
+        print('Auto-backup failed: $e');
+      }
+    }
+  }
+
+  Future<void> _updateLastBackupTimestamp() async {
+    await _prefs.setString('last_backup_date', DateTime.now().toIso8601String());
+    notifyListeners();
+  }
+
   Future<void> addPaymentMethod(String method) async {
     final methods = List<String>.from(paymentMethods);
     final upperMethod = method.toUpperCase();
@@ -58,8 +127,6 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> removePaymentMethod(String method) async {
     final methods = List<String>.from(paymentMethods);
     final upperMethod = method.toUpperCase();
-    // Prevent removing core methods if preferred, or allow all. 
-    // Usually wise to keep CASH.
     if (upperMethod != 'CASH') {
       methods.remove(upperMethod);
       await _prefs.setStringList('payment_methods', methods);

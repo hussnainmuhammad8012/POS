@@ -78,7 +78,11 @@ class UtilityStorePosApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AnalyticsProvider()),
         ChangeNotifierProvider(create: (_) => TransactionsProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
-        ChangeNotifierProvider(create: (_) => SettingsProvider(prefs)),
+        ChangeNotifierProvider(create: (_) {
+          final s = SettingsProvider(prefs);
+          s.checkAndPerformAutoBackup(); // Daily auto-backup check
+          return s;
+        }),
         ChangeNotifierProvider(create: (_) {
           final p = NotificationProvider(notificationRepo);
           p.checkOverdueCredits(); // Trigger check on start

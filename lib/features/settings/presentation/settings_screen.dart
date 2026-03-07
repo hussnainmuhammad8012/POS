@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../../../core/application/theme_provider.dart';
 import '../../../core/theme/app_theme.dart';
@@ -329,37 +331,122 @@ class _BackupRestorePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsProvider>();
+    final theme = Theme.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Backup & Restore', style: Theme.of(context).textTheme.displaySmall),
+        Text('Backup & Restore', style: theme.textTheme.displaySmall),
         const SizedBox(height: 8),
-        Text('Safeguard your database or import a previous state.', style: TextStyle(color: Theme.of(context).colorScheme.secondary)),
+        Text('Safeguard your database or import a previous state.', style: TextStyle(color: theme.colorScheme.secondary)),
         const SizedBox(height: 32),
+        
+        // Auto Backup Settings
         ModernCard(
           padding: const EdgeInsets.all(32),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              Row(
+                children: [
+                   Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.primaryColor.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(LucideIcons.shieldCheck, color: theme.primaryColor),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Automatic Backups', style: theme.textTheme.titleLarge),
+                        Text('Protect your data by creating periodic local copies.', 
+                          style: TextStyle(color: theme.colorScheme.secondary, fontSize: 13)
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: settings.autoBackupEnabled,
+                    onChanged: (v) => settings.setAutoBackup(v),
+                  ),
+                ],
+              ),
+              if (settings.lastBackupDate != null) ...[
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 16),
+                Row(
                   children: [
-                    Text('Create Backup', style: Theme.of(context).textTheme.titleLarge),
-                    const SizedBox(height: 4),
-                    Text('Creates a complete SQLite copy of your data.', style: TextStyle(color: Theme.of(context).colorScheme.secondary)),
+                    Icon(LucideIcons.clock, size: 16, color: theme.colorScheme.secondary),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Last successful backup: ${DateFormat('MMM dd, yyyy HH:mm').format(DateTime.parse(settings.lastBackupDate!))}',
+                      style: theme.textTheme.bodySmall,
+                    ),
                   ],
                 ),
-              ),
-              OutlinedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.cloud_download),
-                label: const Text('Backup Now'),
-              ),
+              ],
             ],
           ),
         ),
+        
+        const SizedBox(height: 24),
+        
+        // Manual Actions
+        Row(
+          children: [
+            Expanded(
+              child: ModernCard(
+                onTap: () => _handleManualExport(context, settings),
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    Icon(LucideIcons.download, size: 32, color: theme.primaryColor),
+                    const SizedBox(height: 16),
+                    Text('Backup Now', style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 4),
+                    Text('Save to PC, USB, or Google Drive', 
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: theme.colorScheme.secondary, fontSize: 12)
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 24),
+            Expanded(
+              child: ModernCard(
+                onTap: () => _handleRestore(context, settings),
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    Icon(LucideIcons.upload, size: 32, color: Colors.green),
+                    const SizedBox(height: 16),
+                    Text('Restore Data', style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 4),
+                    Text('Import from a previous backup file', 
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: theme.colorScheme.secondary, fontSize: 12)
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 48),
+        
+        // Danger Zone
+        Text('Danger Zone', style: theme.textTheme.titleLarge?.copyWith(color: AppColors.DANGER)),
         const SizedBox(height: 16),
         ModernCard(
+          borderColor: AppColors.DANGER.withOpacity(0.3),
           padding: const EdgeInsets.all(32),
           child: Row(
             children: [
@@ -367,21 +454,151 @@ class _BackupRestorePanel extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Restore Data', style: Theme.of(context).textTheme.titleLarge),
+                    const Text('Clear Database', 
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.DANGER)
+                    ),
                     const SizedBox(height: 4),
-                    Text('Replace current data with a previous backup.', style: TextStyle(color: Theme.of(context).colorScheme.secondary)),
+                    Text('Permanently delete all transactions, products, and records. This cannot be undone.', 
+                      style: TextStyle(color: theme.colorScheme.secondary, fontSize: 13)
+                    ),
                   ],
                 ),
               ),
-              ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.cloud_upload),
-                label: const Text('Restore'),
+              ElevatedButton(
+                onPressed: () => _showClearDatabaseConfirmation(context, settings),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.DANGER,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Clear All Data'),
               ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _handleManualExport(BuildContext context, SettingsProvider settings) async {
+    try {
+      final now = DateTime.now();
+      final timestamp = DateFormat('yyyyMMdd_HHmm').format(now);
+      final defaultName = 'store_backup_$timestamp.db';
+      
+      final String? outputFile = await FilePicker.platform.saveFile(
+        dialogTitle: 'Select Where to Save Your Backup',
+        fileName: defaultName,
+        type: FileType.any,
+      );
+
+      if (outputFile != null) {
+        await settings.manualExport(outputFile);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Backup saved successfully!'), backgroundColor: Colors.green),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Backup failed: $e'), backgroundColor: AppColors.DANGER),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleRestore(BuildContext context, SettingsProvider settings) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        dialogTitle: 'Select Backup File to Restore',
+      );
+
+      if (result != null && result.files.single.path != null) {
+        final path = result.files.single.path!;
+        
+        // Final confirmation before restore
+        if (context.mounted) {
+          final confirm = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Restore Database?'),
+              content: const Text('This will replace ALL current data with the data from the selected backup file. The app will restart internal services.'),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                  child: const Text('Confirm Restore'),
+                ),
+              ],
+            ),
+          );
+
+          if (confirm == true) {
+            await settings.restoreBackup(path);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Database restored successfully!'), backgroundColor: Colors.green),
+              );
+            }
+          }
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Restore failed: $e'), backgroundColor: AppColors.DANGER),
+        );
+      }
+    }
+  }
+
+  void _showClearDatabaseConfirmation(BuildContext context, SettingsProvider settings) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Strict Confirmation Required', style: TextStyle(color: AppColors.DANGER)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('This action is IRREVERSIBLE. All sales, customers, and inventory will be wiped.'),
+            const SizedBox(height: 16),
+            const Text('To confirm, please type "DELETE" below:'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'DELETE',
+                errorStyle: TextStyle(color: AppColors.DANGER),
+              ),
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              if (controller.text.trim().toUpperCase() == 'DELETE') {
+                await settings.clearDatabase();
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Database cleared. Application reset.'), backgroundColor: Colors.orange),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.DANGER, foregroundColor: Colors.white),
+            child: const Text('I Understand, Delete All'),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -404,7 +621,7 @@ class _SettingsNavTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
-        color: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.08) : Colors.transparent,
+        color: isSelected ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.08) : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
       child: ListTile(
