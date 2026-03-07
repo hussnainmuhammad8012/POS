@@ -28,17 +28,21 @@ class PosScreen extends StatefulWidget {
 
 class _PosScreenState extends State<PosScreen> {
   final _barcodeController = TextEditingController();
-  late ProductScanner _scanner;
+  final _barcodeFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    // Initialize scanner with required dependencies
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final inventoryProvider = context.read<InventoryProvider>();
-      // We need a way to get the repository, or pass the provider
-      // For simplicity, let's assume we can use the provider's logic or move scanning to provider
+      _barcodeFocusNode.requestFocus();
     });
+  }
+
+  @override
+  void dispose() {
+    _barcodeController.dispose();
+    _barcodeFocusNode.dispose();
+    super.dispose();
   }
 
   @override
@@ -85,6 +89,7 @@ class _PosScreenState extends State<PosScreen> {
                               Expanded(
                                 child: CustomTextField(
                                   controller: _barcodeController,
+                                  focusNode: _barcodeFocusNode,
                                   label: 'Scan Barcode',
                                   hint: 'Enter barcode...',
                                   prefixIcon: LucideIcons.scanLine,
@@ -107,6 +112,7 @@ class _PosScreenState extends State<PosScreen> {
                                     }
                                     
                                     _barcodeController.clear();
+                                    _barcodeFocusNode.requestFocus();
                                   },
                                 ),
                               ),

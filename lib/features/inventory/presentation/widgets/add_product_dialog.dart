@@ -410,6 +410,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
           label: 'Product Barcode',
           prefixIcon: LucideIcons.scanLine,
           hint: 'Scan or enter barcode...',
+          autofocus: true,
         ),
       ],
     );
