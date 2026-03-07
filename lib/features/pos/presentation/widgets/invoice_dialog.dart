@@ -122,6 +122,16 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
                       label: const Text('Share WhatsApp'),
                     ),
                   ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('No Receipt'),
+                    ),
+                  ),
                 ],
               ),
             ),

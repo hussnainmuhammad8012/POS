@@ -9,6 +9,7 @@ class TransactionRepository {
   Future<Transaction> insertTransaction({
     required Transaction transaction,
     required List<TransactionItem> items,
+    DateTime? dueDate,
   }) async {
     return _db.transaction((txn) async {
       final txId = transaction.id ?? 'txn_${DateTime.now().millisecondsSinceEpoch}';
@@ -89,6 +90,7 @@ class TransactionRepository {
             'transaction_id': txId,
             'type': 'CREDIT',
             'amount': transaction.creditAmount,
+            'due_date': dueDate?.toIso8601String(),
             'notes': 'POS Checkout Due',
             'created_at': transaction.createdAt.toIso8601String(),
          });

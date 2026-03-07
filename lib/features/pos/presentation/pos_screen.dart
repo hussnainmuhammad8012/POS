@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/models/entities.dart' hide Category, Product, StockMovement, Transaction;
 import '../../../core/theme/app_theme.dart';
@@ -17,6 +18,8 @@ import '../application/pos_provider.dart';
 import '../application/product_scanner.dart';
 import 'widgets/invoice_dialog.dart';
 import 'widgets/searchable_customer_dropdown.dart';
+import 'widgets/searchable_customer_dropdown.dart';
+// Notifications moved to nav_shell.dart
 
 class PosScreen extends StatefulWidget {
   static const routeName = '/pos';
@@ -57,6 +60,8 @@ class _PosScreenState extends State<PosScreen> {
     super.dispose();
   }
 
+
+
   @override
   Widget build(BuildContext context) {
     final pos = context.watch<PosProvider>();
@@ -71,9 +76,21 @@ class _PosScreenState extends State<PosScreen> {
             flex: 5,
             child: Column(
               children: [
-                const GlassHeader(
+                GlassHeader(
                   title: 'Point of Sale',
                   subtitle: 'Quick checkout & product scanning',
+                  actions: [
+                    // Wholesale Toggle
+                    Row(
+                      children: [
+                        Text('Wholesale', style: Theme.of(context).textTheme.bodySmall),
+                        Switch(
+                          value: pos.isWholesale,
+                          onChanged: (v) => pos.setWholesaleMode(v),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
                 Expanded(
                   child: Padding(
@@ -203,17 +220,23 @@ class _PosScreenState extends State<PosScreen> {
                 ),
                 const Divider(height: 1),
                 Expanded(
-                  child: pos.cartItems.isEmpty ? const _EmptyCartState() : ListView.separated(
-                    itemCount: pos.cartItems.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final item = pos.cartItems[index];
-                      return _ModernCartRow(item: item);
-                    },
-                  ),
+                  child: pos.cartItems.isEmpty 
+                    ? const _EmptyCartState()
+                    : ListView.separated(
+                        itemCount: pos.cartItems.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final item = pos.cartItems[index];
+                          return _ModernCartRow(item: item);
+                        },
+                      ),
                 ),
                 const Divider(height: 1),
-                const _CheckoutSummary(),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: const _CheckoutSummary(),
+                  ),
+                ),
               ],
             ),
           ),
@@ -342,7 +365,7 @@ class _CheckoutSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final pos = context.watch<PosProvider>();
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
       child: Column(
         children: [
           Row(
@@ -352,7 +375,7 @@ class _CheckoutSummary extends StatelessWidget {
               Text('Rs ${pos.subtotal.toStringAsFixed(2)}'),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -360,18 +383,21 @@ class _CheckoutSummary extends StatelessWidget {
               Text('Rs ${pos.taxAmount.toStringAsFixed(2)}'),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Total', style: Theme.of(context).textTheme.titleLarge),
+              Text('Total', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 18)),
               Text(
                 'Rs ${pos.totalAmount.toStringAsFixed(2)}',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 20,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           // Payment Method Selector
           Consumer<SettingsProvider>(
             builder: (context, settings, _) {
@@ -392,22 +418,24 @@ class _CheckoutSummary extends StatelessWidget {
               );
             }
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               onPressed: pos.cartItems.isEmpty ? null : () async {
                 double cashPaid = pos.totalAmount;
                 double creditAmount = 0.0;
+                DateTime? dueDate;
 
                 if (pos.selectedCustomer != null) {
-                  final result = await showDialog<Map<String, double>>(
+                  final result = await showDialog<Map<String, dynamic>>(
                     context: context,
                     builder: (context) => _SplitPaymentDialog(total: pos.totalAmount),
                   );
                   if (result == null) return;
                   cashPaid = result['cash']!;
                   creditAmount = result['credit']!;
+                  dueDate = result['dueDate'] as DateTime?;
                 }
 
                 // Copy cart items before processing because processCheckout clears them
@@ -416,6 +444,7 @@ class _CheckoutSummary extends StatelessWidget {
                 await pos.processCheckout(
                   cashPaid: cashPaid,
                   creditAmount: creditAmount,
+                  dueDate: dueDate,
                   onSuccess: (savedTx) {
                     if (context.mounted) {
                       showDialog(
@@ -474,6 +503,7 @@ class _SplitPaymentDialog extends StatefulWidget {
 class _SplitPaymentDialogState extends State<_SplitPaymentDialog> {
   late TextEditingController _cashController;
   double _creditAmount = 0.0;
+  DateTime? _dueDate;
 
   @override
   void initState() {
@@ -524,6 +554,27 @@ class _SplitPaymentDialogState extends State<_SplitPaymentDialog> {
               ),
             ],
           ),
+          if (_creditAmount > 0) ...[
+            const SizedBox(height: 16),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(LucideIcons.calendar),
+              title: const Text('Credit Due Date'),
+              subtitle: Text(_dueDate == null ? 'Select Date' : DateFormat('dd MMM, yyyy').format(_dueDate!)),
+              trailing: const Icon(LucideIcons.chevronRight),
+              onTap: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now().add(const Duration(days: 7)),
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                );
+                if (date != null) {
+                  setState(() => _dueDate = date);
+                }
+              },
+            ),
+          ],
         ],
       ),
       actions: [
@@ -531,7 +582,11 @@ class _SplitPaymentDialogState extends State<_SplitPaymentDialog> {
         ElevatedButton(
           onPressed: () {
             final cash = double.tryParse(_cashController.text) ?? 0.0;
-            Navigator.pop(context, {'cash': cash, 'credit': _creditAmount});
+            Navigator.pop(context, {
+              'cash': cash, 
+              'credit': _creditAmount,
+              'dueDate': _dueDate,
+            });
           },
           child: const Text('Complete Sale'),
         ),

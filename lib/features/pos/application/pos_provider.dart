@@ -19,6 +19,7 @@ class PosProvider extends ChangeNotifier {
   
   // UI State
   int _bulkQuantity = 1;
+  bool _isWholesale = false;
 
   // State
   bool _isProcessing = false;
@@ -33,6 +34,7 @@ class PosProvider extends ChangeNotifier {
   double get discountAmount => _discountAmount;
   double get taxPercentage => _taxPercentage;
   int get bulkQuantity => _bulkQuantity;
+  bool get isWholesale => _isWholesale;
   bool get isProcessing => _isProcessing;
   String? get error => _error;
 
@@ -56,6 +58,11 @@ class PosProvider extends ChangeNotifier {
 
   void setCustomer(dynamic customer) {
     _selectedCustomer = customer;
+    notifyListeners();
+  }
+
+  void setWholesaleMode(bool? value) {
+    _isWholesale = value ?? false;
     notifyListeners();
   }
 
@@ -83,13 +90,15 @@ class PosProvider extends ChangeNotifier {
         return false;
       }
 
+      final unitPrice = _isWholesale ? (variant.wholesalePrice ?? variant.retailPrice) : variant.retailPrice;
+
       addToCart(
         variantId: variant.id,
         productName: product.name,
         variantName: variant.variantName ?? '',
-        unitPrice: variant.retailPrice,
+        unitPrice: unitPrice,
         quantity: _bulkQuantity,
-        profitMargin: variant.retailPrice - variant.costPrice,
+        profitMargin: unitPrice - variant.costPrice,
         availableStock: availableStock,
       );
 
@@ -206,6 +215,7 @@ class PosProvider extends ChangeNotifier {
   Future<String?> processCheckout({
     double? cashPaid,
     double? creditAmount,
+    DateTime? dueDate,
     required Function(Transaction transaction) onSuccess,
     required Function(dynamic error) onError,
   }) async {
@@ -251,6 +261,7 @@ class PosProvider extends ChangeNotifier {
       final savedTx = await _transactionRepository.insertTransaction(
         transaction: tx,
         items: txItems,
+        dueDate: dueDate,
       );
 
       _isProcessing = false;

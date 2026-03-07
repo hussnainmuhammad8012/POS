@@ -21,6 +21,8 @@ import 'features/customers/application/credit_ledger_provider.dart';
 import 'features/analytics/application/analytics_provider.dart';
 import 'features/transactions/application/transactions_provider.dart';
 import 'core/repositories/transaction_repository.dart';
+import 'core/repositories/notification_repository.dart';
+import 'core/features/notifications/application/notification_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,6 +45,7 @@ class UtilityStorePosApp extends StatelessWidget {
     final customerRepo = CustomerRepository();
     final creditLedgerRepo = CreditLedgerRepository();
     final transactionRepo = TransactionRepository();
+    final notificationRepo = NotificationRepository();
 
     return MultiProvider(
       providers: [
@@ -54,6 +57,7 @@ class UtilityStorePosApp extends StatelessWidget {
         Provider<CustomerRepository>.value(value: customerRepo),
         Provider<CreditLedgerRepository>.value(value: creditLedgerRepo),
         Provider<TransactionRepository>.value(value: transactionRepo),
+        Provider<NotificationRepository>.value(value: notificationRepo),
         
         // Providers
         ChangeNotifierProvider(create: (_) => PosProvider(transactionRepo)),
@@ -75,6 +79,11 @@ class UtilityStorePosApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TransactionsProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider(prefs)),
+        ChangeNotifierProvider(create: (_) {
+          final p = NotificationProvider(notificationRepo);
+          p.checkOverdueCredits(); // Trigger check on start
+          return p;
+        }),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {

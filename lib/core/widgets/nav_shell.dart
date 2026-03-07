@@ -9,6 +9,9 @@ import '../../features/transactions/presentation/transactions_screen.dart';
 import '../../features/analytics/presentation/analytics_screen.dart';
 import '../../features/customers/presentation/credits_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
+import '../features/notifications/application/notification_provider.dart';
+import '../features/notifications/presentation/widgets/notification_modal.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 
 class NavShell extends StatefulWidget {
@@ -337,11 +340,42 @@ class _TopHeaderBar extends StatelessWidget {
           // User Profile & Actions
           Row(
             children: [
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(LucideIcons.bell),
-                color: isDark ? AppColors.DARK_TEXT_SECONDARY : AppColors.LIGHT_TEXT_SECONDARY,
-                iconSize: 20,
+              Consumer<NotificationProvider>(
+                builder: (context, notifications, _) {
+                  return Stack(
+                    children: [
+                      IconButton(
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => const NotificationModal(),
+                          );
+                        },
+                        icon: const Icon(LucideIcons.bell),
+                        color: isDark ? AppColors.DARK_TEXT_SECONDARY : AppColors.LIGHT_TEXT_SECONDARY,
+                        iconSize: 20,
+                      ),
+                      if (notifications.unreadCount > 0)
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.error,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                            child: Text(
+                              '${notifications.unreadCount}',
+                              style: const TextStyle(color: Colors.white, fontSize: 10),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(width: 16),
               Container(
