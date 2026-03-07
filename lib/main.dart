@@ -26,6 +26,7 @@ import 'core/features/notifications/application/notification_provider.dart';
 import 'features/analytics/data/analytics_repository.dart';
 import 'core/application/navigation_provider.dart';
 import 'core/application/global_search_provider.dart';
+import 'package:tray_manager/tray_manager.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -105,20 +106,61 @@ class UtilityStorePosApp extends StatelessWidget {
           ),
         ),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, _) {
-          return MaterialApp(
-            debugShowCheckedModeBanner: false,
-            title: 'Utility Store POS',
-            theme: themeProvider.themeMode == ThemeMode.light 
-                ? AppTheme.lightTheme 
-                : AppTheme.starAdminTheme,
-            darkTheme: AppTheme.darkTheme,
-            themeMode: themeProvider.themeMode,
-            home: NavShell(),
-          );
-        },
-      ),
+      child: const _AppBootstrapper(),
+    );
+  }
+}
+
+class _AppBootstrapper extends StatefulWidget {
+  const _AppBootstrapper();
+
+  @override
+  State<_AppBootstrapper> createState() => _AppBootstrapperState();
+}
+
+class _AppBootstrapperState extends State<_AppBootstrapper> with TrayListener {
+  @override
+  void initState() {
+    super.initState();
+    trayManager.addListener(this);
+    _initTray();
+  }
+
+  @override
+  void dispose() {
+    trayManager.removeListener(this);
+    super.dispose();
+  }
+
+  Future<void> _initTray() async {
+    await trayManager.setIcon('assets/icons/app_icon.png');
+    _updateTrayTooltip();
+  }
+
+  void _updateTrayTooltip() {
+    final storeName = context.read<SettingsProvider>().storeName;
+    trayManager.setToolTip(storeName);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Listen to store name changes to update tooltip
+    final storeName = context.select<SettingsProvider, String>((s) => s.storeName);
+    _updateTrayTooltip();
+
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, _) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: storeName.isEmpty ? 'Utility Store POS' : storeName,
+          theme: themeProvider.themeMode == ThemeMode.light 
+              ? AppTheme.lightTheme 
+              : AppTheme.starAdminTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeProvider.themeMode,
+          home: NavShell(),
+        );
+      },
     );
   }
 }

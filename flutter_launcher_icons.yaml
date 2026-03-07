@@ -1,0 +1,7 @@
+flutter_launcher_icons:
+  android: false
+  ios: false
+  windows:
+    generate: true
+    image_path: "assets/icons/app_icon_transparent.png"
+    icon_size: 48 # Default size for Windows
