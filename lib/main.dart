@@ -4,6 +4,8 @@ import 'core/database/app_database.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/nav_shell.dart';
 import 'core/application/theme_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'features/settings/application/settings_provider.dart';
 
 import 'features/pos/application/pos_provider.dart';
 import 'features/inventory/application/inventory_provider.dart';
@@ -23,11 +25,13 @@ import 'core/repositories/transaction_repository.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppDatabase.instance.initialize();
-  runApp(const UtilityStorePosApp());
+  final prefs = await SharedPreferences.getInstance();
+  runApp(UtilityStorePosApp(prefs: prefs));
 }
 
 class UtilityStorePosApp extends StatelessWidget {
-  const UtilityStorePosApp({super.key});
+  final SharedPreferences prefs;
+  const UtilityStorePosApp({super.key, required this.prefs});
 
   @override
   Widget build(BuildContext context) {
@@ -70,6 +74,7 @@ class UtilityStorePosApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AnalyticsProvider()),
         ChangeNotifierProvider(create: (_) => TransactionsProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider(prefs)),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {

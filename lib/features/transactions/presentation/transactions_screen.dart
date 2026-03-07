@@ -3,10 +3,12 @@ import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+import '../../settings/application/settings_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/badge_widget.dart';
 import '../../../core/widgets/glass_header.dart';
 import '../../../core/widgets/modern_card.dart';
+import '../../../core/widgets/app_dropdown.dart';
 import '../application/transactions_provider.dart';
 
 class TransactionsScreen extends StatelessWidget {
@@ -97,6 +99,28 @@ class TransactionsScreen extends StatelessWidget {
                 provider.setFilter(TransactionFilter.custom, range: range);
               }
             },
+          ),
+          const SizedBox(width: 16),
+          SizedBox(
+            width: 200,
+            child: Consumer<SettingsProvider>(
+              builder: (context, settings, _) {
+                final methods = ['ALL', ...settings.paymentMethods];
+                return AppDropdown<String>(
+                  value: provider.selectedPaymentMethod ?? 'ALL',
+                  items: methods.map((m) => AppDropdownItem<String>(
+                    value: m,
+                    label: m,
+                    icon: m == 'ALL' ? LucideIcons.filter : 
+                          m == 'CASH' ? LucideIcons.banknote : 
+                          m == 'BANK' ? LucideIcons.landmark : 
+                          m == 'JAZZCASH' ? LucideIcons.smartphone : LucideIcons.creditCard,
+                  )).toList(),
+                  onChanged: (v) => provider.setPaymentMethodFilter(v),
+                  hint: 'Filter by Payment',
+                );
+              },
+            ),
           ),
           const Spacer(),
           Text(

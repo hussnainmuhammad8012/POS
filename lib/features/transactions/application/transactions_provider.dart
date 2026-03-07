@@ -11,11 +11,19 @@ class TransactionsProvider extends ChangeNotifier {
   bool _isLoading = false;
   TransactionFilter _currentFilter = TransactionFilter.today;
   DateTimeRange? _customRange;
+  String? _selectedPaymentMethod;
 
-  List<Transaction> get transactions => _transactions;
+  List<Transaction> get transactions {
+    if (_selectedPaymentMethod == null || _selectedPaymentMethod == 'ALL') {
+      return _transactions;
+    }
+    return _transactions.where((tx) => tx.paymentMethod.toUpperCase() == _selectedPaymentMethod).toList();
+  }
+
   bool get isLoading => _isLoading;
   TransactionFilter get currentFilter => _currentFilter;
   DateTimeRange? get customRange => _customRange;
+  String? get selectedPaymentMethod => _selectedPaymentMethod;
 
   TransactionsProvider() {
     loadTransactions();
@@ -66,5 +74,10 @@ class TransactionsProvider extends ChangeNotifier {
       _customRange = range;
     }
     loadTransactions();
+  }
+
+  void setPaymentMethodFilter(String? method) {
+    _selectedPaymentMethod = method?.toUpperCase();
+    notifyListeners();
   }
 }

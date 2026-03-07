@@ -143,7 +143,7 @@ class _SecondaryButtonState extends State<SecondaryButton> {
                 Icon(widget.icon, color: primaryColor, size: 18),
                 const SizedBox(width: 8),
               ],
-                child: Text(
+                Text(
                   widget.text,
                   style: TextStyle(
                     fontFamily: 'Poppins',

@@ -8,7 +8,9 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:provider/provider.dart';
 
+import '../../../settings/application/settings_provider.dart';
 import '../../../../core/models/entities.dart';
 import '../../application/pos_provider.dart';
 
@@ -143,6 +145,37 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Consumer<SettingsProvider>(
+            builder: (context, settings, _) => Column(
+              children: [
+                Center(
+                  child: Text(
+                    settings.storeName.toUpperCase(),
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.spaceMono(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                    ),
+                  ),
+                ),
+                Center(
+                  child: Text(
+                    settings.storeAddress,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.spaceMono(fontSize: 12),
+                  ),
+                ),
+                Center(
+                  child: Text(
+                    'PH: ${settings.storePhone}',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.spaceMono(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
           Center(
             child: Text(
               'STORE RECEIPT',
@@ -210,6 +243,19 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
             _buildTotalRow('Paid in Cash', widget.transaction.cashPaid),
             _buildTotalRow('Remaining Credit', widget.transaction.creditAmount),
           ],
+          const Divider(height: 32),
+          Consumer<SettingsProvider>(
+            builder: (context, settings, _) => Center(
+              child: Text(
+                settings.receiptCustomMessage,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.spaceMono(
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

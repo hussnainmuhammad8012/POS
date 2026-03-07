@@ -1,0 +1,208 @@
+﻿Analyzing POS-New...                                            
+
+   info - Don't invoke 'print' in production code - fix_const_icons.dart:34:9 - avoid_print
+warning - Duplicate import - lib\core\database\app_database.dart:10:8 - duplicate_import
+warning - Duplicate import - lib\core\database\app_database.dart:12:8 - duplicate_import
+warning - Duplicate import - lib\core\database\app_database.dart:13:8 - duplicate_import
+   info - Don't invoke 'print' in production code - lib\core\database\migrations\migration_v2.dart:4:3 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\database\migrations\migration_v2.dart:7:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\database\migrations\migration_v2.dart:25:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\database\migrations\migration_v2.dart:45:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\database\migrations\migration_v2.dart:66:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\database\migrations\migration_v2.dart:90:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\database\migrations\migration_v2.dart:110:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\database\migrations\migration_v2.dart:132:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\database\migrations\migration_v2.dart:177:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\database\migrations\migration_v2.dart:186:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\database\migrations\migration_v2.dart:188:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\database\migrations\migration_v2.dart:189:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\database\migrations\migration_v3.dart:4:3 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\database\migrations\migration_v3.dart:60:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\database\migrations\migration_v3.dart:62:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\database\migrations\migration_v3.dart:63:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\database\migrations\migration_v4.dart:4:3 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\database\migrations\migration_v4.dart:39:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\database\migrations\migration_v4.dart:41:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\core\database\migrations\migration_v4.dart:42:5 - avoid_print
+   info - The constant name 'LIGHT_BACKGROUND' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:5:22 - constant_identifier_names
+   info - The constant name 'LIGHT_SIDEBAR' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:6:22 - constant_identifier_names
+   info - The constant name 'LIGHT_SURFACE' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:7:22 - constant_identifier_names
+   info - The constant name 'LIGHT_CARD' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:8:22 - constant_identifier_names
+   info - The constant name 'LIGHT_PANEL' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:9:22 - constant_identifier_names
+   info - The constant name 'LIGHT_TEXT_PRIMARY' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:11:22 - constant_identifier_names
+   info - The constant name 'LIGHT_TEXT_SECONDARY' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:12:22 - constant_identifier_names
+   info - The constant name 'LIGHT_TEXT_TERTIARY' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:13:22 - constant_identifier_names
+   info - The constant name 'LIGHT_BORDER_PROMINENT' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:15:22 - constant_identifier_names
+   info - The constant name 'LIGHT_BORDER_SUBTLE' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:16:22 - constant_identifier_names
+   info - The constant name 'LIGHT_HOVER' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:18:22 - constant_identifier_names
+   info - The constant name 'LIGHT_FOCUS' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:19:22 - constant_identifier_names
+   info - The constant name 'LIGHT_ACTIVE' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:20:22 - constant_identifier_names
+   info - The constant name 'LIGHT_DISABLED' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:21:22 - constant_identifier_names
+   info - The constant name 'LIGHT_INFO_SOFT' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:24:22 - constant_identifier_names
+   info - The constant name 'LIGHT_PRIMARY_SOFT' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:25:22 - constant_identifier_names
+   info - The constant name 'LIGHT_SUCCESS_SOFT' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:26:22 - constant_identifier_names
+   info - The constant name 'LIGHT_WARNING_SOFT' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:27:22 - constant_identifier_names
+   info - The constant name 'LIGHT_DANGER_SOFT' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:28:22 - constant_identifier_names
+   info - The constant name 'DARK_BACKGROUND' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:31:22 - constant_identifier_names
+   info - The constant name 'DARK_SIDEBAR' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:32:22 - constant_identifier_names
+   info - The constant name 'DARK_SURFACE' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:33:22 - constant_identifier_names
+   info - The constant name 'DARK_CARD' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:34:22 - constant_identifier_names
+   info - The constant name 'DARK_PANEL' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:35:22 - constant_identifier_names
+   info - The constant name 'DARK_TEXT_PRIMARY' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:37:22 - constant_identifier_names
+   info - The constant name 'DARK_TEXT_SECONDARY' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:38:22 - constant_identifier_names
+   info - The constant name 'DARK_TEXT_TERTIARY' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:39:22 - constant_identifier_names
+   info - The constant name 'DARK_BORDER_PROMINENT' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:41:22 - constant_identifier_names
+   info - The constant name 'DARK_BORDER_SUBTLE' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:42:22 - constant_identifier_names
+   info - The constant name 'DARK_HOVER' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:44:22 - constant_identifier_names
+   info - The constant name 'DARK_FOCUS' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:45:22 - constant_identifier_names
+   info - The constant name 'DARK_ACTIVE' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:46:22 - constant_identifier_names
+   info - The constant name 'DARK_DISABLED' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:47:22 - constant_identifier_names
+   info - The constant name 'PRIMARY_ACCENT_LIGHT' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:50:22 - constant_identifier_names
+   info - The constant name 'PRIMARY_ACCENT_DARK' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:51:22 - constant_identifier_names
+   info - The constant name 'SECONDARY_LIGHT' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:52:22 - constant_identifier_names
+   info - The constant name 'SECONDARY_DARK' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:53:22 - constant_identifier_names
+   info - The constant name 'SUCCESS' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:55:22 - constant_identifier_names
+   info - The constant name 'SUCCESS_DARK' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:56:22 - constant_identifier_names
+   info - The constant name 'WARNING' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:58:22 - constant_identifier_names
+   info - The constant name 'WARNING_DARK' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:59:22 - constant_identifier_names
+   info - The constant name 'DANGER' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:61:22 - constant_identifier_names
+   info - The constant name 'DANGER_DARK' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:62:22 - constant_identifier_names
+   info - The constant name 'INFO' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:64:22 - constant_identifier_names
+   info - The constant name 'INFO_DARK' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:65:22 - constant_identifier_names
+   info - The constant name 'STAR_PRIMARY' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:68:22 - constant_identifier_names
+   info - The constant name 'STAR_SIDEBAR' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:69:22 - constant_identifier_names
+   info - The constant name 'STAR_BACKGROUND' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:70:22 - constant_identifier_names
+   info - The constant name 'STAR_CARD' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:71:22 - constant_identifier_names
+   info - The constant name 'STAR_BLUE' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:73:22 - constant_identifier_names
+   info - The constant name 'STAR_TEAL' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:74:22 - constant_identifier_names
+   info - The constant name 'STAR_YELLOW' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:75:22 - constant_identifier_names
+   info - The constant name 'STAR_TEXT_PRIMARY' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:77:22 - constant_identifier_names
+   info - The constant name 'STAR_TEXT_SECONDARY' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:78:22 - constant_identifier_names
+   info - The constant name 'STAR_BORDER' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:79:22 - constant_identifier_names
+   info - Use 'const' with the constructor to improve performance - lib\core\theme\app_theme.dart:126:18 - prefer_const_constructors
+   info - 'background' is deprecated and shouldn't be used. Use surface instead. This feature was deprecated after v3.18.0-0.1.pre - lib\core\theme\app_theme.dart:130:7 - deprecated_member_use
+   info - 'onBackground' is deprecated and shouldn't be used. Use onSurface instead. This feature was deprecated after v3.18.0-0.1.pre - lib\core\theme\app_theme.dart:135:7 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\core\theme\app_theme.dart:197:18 - prefer_const_constructors
+   info - 'background' is deprecated and shouldn't be used. Use surface instead. This feature was deprecated after v3.18.0-0.1.pre - lib\core\theme\app_theme.dart:201:7 - deprecated_member_use
+   info - 'onBackground' is deprecated and shouldn't be used. Use onSurface instead. This feature was deprecated after v3.18.0-0.1.pre - lib\core\theme\app_theme.dart:206:7 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\core\theme\app_theme.dart:268:18 - prefer_const_constructors
+   info - 'background' is deprecated and shouldn't be used. Use surface instead. This feature was deprecated after v3.18.0-0.1.pre - lib\core\theme\app_theme.dart:272:7 - deprecated_member_use
+   info - 'onBackground' is deprecated and shouldn't be used. Use onSurface instead. This feature was deprecated after v3.18.0-0.1.pre - lib\core\theme\app_theme.dart:276:7 - deprecated_member_use
+   info - Statements in an if should be enclosed in a block - lib\core\widgets\app_dropdown.dart:180:24 - curly_braces_in_flow_control_structures
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\core\widgets\app_dropdown.dart:220:44 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\core\widgets\app_dropdown.dart:329:33 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\core\widgets\app_dropdown.dart:409:26 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\core\widgets\badge_widget.dart:27:32 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\core\widgets\badge_widget.dart:31:32 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\core\widgets\badge_widget.dart:35:31 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\core\widgets\badge_widget.dart:39:29 - deprecated_member_use
+warning - This default clause is covered by the previous cases - lib\core\widgets\badge_widget.dart:43:7 - unreachable_switch_default
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\core\widgets\badge_widget.dart:44:27 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\core\widgets\badge_widget.dart:55:21 - deprecated_member_use
+   info - 'scale' is deprecated and shouldn't be used. Use scaleByVector3, scaleByVector4, or scaleByDouble instead - lib\core\widgets\custom_button.dart:42:42 - deprecated_member_use
+   info - 'scale' is deprecated and shouldn't be used. Use scaleByVector3, scaleByVector4, or scaleByDouble instead - lib\core\widgets\custom_button.dart:125:42 - deprecated_member_use
+   info - 'scale' is deprecated and shouldn't be used. Use scaleByVector3, scaleByVector4, or scaleByDouble instead - lib\core\widgets\custom_button.dart:199:42 - deprecated_member_use
+   info - 'scale' is deprecated and shouldn't be used. Use scaleByVector3, scaleByVector4, or scaleByDouble instead - lib\core\widgets\custom_button.dart:283:42 - deprecated_member_use
+warning - Unused import: '../theme/app_theme.dart' - lib\core\widgets\custom_text_field.dart:3:8 - unused_import
+   info - 'scale' is deprecated and shouldn't be used. Use scaleByVector3, scaleByVector4, or scaleByDouble instead - lib\core\widgets\kpi_card.dart:54:40 - deprecated_member_use
+   info - 'scale' is deprecated and shouldn't be used. Use scaleByVector3, scaleByVector4, or scaleByDouble instead - lib\core\widgets\modern_card.dart:47:40 - deprecated_member_use
+   info - An uninitialized variable should have an explicit type annotation - lib\core\widgets\nav_shell.dart:204:11 - prefer_typing_uninitialized_variables
+warning - This default clause is covered by the previous cases - lib\core\widgets\toast_notification.dart:42:7 - unreachable_switch_default
+warning - Unused import: '../../../core/theme/app_theme.dart' - lib\features\analytics\presentation\analytics_screen.dart:5:8 - unused_import
+   info - Use 'const' with the constructor to improve performance - lib\features\analytics\presentation\analytics_screen.dart:26:23 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\analytics\presentation\analytics_screen.dart:32:23 - prefer_const_constructors
+   info - Use 'const' literals as arguments to constructors of '@immutable' classes - lib\features\analytics\presentation\analytics_screen.dart:40:25 - prefer_const_literals_to_create_immutables
+   info - Use 'const' with the constructor to improve performance - lib\features\analytics\presentation\analytics_screen.dart:41:17 - prefer_const_constructors
+   info - Use 'const' literals as arguments to constructors of '@immutable' classes - lib\features\analytics\presentation\analytics_screen.dart:42:29 - prefer_const_literals_to_create_immutables
+   info - Use 'const' with the constructor to improve performance - lib\features\analytics\presentation\analytics_screen.dart:43:21 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\analytics\presentation\analytics_screen.dart:44:30 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\analytics\presentation\analytics_screen.dart:53:21 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\analytics\presentation\analytics_screen.dart:54:30 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\analytics\presentation\analytics_screen.dart:63:21 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\analytics\presentation\analytics_screen.dart:64:30 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\analytics\presentation\analytics_screen.dart:73:21 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\analytics\presentation\analytics_screen.dart:74:30 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\analytics\presentation\analytics_screen.dart:85:17 - prefer_const_constructors
+   info - Use 'const' literals as arguments to constructors of '@immutable' classes - lib\features\analytics\presentation\analytics_screen.dart:87:29 - prefer_const_literals_to_create_immutables
+   info - Use 'const' with the constructor to improve performance - lib\features\analytics\presentation\analytics_screen.dart:88:21 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\analytics\presentation\analytics_screen.dart:90:30 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\analytics\presentation\analytics_screen.dart:92:21 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\analytics\presentation\analytics_screen.dart:93:21 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\analytics\presentation\analytics_screen.dart:95:30 - prefer_const_constructors
+warning - The value of the local variable 'isDark' isn't used - lib\features\analytics\presentation\analytics_screen.dart:115:11 - unused_local_variable
+   info - Use 'const' with the constructor to improve performance - lib\features\analytics\presentation\analytics_screen.dart:137:28 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\analytics\presentation\analytics_screen.dart:137:51 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\analytics\presentation\analytics_screen.dart:138:26 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\analytics\presentation\analytics_screen.dart:138:49 - prefer_const_constructors
+   info - Don't use 'BuildContext's across async gaps - lib\features\customers\presentation\credits_screen.dart:229:34 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\features\customers\presentation\credits_screen.dart:230:41 - use_build_context_synchronously
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\customers\presentation\customers_screen.dart:88:92 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\features\customers\presentation\customers_screen.dart:109:45 - prefer_const_constructors
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\customers\presentation\customers_screen.dart:142:71 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\customers\presentation\customers_screen.dart:245:107 - deprecated_member_use
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\customers\presentation\customers_screen.dart:295:32 - use_build_context_synchronously
+   info - Use 'const' with the constructor to improve performance - lib\features\dashboard\presentation\dashboard_screen.dart:51:17 - prefer_const_constructors
+   info - Use 'const' literals as arguments to constructors of '@immutable' classes - lib\features\dashboard\presentation\dashboard_screen.dart:53:29 - prefer_const_literals_to_create_immutables
+   info - Use 'const' with the constructor to improve performance - lib\features\dashboard\presentation\dashboard_screen.dart:54:21 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\dashboard\presentation\dashboard_screen.dart:56:30 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\dashboard\presentation\dashboard_screen.dart:162:28 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\dashboard\presentation\dashboard_screen.dart:162:51 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\dashboard\presentation\dashboard_screen.dart:163:26 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\features\dashboard\presentation\dashboard_screen.dart:163:49 - prefer_const_constructors
+   info - Use interpolation to compose strings and values - lib\features\dashboard\presentation\dashboard_screen.dart:170:23 - prefer_interpolation_to_compose_strings
+   info - Use 'const' with the constructor to improve performance - lib\features\dashboard\presentation\dashboard_screen.dart:202:26 - prefer_const_constructors
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\dashboard\presentation\dashboard_screen.dart:205:39 - deprecated_member_use
+warning - The value of the local variable 'isDark' isn't used - lib\features\dashboard\presentation\dashboard_screen.dart:344:17 - unused_local_variable
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\dashboard\presentation\dashboard_screen.dart:352:67 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\dashboard\presentation\dashboard_screen.dart:403:79 - deprecated_member_use
+warning - Unused import: '../data/models/product_model.dart' - lib\features\inventory\application\inventory_provider.dart:4:8 - unused_import
+warning - Unused import: '../data/models/product_variant_model.dart' - lib\features\inventory\application\inventory_provider.dart:6:8 - unused_import
+warning - Unused import: '../data/models/stock_level_model.dart' - lib\features\inventory\application\stock_provider.dart:4:8 - unused_import
+warning - Unused import: '../../../core/widgets/glass_header.dart' - lib\features\inventory\presentation\product_details_screen.dart:5:8 - unused_import
+warning - Unused import: 'package:provider/provider.dart' - lib\features\inventory\presentation\stock_movement_screen.dart:4:8 - unused_import
+warning - Unused import: '../application/stock_provider.dart' - lib\features\inventory\presentation\stock_movement_screen.dart:6:8 - unused_import
+warning - Unused import: 'package:flutter/foundation.dart' - lib\features\inventory\presentation\widgets\add_category_dialog.dart:1:8 - unused_import
+   info - The import of 'package:flutter/foundation.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' - lib\features\inventory\presentation\widgets\add_product_dialog.dart:3:8 - unnecessary_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\inventory\presentation\widgets\add_product_dialog.dart:107:88 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\inventory\presentation\widgets\add_product_dialog.dart:182:28 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\inventory\presentation\widgets\add_product_dialog.dart:451:51 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\inventory\presentation\widgets\add_product_dialog.dart:453:70 - deprecated_member_use
+warning - Unused import: 'package:flutter/foundation.dart' - lib\features\inventory\presentation\widgets\category_tab.dart:1:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\inventory\presentation\widgets\category_tab.dart:100:62 - deprecated_member_use
+warning - Unused import: 'package:flutter/foundation.dart' - lib\features\inventory\presentation\widgets\products_tab.dart:1:8 - unused_import
+warning - Unused import: '../../../../core/widgets/badge_widget.dart' - lib\features\inventory\presentation\widgets\products_tab.dart:9:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\inventory\presentation\widgets\products_tab.dart:187:56 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\features\inventory\presentation\widgets\products_tab.dart:241:16 - prefer_const_constructors
+   info - Use 'const' literals as arguments to constructors of '@immutable' classes - lib\features\inventory\presentation\widgets\products_tab.dart:242:21 - prefer_const_literals_to_create_immutables
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\inventory\presentation\widgets\products_tab.dart:286:74 - deprecated_member_use
+warning - Unused import: '../../../../core/widgets/badge_widget.dart' - lib\features\inventory\presentation\widgets\stock_tab.dart:6:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\inventory\presentation\widgets\stock_tab.dart:70:46 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\inventory\presentation\widgets\stock_tab.dart:70:76 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\inventory\presentation\widgets\stock_tab.dart:121:66 - deprecated_member_use
+warning - The library 'package:flutter/foundation.dart' doesn't export a member with the hidden name 'Transaction' - lib\features\pos\application\pos_provider.dart:2:57 - undefined_hidden_name
+   info - The private field _cartItems could be 'final' - lib\features\pos\application\pos_provider.dart:12:18 - prefer_final_fields
+   info - The private field _taxPercentage could be 'final' - lib\features\pos\application\pos_provider.dart:18:10 - prefer_final_fields
+warning - Unused import: '../../inventory/application/inventory_provider.dart' - lib\features\pos\application\product_scanner.dart:3:8 - unused_import
+warning - Unused import: '../../../core/models/entities.dart' - lib\features\pos\presentation\pos_screen.dart:5:8 - unused_import
+warning - Unused import: '../../../core/widgets/app_dropdown.dart' - lib\features\pos\presentation\pos_screen.dart:7:8 - unused_import
+warning - Unused import: '../../inventory/application/inventory_provider.dart' - lib\features\pos\presentation\pos_screen.dart:12:8 - unused_import
+warning - Unused import: '../application/product_scanner.dart' - lib\features\pos\presentation\pos_screen.dart:17:8 - unused_import
+warning - The value of the local variable 'customers' isn't used - lib\features\pos\presentation\pos_screen.dart:63:11 - unused_local_variable
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\pos\presentation\pos_screen.dart:118:60 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\pos\presentation\pos_screen.dart:121:69 - use_build_context_synchronously
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\pos\presentation\pos_screen.dart:561:98 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\pos\presentation\widgets\invoice_dialog.dart:70:67 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\features\pos\presentation\widgets\invoice_dialog.dart:455:22 - prefer_const_constructors
+warning - Unused import: 'dart:convert' - lib\features\settings\application\settings_provider.dart:2:8 - unused_import
+   info - Use 'const' with the constructor to improve performance - lib\features\settings\presentation\settings_screen.dart:31:11 - prefer_const_constructors
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\settings\presentation\settings_screen.dart:407:67 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\main.dart:89:19 - prefer_const_constructors
+warning - Unused import: 'package:provider/provider.dart' - test\widget_test.dart:11:8 - unused_import
+
+flutter : 198 issues found. (ran in 7.3s)
+At line:1 char:1
++ flutter analyze > final_analysis_v2.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (198 issues found. (ran in 7.3s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

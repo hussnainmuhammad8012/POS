@@ -10,7 +10,7 @@ import '../../../core/widgets/glass_header.dart';
 import '../../analytics/application/analytics_provider.dart';
 
 class DashboardScreen extends StatelessWidget {
-  static const routeName = '/';
+  static const routeName = '/dashboard';
 
   const DashboardScreen({super.key});
 

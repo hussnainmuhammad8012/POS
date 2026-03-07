@@ -11,6 +11,7 @@ import '../../../core/widgets/modern_card.dart';
 import '../../customers/application/customers_provider.dart';
 import '../../inventory/application/inventory_provider.dart';
 import '../../inventory/data/repositories/product_repository.dart';
+import '../../settings/application/settings_provider.dart';
 import '../../customers/presentation/widgets/add_customer_dialog.dart';
 import '../application/pos_provider.dart';
 import '../application/product_scanner.dart';
@@ -371,6 +372,27 @@ class _CheckoutSummary extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 24),
+          // Payment Method Selector
+          Consumer<SettingsProvider>(
+            builder: (context, settings, _) {
+              return AppDropdown<String>(
+                label: 'Payment Method',
+                value: pos.paymentMethod,
+                prefixIcon: LucideIcons.wallet,
+                items: settings.paymentMethods.map((m) => AppDropdownItem<String>(
+                  value: m,
+                  label: m,
+                  icon: m == 'CASH' ? LucideIcons.banknote : 
+                        m == 'BANK' ? LucideIcons.landmark : 
+                        m == 'JAZZCASH' ? LucideIcons.smartphone : LucideIcons.creditCard,
+                )).toList(),
+                onChanged: (v) {
+                  if (v != null) pos.setPaymentMethod(v);
+                },
+              );
+            }
+          ),
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(

@@ -12,6 +12,7 @@ import '../../features/settings/presentation/settings_screen.dart';
 import '../theme/app_theme.dart';
 
 class NavShell extends StatefulWidget {
+  static const routeName = '/';
   const NavShell({super.key});
 
   @override
