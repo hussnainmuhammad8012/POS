@@ -10,6 +10,7 @@ import '../../../core/widgets/glass_header.dart';
 import '../../../core/widgets/modern_card.dart';
 import '../../../core/widgets/app_dropdown.dart';
 import '../application/transactions_provider.dart';
+import 'transaction_details_screen.dart';
 
 class TransactionsScreen extends StatelessWidget {
   static const routeName = '/transactions';
@@ -138,50 +139,62 @@ class TransactionsScreen extends StatelessWidget {
 
     return ModernCard(
       padding: EdgeInsets.zero,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowHeight: 56,
-          dataRowMinHeight: 64,
-          dataRowMaxHeight: 64,
-          columnSpacing: 24,
-          headingRowColor: WidgetStateProperty.all(theme.scaffoldBackgroundColor.withValues(alpha: 0.5)),
-          columns: const [
-            DataColumn(label: Text('Invoice #')),
-            DataColumn(label: Text('Date & Time')),
-            DataColumn(label: Text('Customer')),
-            DataColumn(label: Text('Amount')),
-            DataColumn(label: Text('Payment')),
-            DataColumn(label: Text('Status')),
-            DataColumn(label: Text('Actions')),
-          ],
-          rows: provider.transactions.map((tx) {
-            return DataRow(
-              cells: [
-                DataCell(Text(tx.invoiceNumber, style: const TextStyle(fontWeight: FontWeight.w600))),
-                DataCell(Text(DateFormat('MMM dd, yyyy • hh:mm a').format(tx.createdAt))),
-                DataCell(Text(tx.customerId == null ? 'Walk-in' : 'Customer #${tx.customerId}')),
-                DataCell(Text(currencyFormat.format(tx.finalAmount), style: const TextStyle(fontWeight: FontWeight.bold))),
-                DataCell(Text(tx.paymentMethod.toUpperCase())),
-                DataCell(
-                  BadgeWidget(
-                    label: tx.paymentStatus,
-                    type: tx.paymentStatus.toLowerCase() == 'completed' ? BadgeType.success : BadgeType.warning,
-                  ),
-                ),
-                DataCell(
-                  IconButton(
-                    icon: const Icon(LucideIcons.eye, size: 20),
-                    onPressed: () {
-                      // Show Details Dialog
-                    },
-                    tooltip: 'View Details',
-                  ),
-                ),
-              ],
-            );
-          }).toList(),
-        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: constraints.maxWidth),
+              child: DataTable(
+                headingRowHeight: 56,
+                dataRowMinHeight: 64,
+                dataRowMaxHeight: 64,
+                columnSpacing: 24,
+                headingRowColor: WidgetStateProperty.all(theme.scaffoldBackgroundColor.withValues(alpha: 0.5)),
+                columns: const [
+                  DataColumn(label: Text('Invoice #')),
+                  DataColumn(label: Text('Date & Time')),
+                  DataColumn(label: Text('Customer')),
+                  DataColumn(label: Text('Amount')),
+                  DataColumn(label: Text('Payment')),
+                  DataColumn(label: Text('Status')),
+                  DataColumn(label: Text('Actions')),
+                ],
+                rows: provider.transactions.map((tx) {
+                  return DataRow(
+                    cells: [
+                      DataCell(Text(tx.invoiceNumber, style: const TextStyle(fontWeight: FontWeight.w600))),
+                      DataCell(Text(DateFormat('MMM dd, yyyy • hh:mm a').format(tx.createdAt))),
+                      DataCell(Text(tx.customerName ?? 'Walk-in')),
+                      DataCell(Text(currencyFormat.format(tx.finalAmount), style: const TextStyle(fontWeight: FontWeight.bold))),
+                      DataCell(Text(tx.paymentMethod.toUpperCase())),
+                      DataCell(
+                        BadgeWidget(
+                          label: tx.paymentStatus,
+                          type: tx.paymentStatus.toLowerCase() == 'completed' ? BadgeType.success : BadgeType.warning,
+                        ),
+                      ),
+                      DataCell(
+                        IconButton(
+                          icon: const Icon(LucideIcons.eye, size: 20),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => TransactionDetailsScreen(transaction: tx),
+                              ),
+                            );
+                          },
+                          tooltip: 'View Details',
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

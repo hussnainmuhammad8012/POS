@@ -120,20 +120,24 @@ class TransactionRepository {
   }
 
   Future<List<Transaction>> getRecent({int limit = 5}) async {
-    final rows = await _db.query(
-      'transactions',
-      orderBy: 'created_at DESC',
-      limit: limit,
-    );
+    final rows = await _db.rawQuery('''
+      SELECT t.*, c.name as customer_name
+      FROM transactions t
+      LEFT JOIN customers c ON t.customer_id = c.id
+      ORDER BY t.created_at DESC
+      LIMIT ?
+    ''', [limit]);
     return rows.map(_fromRow).toList();
   }
 
   Future<List<Map<String, Object?>>> getItemsForTransaction(String txId) {
-    return _db.query(
-      'transaction_items',
-      where: 'transaction_id = ?',
-      whereArgs: [txId],
-    );
+    return _db.rawQuery('''
+      SELECT ti.*, p.name as product_name, pv.variant_name
+      FROM transaction_items ti
+      JOIN product_variants pv ON ti.product_variant_id = pv.id
+      JOIN products p ON pv.product_id = p.id
+      WHERE ti.transaction_id = ?
+    ''', [txId]);
   }
 
   Future<double> getSalesTotalForDateRange(
@@ -156,12 +160,13 @@ class TransactionRepository {
     DateTime start,
     DateTime end,
   ) async {
-    final rows = await _db.query(
-      'transactions',
-      where: 'created_at >= ? AND created_at < ?',
-      whereArgs: [start.toIso8601String(), end.toIso8601String()],
-      orderBy: 'created_at DESC',
-    );
+    final rows = await _db.rawQuery('''
+      SELECT t.*, c.name as customer_name
+      FROM transactions t
+      LEFT JOIN customers c ON t.customer_id = c.id
+      WHERE t.created_at >= ? AND t.created_at < ?
+      ORDER BY t.created_at DESC
+    ''', [start.toIso8601String(), end.toIso8601String()]);
     return rows.map(_fromRow).toList();
   }
 
@@ -193,6 +198,7 @@ class TransactionRepository {
       id: row['id'] as String,
       invoiceNumber: row['invoice_number'] as String,
       customerId: row['customer_id'] as String?,
+      customerName: row['customer_name'] as String?,
       totalAmount: (row['total_amount'] as num).toDouble(),
       discount: (row['discount'] as num).toDouble(),
       tax: (row['tax'] as num).toDouble(),

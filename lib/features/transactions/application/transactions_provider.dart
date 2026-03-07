@@ -80,4 +80,8 @@ class TransactionsProvider extends ChangeNotifier {
     _selectedPaymentMethod = method?.toUpperCase();
     notifyListeners();
   }
+
+  Future<List<Map<String, Object?>>> getTransactionItems(String txId) async {
+    return _repository.getItemsForTransaction(txId);
+  }
 }

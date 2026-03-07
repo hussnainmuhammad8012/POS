@@ -156,6 +156,7 @@ class Transaction {
   final String? id;
   final String invoiceNumber;
   final String? customerId;
+  final String? customerName;
   final double totalAmount;
   final double discount;
   final double tax;
@@ -170,9 +171,10 @@ class Transaction {
     this.id,
     required this.invoiceNumber,
     this.customerId,
+    this.customerName,
     required this.totalAmount,
-    this.discount = 0,
-    this.tax = 0,
+    this.discount = 0.0,
+    this.tax = 0.0,
     required this.finalAmount,
     this.cashPaid = 0.0,
     this.creditAmount = 0.0,
@@ -180,6 +182,38 @@ class Transaction {
     required this.paymentStatus,
     required this.createdAt,
   });
+
+  Transaction copyWith({
+    String? id,
+    String? invoiceNumber,
+    String? customerId,
+    String? customerName,
+    double? totalAmount,
+    double? discount,
+    double? tax,
+    double? finalAmount,
+    double? cashPaid,
+    double? creditAmount,
+    String? paymentMethod,
+    String? paymentStatus,
+    DateTime? createdAt,
+  }) {
+    return Transaction(
+      id: id ?? this.id,
+      invoiceNumber: invoiceNumber ?? this.invoiceNumber,
+      customerId: customerId ?? this.customerId,
+      customerName: customerName ?? this.customerName,
+      totalAmount: totalAmount ?? this.totalAmount,
+      discount: discount ?? this.discount,
+      tax: tax ?? this.tax,
+      finalAmount: finalAmount ?? this.finalAmount,
+      cashPaid: cashPaid ?? this.cashPaid,
+      creditAmount: creditAmount ?? this.creditAmount,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 }
 
 @immutable
