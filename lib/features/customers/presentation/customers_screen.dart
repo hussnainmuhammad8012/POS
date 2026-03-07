@@ -21,17 +21,25 @@ class CustomersScreen extends StatefulWidget {
 
 class _CustomersScreenState extends State<CustomersScreen> {
   String _searchQuery = '';
-  Customer? _selectedCustomer;
+  String? _selectedCustomerId;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final provider = context.watch<CustomersProvider>();
+    
     final customers = provider.customers.where((c) {
       if (_searchQuery.isEmpty) return true;
       return c.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           (c.phone != null && c.phone!.contains(_searchQuery));
     }).toList();
+
+    final selectedCustomer = _selectedCustomerId != null 
+        ? provider.customers.cast<Customer?>().firstWhere(
+            (c) => c?.id == _selectedCustomerId, 
+            orElse: () => null
+          )
+        : null;
 
     return Scaffold(
       body: Column(
@@ -82,7 +90,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                               separatorBuilder: (_, __) => const Divider(height: 1),
                               itemBuilder: (context, index) {
                                 final customer = customers[index];
-                                final isSelected = customer == _selectedCustomer;
+                                final isSelected = customer.id == _selectedCustomerId;
                                 return ListTile(
                                   selected: isSelected,
                                   selectedTileColor: Theme.of(context).colorScheme.primary.withOpacity(0.04),
@@ -109,7 +117,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                   trailing: Icon(LucideIcons.chevronRight, size: 16),
                                   onTap: () {
                                     setState(() {
-                                      _selectedCustomer = customer;
+                                      _selectedCustomerId = customer.id;
                                     });
                                   },
                                 );
@@ -121,7 +129,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                     ],
                   ),
                 ),
-                if (_selectedCustomer != null)
+                if (selectedCustomer != null)
                   Expanded(
                     flex: 3,
                     child: Container(
@@ -141,7 +149,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                   radius: 32,
                                   backgroundColor: theme.primaryColor.withOpacity(0.1),
                                   child: Text(
-                                    _selectedCustomer!.name[0].toUpperCase(),
+                                    selectedCustomer.name[0].toUpperCase(),
                                     style: TextStyle(
                                       fontSize: 24,
                                       fontWeight: FontWeight.w600,
@@ -153,9 +161,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                      Text(_selectedCustomer!.name, style: Theme.of(context).textTheme.displayMedium),
+                                      Text(selectedCustomer.name, style: Theme.of(context).textTheme.displayMedium),
                                       const SizedBox(height: 4),
-                                      Text('Customer since ${_selectedCustomer!.createdAt.toString().split(' ')[0]}',
+                                      Text('Customer since ${selectedCustomer.createdAt.toString().split(' ')[0]}',
                                         style: TextStyle(color: Theme.of(context).colorScheme.secondary),
                                       ),
                                     ],
@@ -165,7 +173,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                     onPressed: () {
                                       showDialog(
                                         context: context,
-                                        builder: (context) => AddCustomerDialog(initialCustomer: _selectedCustomer),
+                                        builder: (context) => AddCustomerDialog(initialCustomer: selectedCustomer),
                                       );
                                     },
                                     icon: const Icon(LucideIcons.edit3, size: 16),
@@ -173,7 +181,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                   ),
                                   const SizedBox(width: 8),
                                   OutlinedButton.icon(
-                                    onPressed: () => _confirmDelete(context, _selectedCustomer!),
+                                    onPressed: () => _confirmDelete(context, selectedCustomer),
                                     icon: const Icon(LucideIcons.trash2, size: 16),
                                     label: const Text('Delete'),
                                     style: OutlinedButton.styleFrom(foregroundColor: AppColors.DANGER),
@@ -183,11 +191,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
                               const SizedBox(height: 32),
                               Row(
                                 children: [
-                                  _buildContactInfo(LucideIcons.phone, 'Phone', _selectedCustomer!.phone ?? 'N/A'),
-                                  const SizedBox(width: 24),
-                                  _buildContactInfo(LucideIcons.messageCircle, 'WhatsApp', _selectedCustomer!.whatsappNumber ?? 'N/A'),
-                                  const SizedBox(width: 24),
-                                  _buildContactInfo(LucideIcons.mapPin, 'Address', _selectedCustomer!.address ?? 'N/A'),
+                                  Expanded(child: _buildContactInfo(LucideIcons.phone, 'Phone', selectedCustomer.phone ?? 'N/A')),
+                                  Expanded(child: _buildContactInfo(LucideIcons.messageCircle, 'WhatsApp', selectedCustomer.whatsappNumber ?? 'N/A')),
+                                  Expanded(child: _buildContactInfo(LucideIcons.mapPin, 'Address', selectedCustomer.address ?? 'N/A')),
                                 ],
                               ),
                               const SizedBox(height: 24),
@@ -199,9 +205,21 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text('Total Spent', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.secondary)),
-                                        const SizedBox(height: 8),
-                                        Text('Rs ${_selectedCustomer!.totalSpent.toStringAsFixed(2)}', style: Theme.of(context).textTheme.displaySmall),
+                                        Row(
+                                          children: [
+                                            Icon(LucideIcons.trendingUp, size: 16, color: theme.primaryColor),
+                                            const SizedBox(width: 8),
+                                            Text('Total Spent', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.secondary)),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          'Rs ${selectedCustomer.totalSpent.toStringAsFixed(2)}', 
+                                          style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                                            color: theme.primaryColor,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -213,11 +231,18 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text('Current Credit', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.secondary)),
-                                        const SizedBox(height: 8),
-                                        Text('Rs ${_selectedCustomer!.currentCredit.toStringAsFixed(2)}', 
+                                        Row(
+                                          children: [
+                                            Icon(LucideIcons.creditCard, size: 16, color: selectedCustomer.currentCredit > 0 ? AppColors.DANGER : Colors.green),
+                                            const SizedBox(width: 8),
+                                            Text('Current Credit', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.secondary)),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text('Rs ${selectedCustomer.currentCredit.toStringAsFixed(2)}', 
                                           style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                                            color: _selectedCustomer!.currentCredit > 0 ? AppColors.DANGER : Colors.green
+                                            fontWeight: FontWeight.w700,
+                                            color: selectedCustomer.currentCredit > 0 ? AppColors.DANGER : Colors.green
                                           )
                                         ),
                                       ],
@@ -226,9 +251,15 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                 ),
                               ],
                             ),
-                            if (_selectedCustomer!.creditLimit > 0) ...[
+                            if (selectedCustomer.creditLimit > 0) ...[
                               const SizedBox(height: 16),
-                              Text('Credit Limit: Rs ${_selectedCustomer!.creditLimit.toStringAsFixed(2)}', style: TextStyle(color: Theme.of(context).colorScheme.secondary)),
+                              Row(
+                                children: [
+                                  Icon(LucideIcons.shieldCheck, size: 14, color: Theme.of(context).colorScheme.secondary),
+                                  const SizedBox(width: 8),
+                                  Text('Credit Limit: Rs ${selectedCustomer.creditLimit.toStringAsFixed(2)}', style: TextStyle(color: Theme.of(context).colorScheme.secondary)),
+                                ],
+                              ),
                             ],
                           ],
                         ),
@@ -289,7 +320,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
     if (confirm == true) {
       try {
         await provider.deleteCustomer(customer.id!);
-        setState(() => _selectedCustomer = null);
+        setState(() => _selectedCustomerId = null);
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.DANGER));

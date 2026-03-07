@@ -7,10 +7,15 @@ class CustomerRepository {
   Database get _db => AppDatabase.instance.db;
 
   Future<List<Customer>> getAll() async {
-    final rows = await _db.query(
-      'customers',
-      orderBy: 'name COLLATE NOCASE ASC',
-    );
+    final rows = await _db.rawQuery('''
+      SELECT 
+        c.*, 
+        COALESCE(SUM(t.final_amount), 0) as total_spent 
+      FROM customers c 
+      LEFT JOIN transactions t ON c.id = t.customer_id 
+      GROUP BY c.id 
+      ORDER BY c.name COLLATE NOCASE ASC
+    ''');
     return rows.map(_fromRow).toList();
   }
 
