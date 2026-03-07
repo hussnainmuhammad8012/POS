@@ -11,6 +11,7 @@ class ModernCard extends StatefulWidget {
   final MainAxisSize mainAxisSize;
   final VoidCallback? onTap;
   final Color? borderColor;
+  final Color? backgroundColor;
 
   const ModernCard({
     super.key,
@@ -22,6 +23,7 @@ class ModernCard extends StatefulWidget {
     this.mainAxisSize = MainAxisSize.min,
     this.onTap,
     this.borderColor,
+    this.backgroundColor,
   });
 
   @override
@@ -47,7 +49,7 @@ class _ModernCardState extends State<ModernCard> {
         transform: Matrix4.identity()..scale(_isHovered ? 1.02 : 1.0),
         transformAlignment: Alignment.center,
         decoration: BoxDecoration(
-          color: theme.cardTheme.color,
+          color: widget.backgroundColor ?? theme.cardTheme.color,
           borderRadius: BorderRadius.circular(AppRadius.md),
           border: Border.all(
             color: widget.borderColor ?? (_isHovered 

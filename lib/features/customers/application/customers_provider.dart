@@ -20,20 +20,35 @@ class CustomersProvider extends ChangeNotifier {
 
   List<Customer> get customers => List.unmodifiable(_customers);
 
+  double get totalOutstandingCredit => _customers.fold(0, (sum, c) => sum + c.currentCredit);
+
   String _searchQuery = '';
+  CreditFilter _creditFilter = CreditFilter.all;
 
   String get searchQuery => _searchQuery;
+  CreditFilter get creditFilter => _creditFilter;
 
-  List<Customer> get filteredCustomers {
-    if (_searchQuery.isEmpty) return customers;
-    
+  List<Customer> get debtors {
+    return _customers.where((c) => c.currentCredit > 0).toList();
+  }
+
+  List<Customer> get filteredDebtors {
+    final list = debtors;
     final query = _searchQuery.toLowerCase();
-    return _customers
-        .where((c) =>
-            c.name.toLowerCase().contains(query) ||
-            (c.phone ?? '').contains(query) ||
-            (c.whatsappNumber ?? '').contains(query))
-        .toList();
+    
+    return list.where((c) {
+      final matchesSearch = c.name.toLowerCase().contains(query) ||
+          (c.phone ?? '').contains(query);
+      
+      bool matchesCredit = true;
+      if (_creditFilter == CreditFilter.high) {
+        matchesCredit = c.currentCredit >= 5000;
+      } else if (_creditFilter == CreditFilter.low) {
+        matchesCredit = c.currentCredit < 5000;
+      }
+      
+      return matchesSearch && matchesCredit;
+    }).toList();
   }
 
   Future<void> loadCustomers() async {
@@ -94,9 +109,16 @@ class CustomersProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setCreditFilter(CreditFilter filter) {
+    _creditFilter = filter;
+    notifyListeners();
+  }
+
   void clearError() {
     _error = null;
     notifyListeners();
   }
 }
+
+enum CreditFilter { all, high, low }
 

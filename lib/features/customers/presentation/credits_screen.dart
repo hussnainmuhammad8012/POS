@@ -36,8 +36,9 @@ class _CreditsScreenState extends State<CreditsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final customers = context.watch<CustomersProvider>().customers
-        .where((c) => c.currentCredit > 0).toList();
+    final provider = context.watch<CustomersProvider>();
+    final filteredDebtors = provider.filteredDebtors;
+    final totalCredit = provider.totalOutstandingCredit;
 
     return Scaffold(
       body: Column(
@@ -49,56 +50,157 @@ class _CreditsScreenState extends State<CreditsScreen> {
           Expanded(
             child: Row(
               children: [
-                // Left Panel - Debtors List
+                // Left Panel - Debtors List with Filters & Summary
                 Container(
-                  width: 350,
+                  width: 400,
                   decoration: BoxDecoration(
                     border: Border(right: BorderSide(color: Theme.of(context).dividerColor)),
                   ),
-                  child: customers.isEmpty
-                      ? const Center(child: Text('No customers with outstanding credit'))
-                      : ListView.separated(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: customers.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 8),
-                          itemBuilder: (context, index) {
-                            final c = customers[index];
-                            final isSelected = _selectedCustomer?.id == c.id;
-                            return ModernCard(
-                              onTap: () => _selectCustomer(c),
-                              padding: const EdgeInsets.all(16),
-                              borderColor: isSelected ? Theme.of(context).primaryColor : null,
-                              child: Row(
-                                children: [
-                                  CircleAvatar(
-                                    backgroundColor: Theme.of(context).primaryColor.withAlpha(30),
-                                    child: const Icon(LucideIcons.user, size: 20),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Column(
+                    children: [
+                      // Total Summary Card
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: ModernCard(
+                          backgroundColor: AppColors.DANGER.withValues(alpha: 0.1),
+                          borderColor: AppColors.DANGER.withValues(alpha: 0.3),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.DANGER.withValues(alpha: 0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(LucideIcons.alertCircle, color: AppColors.DANGER),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Total Outstanding', 
+                                      style: TextStyle(fontSize: 13, color: AppColors.DANGER, fontWeight: FontWeight.bold)
+                                    ),
+                                    Text('Rs ${NumberFormat('#,##0').format(totalCredit)}', 
+                                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                        color: AppColors.DANGER, 
+                                        fontWeight: FontWeight.bold
+                                      )
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Filters Section
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Column(
+                          children: [
+                            CustomTextField(
+                              hint: 'Search debtors...',
+                              prefixIcon: LucideIcons.search,
+                              onChanged: (v) => provider.setSearchQuery(v),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                _FilterChip(
+                                  label: 'All', 
+                                  isSelected: provider.creditFilter == CreditFilter.all,
+                                  onTap: () => provider.setCreditFilter(CreditFilter.all),
+                                ),
+                                const SizedBox(width: 8),
+                                _FilterChip(
+                                  label: 'High (>5k)', 
+                                  isSelected: provider.creditFilter == CreditFilter.high,
+                                  onTap: () => provider.setCreditFilter(CreditFilter.high),
+                                ),
+                                const SizedBox(width: 8),
+                                _FilterChip(
+                                  label: 'Low', 
+                                  isSelected: provider.creditFilter == CreditFilter.low,
+                                  onTap: () => provider.setCreditFilter(CreditFilter.low),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Divider(height: 1),
+                      // Debtors List
+                      Expanded(
+                        child: filteredDebtors.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(LucideIcons.users, size: 48, color: Colors.grey.withValues(alpha: 0.3)),
+                                    const SizedBox(height: 16),
+                                    const Text('No debtors found'),
+                                  ],
+                                ),
+                              )
+                            : ListView.separated(
+                                padding: const EdgeInsets.all(16),
+                                itemCount: filteredDebtors.length,
+                                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                                itemBuilder: (context, index) {
+                                  final c = filteredDebtors[index];
+                                  final isSelected = _selectedCustomer?.id == c.id;
+                                  return ModernCard(
+                                    onTap: () => _selectCustomer(c),
+                                    padding: const EdgeInsets.all(16),
+                                    borderColor: isSelected ? Theme.of(context).primaryColor : null,
+                                    child: Row(
                                       children: [
-                                        Text(c.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                        Text(c.phone ?? 'No phone', style: Theme.of(context).textTheme.bodySmall),
+                                        CircleAvatar(
+                                          backgroundColor: Theme.of(context).primaryColor.withAlpha(30),
+                                          child: Text(c.name[0].toUpperCase(), 
+                                            style: TextStyle(color: Theme.of(context).primaryColor, fontWeight: FontWeight.bold)
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(c.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                              Text(c.phone ?? 'No phone', style: Theme.of(context).textTheme.bodySmall),
+                                            ],
+                                          ),
+                                        ),
+                                        Text(
+                                          'Rs ${NumberFormat('#,##0').format(c.currentCredit)}',
+                                          style: const TextStyle(color: AppColors.DANGER, fontWeight: FontWeight.bold),
+                                        ),
                                       ],
                                     ),
-                                  ),
-                                  Text(
-                                    'Rs ${c.currentCredit.toStringAsFixed(0)}',
-                                    style: const TextStyle(color: AppColors.DANGER, fontWeight: FontWeight.bold),
-                                  ),
-                                ],
+                                  );
+                                },
                               ),
-                            );
-                          },
-                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 // Right Panel - Ledger
                 Expanded(
                   child: _selectedCustomer == null
-                      ? const Center(child: Text('Select a customer to view ledger'))
-                      : _CustomerLedgerView(customer: _selectedCustomer!),
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(LucideIcons.bookOpen, size: 64, color: Colors.grey.withValues(alpha: 0.2)),
+                              const SizedBox(height: 16),
+                              const Text('Select a customer to view ledger', style: TextStyle(color: Colors.grey)),
+                            ],
+                          ),
+                        )
+                      : _CustomerLedgerView(customer: provider.debtors.firstWhere((c) => c.id == _selectedCustomer!.id, orElse: () => _selectedCustomer!)),
                 ),
               ],
             ),
@@ -242,6 +344,45 @@ class _CustomerLedgerView extends StatelessWidget {
             child: const Text('Record Payment'),
           ),
         ],
+      ),
+    );
+  }
+}
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _FilterChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? theme.primaryColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? theme.primaryColor : theme.dividerColor,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : theme.textTheme.bodyMedium?.color,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            fontSize: 12,
+          ),
+        ),
       ),
     );
   }
