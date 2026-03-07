@@ -9,6 +9,7 @@ import '../../features/transactions/presentation/transactions_screen.dart';
 import '../../features/analytics/presentation/analytics_screen.dart';
 import '../../features/customers/presentation/credits_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
+import '../../features/settings/application/settings_provider.dart';
 import '../features/notifications/application/notification_provider.dart';
 import '../features/notifications/presentation/widgets/notification_modal.dart';
 import 'package:provider/provider.dart';
@@ -132,11 +133,12 @@ class _Sidebar extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  'Gravity POS',
+                  context.watch<SettingsProvider>().storeName,
                   style: TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
+                    overflow: TextOverflow.ellipsis,
                     color: (isDark || isStarAdmin) ? Colors.white : AppColors.LIGHT_TEXT_PRIMARY,
                   ),
                 ),
