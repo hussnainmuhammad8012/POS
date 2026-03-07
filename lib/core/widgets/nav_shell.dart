@@ -14,33 +14,23 @@ import '../features/notifications/application/notification_provider.dart';
 import '../features/notifications/presentation/widgets/notification_modal.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
+import '../application/navigation_provider.dart';
+import '../application/global_search_provider.dart';
 
-class NavShell extends StatefulWidget {
+class NavShell extends StatelessWidget {
   static const routeName = '/';
   const NavShell({super.key});
 
   @override
-  State<NavShell> createState() => _NavShellState();
-}
-
-class _NavShellState extends State<NavShell> {
-  int _selectedIndex = 0;
-
-  void _onDestinationSelected(int index) {
-    if (index == _selectedIndex) return;
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final nav = context.watch<NavigationProvider>();
+
     return Scaffold(
       body: Row(
         children: [
           _Sidebar(
-            selectedIndex: _selectedIndex,
-            onDestinationSelected: _onDestinationSelected,
+            selectedIndex: nav.selectedIndex,
+            onDestinationSelected: (index) => nav.setSelectedIndex(index),
           ),
           Expanded(
             child: Column(
@@ -48,10 +38,10 @@ class _NavShellState extends State<NavShell> {
                 const _TopHeaderBar(),
                 Expanded(
                   child: IndexedStack(
-                    index: _selectedIndex,
+                    index: nav.selectedIndex,
                     children: [
                       const DashboardScreen(),
-                      PosScreen(isVisible: _selectedIndex == 1),
+                      PosScreen(isVisible: nav.selectedIndex == 1),
                       const InventoryScreen(),
                       const CustomersScreen(),
                       const TransactionsScreen(),
@@ -272,8 +262,129 @@ class _NavItemState extends State<_NavItem> {
   }
 }
 
-class _TopHeaderBar extends StatelessWidget {
+class _TopHeaderBar extends StatefulWidget {
   const _TopHeaderBar();
+
+  @override
+  State<_TopHeaderBar> createState() => _TopHeaderBarState();
+}
+
+class _TopHeaderBarState extends State<_TopHeaderBar> {
+  final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
+  final _layerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchFocusNode.addListener(() {
+      if (!_searchFocusNode.hasFocus) {
+        _hideOverlay();
+      }
+    });
+  }
+
+  void _showOverlay() {
+    _hideOverlay();
+    
+    final overlay = Overlay.of(context);
+    _overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        width: 400,
+        child: CompositedTransformFollower(
+          link: _layerLink,
+          showWhenUnlinked: false,
+          offset: const Offset(0, 45),
+          child: Material(
+            elevation: 8,
+            borderRadius: BorderRadius.circular(12),
+            color: Theme.of(context).cardTheme.color,
+            clipBehavior: Clip.antiAlias,
+            child: Consumer<GlobalSearchProvider>(
+              builder: (context, search, _) {
+                if (search.isLoading) {
+                  return const SizedBox(
+                    height: 100,
+                    child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  );
+                }
+
+                if (search.results.isEmpty) {
+                  if (search.query.length < 2) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text('No results found for "${search.query}"', 
+                      style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                  );
+                }
+
+                return ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 400),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.zero,
+                    itemCount: search.results.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final result = search.results[index];
+                      return ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: (result.type == SearchResultType.product ? Colors.blue : Colors.green).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            result.type == SearchResultType.product ? LucideIcons.package : LucideIcons.user,
+                            size: 16,
+                            color: result.type == SearchResultType.product ? Colors.blue : Colors.green,
+                          ),
+                        ),
+                        title: Text(result.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                        subtitle: Text(result.subtitle ?? '', style: const TextStyle(fontSize: 12)),
+                        onTap: () {
+                          _hideOverlay();
+                          _searchController.clear();
+                          context.read<GlobalSearchProvider>().clearSearch();
+                          _searchFocusNode.unfocus();
+                          
+                          // Global Navigation
+                          final nav = context.read<NavigationProvider>();
+                          if (result.type == SearchResultType.product) {
+                            nav.navigateToInventory();
+                          } else {
+                            nav.navigateToCustomers();
+                          }
+                        },
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(_overlayEntry!);
+  }
+
+  void _hideOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    _hideOverlay();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -298,44 +409,74 @@ class _TopHeaderBar extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Search Field
-          Container(
-            width: 300,
-            height: 40,
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.DARK_BACKGROUND : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: borderColor,
+          CompositedTransformTarget(
+            link: _layerLink,
+            child: Container(
+              width: 400,
+              height: 40,
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.DARK_BACKGROUND : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: borderColor,
+                ),
               ),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Icon(LucideIcons.search, size: 18, color: isDark ? AppColors.DARK_TEXT_TERTIARY : AppColors.LIGHT_TEXT_TERTIARY),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Search products, customers...',
-                      hintStyle: TextStyle(
-                        color: isDark ? AppColors.DARK_TEXT_TERTIARY : AppColors.LIGHT_TEXT_TERTIARY,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Icon(LucideIcons.search, size: 18, color: isDark ? AppColors.DARK_TEXT_TERTIARY : AppColors.LIGHT_TEXT_TERTIARY),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      focusNode: _searchFocusNode,
+                      onChanged: (value) {
+                        context.read<GlobalSearchProvider>().search(value);
+                        if (value.length >= 2) {
+                          _showOverlay();
+                        } else {
+                          _hideOverlay();
+                        }
+                      },
+                      onTap: () {
+                        if (_searchController.text.length >= 2) {
+                          _showOverlay();
+                        }
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Search products, customers...',
+                        hintStyle: TextStyle(
+                          color: isDark ? AppColors.DARK_TEXT_TERTIARY : AppColors.LIGHT_TEXT_TERTIARY,
+                          fontSize: 14,
+                        ),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        errorBorder: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                        isDense: true,
+                        fillColor: Colors.transparent,
+                      ),
+                      style: TextStyle(
+                        color: isDark ? AppColors.DARK_TEXT_PRIMARY : AppColors.LIGHT_TEXT_PRIMARY,
                         fontSize: 14,
                       ),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      errorBorder: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,
-                      isDense: true,
-                      fillColor: Colors.transparent,
-                    ),
-                    style: TextStyle(
-                      color: isDark ? AppColors.DARK_TEXT_PRIMARY : AppColors.LIGHT_TEXT_PRIMARY,
-                      fontSize: 14,
                     ),
                   ),
-                ),
-              ],
+                  if (_searchController.text.isNotEmpty)
+                    IconButton(
+                      icon: const Icon(LucideIcons.x, size: 16),
+                      onPressed: () {
+                        _searchController.clear();
+                        context.read<GlobalSearchProvider>().clearSearch();
+                        _hideOverlay();
+                        setState(() {});
+                      },
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                    ),
+                ],
+              ),
             ),
           ),
           
@@ -388,7 +529,7 @@ class _TopHeaderBar extends StatelessWidget {
               const SizedBox(width: 16),
               Row(
                 children: [
-                  CircleAvatar(
+                   CircleAvatar(
                     radius: 16,
                     backgroundColor: theme.primaryColor.withAlpha(40),
                     child: Text(

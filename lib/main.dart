@@ -24,6 +24,8 @@ import 'core/repositories/transaction_repository.dart';
 import 'core/repositories/notification_repository.dart';
 import 'core/features/notifications/application/notification_provider.dart';
 import 'features/analytics/data/analytics_repository.dart';
+import 'core/application/navigation_provider.dart';
+import 'core/application/global_search_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -95,6 +97,13 @@ class UtilityStorePosApp extends StatelessWidget {
           p.checkLowStock();       // Trigger low stock check on start
           return p;
         }),
+        ChangeNotifierProvider(create: (_) => NavigationProvider()),
+        ChangeNotifierProvider(
+          create: (_) => GlobalSearchProvider(
+            productRepository: productRepo,
+            customerRepository: customerRepo,
+          ),
+        ),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {

@@ -19,6 +19,20 @@ class CustomerRepository {
     return rows.map(_fromRow).toList();
   }
 
+  Future<List<Customer>> searchCustomers(String query) async {
+    final rows = await _db.rawQuery('''
+      SELECT 
+        c.*, 
+        COALESCE(SUM(t.final_amount), 0) as total_spent 
+      FROM customers c 
+      LEFT JOIN transactions t ON c.id = t.customer_id 
+      WHERE c.name LIKE ? OR c.phone LIKE ?
+      GROUP BY c.id 
+      ORDER BY c.name COLLATE NOCASE ASC
+    ''', ['%$query%', '%$query%']);
+    return rows.map(_fromRow).toList();
+  }
+
   Future<Customer> insert(Customer customer) async {
     final id = customer.id ?? 'cust_${DateTime.now().microsecondsSinceEpoch}';
     final payload = {

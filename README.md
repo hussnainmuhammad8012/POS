@@ -1,108 +1,70 @@
-# Utility Store POS (Desktop)
+# 🌌 Gravity POS (Hunain Mart)
 
-A modern, analytics-heavy desktop Point-of-Sale system for a single-counter utility store. Built with **Flutter** and **SQLite** for beautiful cross-platform UI and reliable local storage.
+Welcome to **Gravity POS**, a premium, high-performance desktop Point of Sale and Inventory Management system. Designed with a stunning, modern aesthetic (Star Admin) and powered by an offline-first architecture, Gravity POS offers everything a modern business needs to scale.
 
-## Features
+![Hunain Mart POS](flutter_01.png)
 
-- **Dashboard**
-  - Today’s sales, transactions, active customers, low stock items, and profit KPIs
-  - 7-day sales trend chart and sales by category (donut chart)
-  - Top 5 products and recent transactions
-- **Point of Sale**
-  - Fast cart UI with quantity controls and remove/void actions
-  - Bulk quantity + barcode entry workflow
-  - Customer selection and quick-add
-  - Payment modal with cash/card/other methods
-- **Inventory Management**
-  - Categories with CRUD
-  - Products with price, cost, stock, low stock thresholds, and image placeholder
-  - Search and filter by category
-  - Low-stock highlighting
-- **Stock Movements**
-  - Automatic stock deduction and logging for sales (schema + repository ready)
-  - API for restock/adjustment operations
-- **Customers**
-  - Customer list with search and loyalty/total spent data fields
-  - Customer profile view with stats and purchase history placeholder
-- **Analytics & Reports**
-  - Time range presets (Today, Week, Month, Custom placeholder)
-  - Sales overview, best/worst sellers, profit analysis, and customer insights (wired with mock data; ready for DB integration)
-  - Export button placeholder for PDF/Excel
-- **Settings**
-  - Store info, tax rate, and receipt footer
-  - Backup/restore SQLite database file
-  - Theme mode toggle and printer settings placeholder
+## 🚀 Key Features
 
-## Tech Stack
+### 🛒 Advanced Point of Sale
+- **Robust Adaptive Cart**: A completely redesigned cart interface that scales beautifully across any window size. No more character wrapping or squeezed text.
+- **Precision Scanner Integration**: High-speed barcode scanning with bulk quantity support.
+- **Intelligent Search Overlay**: A global header search bar that allows you to find products and customers instantly from anywhere in the app.
+- **Dynamic Pricing**: Toggle between Retail and Wholesale pricing on the fly with automatic margin recalculations.
+- **Flexible Checkout**: Support for Cash, Card, and Credit sales. Integrated debt tracking for credit customers.
 
-- **Flutter** (desktop – Windows, macOS, Linux with the same codebase)
-- **SQLite** via `sqflite_common_ffi`
-- **Provider** for state management
-- **fl_chart** for charts and analytics visuals
-- **file_picker** for backup/restore
+### 📊 Real-Time Analytics Dashboard
+- **Instant KPIs**: Track Revenue, Transactions, Credit collected, and Low Stock counts at a glance.
+- **Interactive Visualizations**: Deep-dive into sales trends with elegant line charts and category distribution donut charts.
+- **Top Performers**: Auto-generated lists of top-selling products and highest-performing categories.
+- **Report Export**: Generate detailed PDF reports with custom date ranges, ready for printing or digital sharing.
 
-## Getting Started
+### 📦 Inventory & Stock Control
+- **Multilevel Management**: Manage categories, products, and variants (Size, Color, Unit) with a powerful repository-based system.
+- **Low Stock Alerts**: Automatic notifications for items falling below safety thresholds.
+- **Stock Movements**: Every gram or milliliter is tracked through a comprehensive movement ledger (IN, OUT, ADJUSTMENT).
+
+### 👥 Customer & Credit Management
+- **Full Ledger Tracking**: View a complete history of credits and payments for every customer.
+- **WhatsApp Integration**: Quickly transition from POS to communication with integrated phone and contact fields.
+- **Debt Collection**: Specialized "Credits" screen to manage outstanding balances and collection due dates.
+
+### ⚙️ Premium Settings & Branding
+- **Dynamic Store Branding**: Change your store name and watch the entire app (titles, sidebars, receipts) sync instantly.
+- **Triple Theme Support**: Toggle between **Light**, **Dark**, and the signature **Star Admin (Navy/Orange)** theme.
+- **Auto-Backups**: Peace of mind with automated SQLite database backups to your local storage.
+
+## 🛠️ Tech Stack
+
+- **Framework**: [Flutter](https://flutter.dev/) (Desktop)
+- **Database**: [SQLite](https://www.sqlite.org/index.html) (Offline-First, FFI)
+- **State Mgmt**: [Provider](https://pub.dev/packages/provider) (Clean Architecture)
+- **Visuals**: [Lucide Icons](https://lucide.dev/), [fl_chart](https://pub.dev/packages/fl_chart)
+- **Windows Integration**: [bitsdojo_window](https://pub.dev/packages/bitsdojo_window)
+- **PDF Engine**: [pdf](https://pub.dev/packages/pdf), [intl](https://pub.dev/packages/intl)
+
+## 🏗️ Architecture
+
+Gravity POS follows a strict **Layered Clean Architecture**:
+1.  **Presentation Layer**: Custom-built widgets and UI controllers (Providers) using our premium design system.
+2.  **Application Layer**: Business logic providers that orchestrate data flow between UI and Repositories.
+3.  **Data Layer**: Encapsulated Repositories and SQLite DAOs to ensure data integrity and high performance.
+
+## 📈 Business Logic & Metrics
+
+For detailed information on how we calculate Revenue, Net Profit, and Costs, please refer to our internal logic documentation:
+👉 [**Business Logic & Reports Guide**](business_logic_reports.md)
+
+## 🚦 Getting Started
 
 ### Prerequisites
+- Flutter SDK 3.x+
+- Windows Development Environment (C++ tools)
 
-- Flutter SDK (3.x or later) installed and configured
-- For Windows desktop:
-  - Enable desktop support with:
+### Installation
+1.  Enable Windows support: `flutter config --enable-windows-desktop`
+2.  Install dependencies: `flutter pub get`
+3.  Launch: `flutter run -d windows`
 
-```bash
-flutter config --enable-windows-desktop
-```
-
-### Install Dependencies
-
-From the project root:
-
-```bash
-flutter pub get
-```
-
-### Run the Application (Windows)
-
-```bash
-flutter run -d windows
-```
-
-The app will create a local `data/utility_store_pos.db` SQLite file relative to the executable folder for all persistent data.
-
-## Project Structure
-
-- `lib/main.dart` – App entrypoint, theming, providers, navigation
-- `lib/core/database/app_database.dart` – SQLite initialization and schema
-- `lib/core/models/entities.dart` – Core entity models (products, customers, transactions, etc.)
-- `lib/core/repositories/*_repository.dart` – Database access and business logic entry points
-- `lib/core/theme/app_theme.dart` – Light/dark themes and color system
-- `lib/core/widgets/*` – Shared widgets (navigation shell, KPI cards)
-- `lib/features/*` – Feature modules by domain:
-  - `dashboard`
-  - `pos`
-  - `inventory`
-  - `customers`
-  - `analytics`
-  - `settings`
-
-## Production-Readiness Notes
-
-- **Data integrity**
-  - SQLite schema enforces primary keys and relationships
-  - Stock movements are logged on sales in a transaction to keep stock consistent
-- **UX**
-  - Consistent color-coded feedback and tooltips
-  - Empty states and friendly error snackbars instead of blank screens
-  - Dialog confirmations for destructive actions (delete, void sale)
-- **Extensibility**
-  - Repositories encapsulate all DB access, so you can evolve analytics or add suppliers/returns without touching the UI
-  - Analytics screens are wired with mock data but structured for swapping in real aggregates from repositories
-
-## Next Implementation Steps (Optional Enhancements)
-
-- Wire POS barcode lookup to `ProductRepository.getByBarcode`
-- Implement full transaction saving in POS using `TransactionRepository`
-- Add real analytics queries to replace mock charts
-- Implement CSV/XLSX import using `file_picker` + a parser
-- Integrate with a receipt printer (over USB/network) and PDF export for receipts/reports
-
+---
+*Built with ❤️ for Hunain Mart.*
