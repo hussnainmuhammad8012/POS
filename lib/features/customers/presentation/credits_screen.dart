@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glass_header.dart';
 import '../../../core/widgets/modern_card.dart';
 import '../../../core/widgets/custom_text_field.dart';
+import '../../../core/widgets/toast_notification.dart';
 import '../application/customers_provider.dart';
 import '../application/credit_ledger_provider.dart';
 
@@ -329,14 +330,20 @@ class _CustomerLedgerView extends StatelessWidget {
                 if (context.mounted) {
                    await context.read<CustomersProvider>().loadCustomers();
                    Navigator.pop(context);
-                   ScaffoldMessenger.of(context).showSnackBar(
-                     const SnackBar(content: Text('Payment recorded successfully'), backgroundColor: Colors.green),
+                   AppToast.show(
+                     context,
+                     title: 'Payment Recorded',
+                     message: 'Payment of Rs ${amount.toStringAsFixed(2)} received.',
+                     type: ToastType.success,
                    );
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.DANGER),
+                  AppToast.show(
+                    context,
+                    title: 'Payment Failed',
+                    message: e.toString(),
+                    type: ToastType.error,
                   );
                 }
               }

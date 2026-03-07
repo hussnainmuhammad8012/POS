@@ -9,15 +9,19 @@ import '../../../core/widgets/app_dropdown.dart';
 import '../../../core/widgets/custom_text_field.dart';
 import '../../../core/widgets/glass_header.dart';
 import '../../../core/widgets/modern_card.dart';
+import '../../../core/widgets/toast_notification.dart';
 import '../../customers/application/customers_provider.dart';
 import '../../inventory/application/inventory_provider.dart';
 import '../../inventory/data/repositories/product_repository.dart';
 import '../../settings/application/settings_provider.dart';
 import '../../customers/presentation/widgets/add_customer_dialog.dart';
+import '../../analytics/application/analytics_provider.dart';
+import '../../transactions/application/transactions_provider.dart';
+import '../../inventory/application/stock_provider.dart';
+import '../../../core/features/notifications/application/notification_provider.dart';
 import '../application/pos_provider.dart';
 import '../application/product_scanner.dart';
 import 'widgets/invoice_dialog.dart';
-import 'widgets/searchable_customer_dropdown.dart';
 import 'widgets/searchable_customer_dropdown.dart';
 // Notifications moved to nav_shell.dart
 
@@ -65,7 +69,6 @@ class _PosScreenState extends State<PosScreen> {
   @override
   Widget build(BuildContext context) {
     final pos = context.watch<PosProvider>();
-    final customers = context.watch<CustomersProvider>().customers;
 
     return Scaffold(
       body: Row(
@@ -132,11 +135,11 @@ class _PosScreenState extends State<PosScreen> {
                                     );
 
                                     if (!success && mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text(pos.error ?? 'Product not found'),
-                                          backgroundColor: Theme.of(context).colorScheme.error,
-                                        ),
+                                      AppToast.show(
+                                        context,
+                                        title: 'Scan Error',
+                                        message: pos.error ?? 'Product not found',
+                                        type: ToastType.error,
                                       );
                                     }
                                     
@@ -232,9 +235,9 @@ class _PosScreenState extends State<PosScreen> {
                       ),
                 ),
                 const Divider(height: 1),
-                Flexible(
+                const Flexible(
                   child: SingleChildScrollView(
-                    child: const _CheckoutSummary(),
+                    child: _CheckoutSummary(),
                   ),
                 ),
               ],
@@ -307,7 +310,17 @@ class _ModernCartRow extends StatelessWidget {
                     ),
                     _QuantityButton(
                       icon: LucideIcons.plus,
-                      onTap: () => pos.incrementQuantity(item.variantId),
+                      onTap: () {
+                        pos.incrementQuantity(item.variantId);
+                        if (pos.error != null) {
+                          AppToast.show(
+                            context,
+                            title: 'Stock Alert',
+                            message: pos.error!,
+                            type: ToastType.warning,
+                          );
+                        }
+                      },
                     ),
                   ],
                 ),
@@ -446,6 +459,14 @@ class _CheckoutSummary extends StatelessWidget {
                   creditAmount: creditAmount,
                   dueDate: dueDate,
                   onSuccess: (savedTx) {
+                    // Proactive refreshes to make the system "smart"
+                    context.read<AnalyticsProvider>().refreshData();
+                    context.read<TransactionsProvider>().loadTransactions();
+                    context.read<StockProvider>().loadMovements();
+                    context.read<NotificationProvider>().checkLowStock();
+                    context.read<InventoryProvider>().loadCategories();
+                    context.read<InventoryProvider>().loadProducts(); // Fresh stock in product list
+
                     if (context.mounted) {
                       showDialog(
                         context: context,
@@ -459,8 +480,11 @@ class _CheckoutSummary extends StatelessWidget {
                   },
                   onError: (e) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error: $e')),
+                      AppToast.show(
+                        context,
+                        title: 'Checkout Failed',
+                        message: e.toString(),
+                        type: ToastType.error,
                       );
                     }
                   },
@@ -604,7 +628,7 @@ class _EmptyCartState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(LucideIcons.shoppingBag, size: 48, color: Theme.of(context).colorScheme.secondary.withOpacity(0.5)),
+          Icon(LucideIcons.shoppingBag, size: 48, color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.5)),
           const SizedBox(height: 16),
           Text(
             'Cart is empty',

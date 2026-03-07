@@ -23,6 +23,7 @@ import 'features/transactions/application/transactions_provider.dart';
 import 'core/repositories/transaction_repository.dart';
 import 'core/repositories/notification_repository.dart';
 import 'core/features/notifications/application/notification_provider.dart';
+import 'features/analytics/data/analytics_repository.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -75,7 +76,12 @@ class UtilityStorePosApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(create: (_) => CustomersProvider(repository: customerRepo)),
         ChangeNotifierProvider(create: (_) => CreditLedgerProvider(creditLedgerRepo)),
-        ChangeNotifierProvider(create: (_) => AnalyticsProvider()),
+        ChangeNotifierProvider(
+          create: (_) => AnalyticsProvider(
+            analyticsRepository: AnalyticsRepository(),
+            transactionRepository: transactionRepo,
+          ),
+        ),
         ChangeNotifierProvider(create: (_) => TransactionsProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) {
@@ -86,6 +92,7 @@ class UtilityStorePosApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) {
           final p = NotificationProvider(notificationRepo);
           p.checkOverdueCredits(); // Trigger check on start
+          p.checkLowStock();       // Trigger low stock check on start
           return p;
         }),
       ],

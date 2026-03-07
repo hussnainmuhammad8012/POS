@@ -8,6 +8,7 @@ import '../../../core/widgets/kpi_card.dart';
 import '../../../core/widgets/modern_card.dart';
 import '../../../core/widgets/glass_header.dart';
 import '../../analytics/application/analytics_provider.dart';
+import '../../transactions/application/transactions_provider.dart';
 
 class DashboardScreen extends StatelessWidget {
   static const routeName = '/dashboard';
@@ -18,6 +19,10 @@ class DashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final analytics = context.watch<AnalyticsProvider>();
     final kpi = analytics.todayKpi;
+
+    if (analytics.last7DaysSales.isEmpty && !analytics.isLoading) {
+      Future.microtask(() => analytics.refreshData());
+    }
 
     return Scaffold(
       body: Column(
@@ -52,11 +57,24 @@ class DashboardScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      flex: 1,
-                      child: _RecentTransactionsCard(),
+                      child: _ProductRankingCard(
+                        title: 'Top 5 Performing Products',
+                        items: analytics.topProducts,
+                        isTop: true,
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      child: _ProductRankingCard(
+                        title: 'Least Performing Products',
+                        items: analytics.leastProducts,
+                        isTop: false,
+                      ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 24),
+                const _RecentTransactionsCard(),
               ],
             ),
           ),
@@ -69,7 +87,6 @@ class DashboardScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final isStarAdmin = theme.primaryColor == AppColors.STAR_PRIMARY;
-    final salesSubtitle = kpi.salesUpVsYesterday ? '+5.2%' : '-1.4%';
 
     return IntrinsicHeight(
       child: Row(
@@ -77,11 +94,11 @@ class DashboardScreen extends StatelessWidget {
         children: [
           Expanded(
             child: KpiCard(
-              title: 'Total Revenue',
-              value: 'Rs ${kpi.sales.toStringAsFixed(2)}',
+              title: 'Sales Today',
+              value: 'Rs ${kpi.sales.toStringAsFixed(0)}',
               icon: LucideIcons.indianRupee,
-              trend: salesSubtitle,
-              isTrendPositive: kpi.salesUpVsYesterday,
+              trend: '+5.2%',
+              isTrendPositive: true,
               isPrimary: isStarAdmin || !isDark, 
               accentColor: isStarAdmin ? AppColors.STAR_PRIMARY : (isDark ? AppColors.PRIMARY_ACCENT_DARK : AppColors.PRIMARY_ACCENT_LIGHT),
               softBackground: isDark ? null : (isStarAdmin ? AppColors.STAR_PRIMARY.withAlpha(20) : AppColors.LIGHT_PRIMARY_SOFT),
@@ -93,7 +110,7 @@ class DashboardScreen extends StatelessWidget {
               title: 'Transactions',
               value: kpi.transactions.toString(),
               icon: LucideIcons.receipt,
-              trend: '+12%',
+              trend: '+8%',
               accentColor: isStarAdmin ? AppColors.STAR_BLUE : (isDark ? AppColors.INFO_DARK : AppColors.INFO),
               softBackground: isDark ? null : (isStarAdmin ? AppColors.STAR_BLUE.withAlpha(20) : AppColors.LIGHT_INFO_SOFT),
               isTrendPositive: true,
@@ -102,19 +119,19 @@ class DashboardScreen extends StatelessWidget {
           const SizedBox(width: 24),
           Expanded(
             child: KpiCard(
-              title: 'Active Customers',
-              value: kpi.activeCustomers.toString(),
-              icon: LucideIcons.users,
+              title: 'Credit Today',
+              value: 'Rs ${kpi.credit.toStringAsFixed(0)}',
+              icon: LucideIcons.creditCard,
               trend: '+2.1%',
               accentColor: isStarAdmin ? AppColors.STAR_TEAL : (isDark ? AppColors.SUCCESS_DARK : AppColors.SUCCESS),
               softBackground: isDark ? null : (isStarAdmin ? AppColors.STAR_TEAL.withAlpha(20) : AppColors.LIGHT_SUCCESS_SOFT),
-              isTrendPositive: true,
+              isTrendPositive: false,
             ),
           ),
           const SizedBox(width: 24),
           Expanded(
             child: KpiCard(
-              title: 'Low Stock Alerts',
+              title: 'Low Stock',
               value: kpi.lowStockItems.toString(),
               icon: LucideIcons.packageMinus,
               accentColor: isStarAdmin ? AppColors.STAR_YELLOW : (isDark ? AppColors.WARNING_DARK : AppColors.WARNING),
@@ -159,15 +176,15 @@ class _SalesTrendCard extends StatelessWidget {
             ),
             titlesData: FlTitlesData(
               show: true,
-              rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
               leftTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
                   reservedSize: 40,
                   getTitlesWidget: (value, meta) {
                     return Text(
-                      (value / 1000).toStringAsFixed(0) + 'k',
+                      '${(value / 1000).toStringAsFixed(0)}k',
                       style: Theme.of(context).textTheme.bodySmall,
                     );
                   },
@@ -202,7 +219,7 @@ class _SalesTrendCard extends StatelessWidget {
                 dotData: FlDotData(show: false),
                 belowBarData: BarAreaData(
                   show: true,
-                  color: primaryColor.withOpacity(0.05),
+                  color: primaryColor.withValues(alpha: 0.05),
                 ),
                 spots: [
                   for (var i = 0; i < data.length; i++)
@@ -324,66 +341,84 @@ class _RecentTransactionsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mock = [
-      {'time': '10:02 AM', 'customer': 'Walk-in', 'amount': 'Rs 250.00', 'email': 'walkin@store.local'},
-      {'time': '09:47 AM', 'customer': 'Rahul Dubey', 'amount': 'Rs 120.00', 'email': 'rahul.d@example.com'},
-      {'time': '09:30 AM', 'customer': 'Sneha Patel', 'amount': 'Rs 540.00', 'email': 'sneha.p@example.com'},
-      {'time': '09:15 AM', 'customer': 'Walk-in', 'amount': 'Rs 90.00', 'email': 'walkin@store.local'},
-      {'time': '09:05 AM', 'customer': 'Amit Singh', 'amount': 'Rs 310.00', 'email': 'amit.s@example.com'},
-    ];
+    final transactions = context.watch<TransactionsProvider>().transactions.take(5).toList();
 
     return ModernCard(
       title: 'Recent Transactions',
       padding: EdgeInsets.zero,
-      child: ListView.separated(
+      child: transactions.isEmpty 
+      ? const SizedBox(height: 100, child: Center(child: Text('No transactions yet.')))
+      : ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        itemCount: mock.length,
+        itemCount: transactions.length,
         itemBuilder: (context, index) {
-          final item = mock[index];
-          final isDark = Theme.of(context).brightness == Brightness.dark;
+          final item = transactions[index];
           
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
-                  child: Text(
-                    item['customer']!.toString().substring(0, 1),
-                    style: TextStyle(
-                      color: Theme.of(context).primaryColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item['customer'] as String,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                      ),
-                      Text(
-                        item['email'] as String,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  '+${item['amount']}',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                ),
-              ],
+          return ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            leading: CircleAvatar(
+              backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+              child: const Icon(LucideIcons.receipt, size: 18),
+            ),
+            title: Text(
+              item.customerName ?? 'Walk-in',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(item.invoiceNumber),
+            trailing: Text(
+              'Rs ${item.finalAmount.toStringAsFixed(0)}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           );
         },
         separatorBuilder: (_, __) => const Divider(height: 1),
       ),
+    );
+  }
+}
+
+class _ProductRankingCard extends StatelessWidget {
+  final String title;
+  final List<Map<String, dynamic>> items;
+  final bool isTop;
+
+  const _ProductRankingCard({
+    required this.title,
+    required this.items,
+    required this.isTop,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ModernCard(
+      title: title,
+      padding: EdgeInsets.zero,
+      child: items.isEmpty
+          ? const SizedBox(height: 100, child: Center(child: Text('No data available')))
+          : ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final item = items[index];
+                return ListTile(
+                  leading: Text(
+                    '#${index + 1}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isTop ? Colors.green : Colors.orange,
+                    ),
+                  ),
+                  title: Text(item['name'] as String),
+                  trailing: Text(
+                    '${item['total_qty']} units',
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                );
+              },
+              separatorBuilder: (_, __) => const Divider(height: 1),
+            ),
     );
   }
 }
@@ -400,7 +435,7 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 48, color: Theme.of(context).colorScheme.secondary.withOpacity(0.5)),
+          Icon(icon, size: 48, color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.5)),
           const SizedBox(height: 16),
           Text(
             message,

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/models/entities.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/custom_text_field.dart';
+import '../../../../core/widgets/toast_notification.dart';
 import '../../application/customers_provider.dart';
 
 class AddCustomerDialog extends StatefulWidget {
@@ -94,15 +95,34 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
 
       if (isEditing) {
         await provider.updateCustomer(customer);
+        if (mounted) {
+          AppToast.show(
+            context,
+            title: 'Success',
+            message: 'Customer updated successfully',
+            type: ToastType.success,
+          );
+        }
       } else {
         await provider.addCustomer(customer);
+        if (mounted) {
+          AppToast.show(
+            context,
+            title: 'Success',
+            message: 'Customer added successfully',
+            type: ToastType.success,
+          );
+        }
       }
 
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.DANGER),
+        AppToast.show(
+          context,
+          title: 'Action Failed',
+          message: e.toString(),
+          type: ToastType.error,
         );
       }
     } finally {

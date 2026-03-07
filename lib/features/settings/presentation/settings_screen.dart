@@ -9,6 +9,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/custom_text_field.dart';
 import '../../../core/widgets/glass_header.dart';
 import '../../../core/widgets/modern_card.dart';
+import '../../../core/widgets/toast_notification.dart';
 import '../application/settings_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -494,15 +495,21 @@ class _BackupRestorePanel extends StatelessWidget {
       if (outputFile != null) {
         await settings.manualExport(outputFile);
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Backup saved successfully!'), backgroundColor: Colors.green),
+          AppToast.show(
+            context,
+            title: 'Backup Success',
+            message: 'Backup saved successfully!',
+            type: ToastType.success,
           );
         }
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Backup failed: $e'), backgroundColor: AppColors.DANGER),
+        AppToast.show(
+          context,
+          title: 'Backup Failed',
+          message: e.toString(),
+          type: ToastType.error,
         );
       }
     }
@@ -539,8 +546,11 @@ class _BackupRestorePanel extends StatelessWidget {
           if (confirm == true) {
             await settings.restoreBackup(path);
             if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Database restored successfully!'), backgroundColor: Colors.green),
+              AppToast.show(
+                context,
+                title: 'Restore Success',
+                message: 'Database restored successfully!',
+                type: ToastType.success,
               );
             }
           }
@@ -548,8 +558,11 @@ class _BackupRestorePanel extends StatelessWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Restore failed: $e'), backgroundColor: AppColors.DANGER),
+        AppToast.show(
+          context,
+          title: 'Restore Failed',
+          message: e.toString(),
+          type: ToastType.error,
         );
       }
     }
@@ -588,8 +601,11 @@ class _BackupRestorePanel extends StatelessWidget {
                 await settings.clearDatabase();
                 if (context.mounted) {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Database cleared. Application reset.'), backgroundColor: Colors.orange),
+                  AppToast.show(
+                    context,
+                    title: 'Database Cleared',
+                    message: 'Application data has been reset.',
+                    type: ToastType.warning,
                   );
                 }
               }

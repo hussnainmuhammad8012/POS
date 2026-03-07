@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../application/inventory_provider.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../../../../core/widgets/app_dropdown.dart';
+import '../../../../core/widgets/toast_notification.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/product_summary_model.dart';
 
@@ -104,7 +105,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
               child: Theme(
                 data: Theme.of(context).copyWith(
                   scrollbarTheme: ScrollbarThemeData(
-                    thumbColor: WidgetStateProperty.all(Theme.of(context).primaryColor.withOpacity(0.3)),
+                    thumbColor: WidgetStateProperty.all(Theme.of(context).primaryColor.withValues(alpha: 0.3)),
                     thickness: WidgetStateProperty.all(6),
                     radius: const Radius.circular(3),
                   ),
@@ -179,7 +180,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               shape: BoxShape.circle,
               border: Border.all(color: color, width: 2),
             ),
@@ -505,8 +506,11 @@ class _AddProductDialogState extends State<AddProductDialog> {
             } else if (errorMsg.contains('UNIQUE constraint failed: product_variants.sku')) {
               errorMsg = 'A product variant with this SKU already exists.';
             }
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(errorMsg), backgroundColor: AppColors.DANGER),
+            AppToast.show(
+              context,
+              title: 'Update Failed',
+              message: errorMsg,
+              type: ToastType.error,
             );
           }
         } finally {
@@ -551,8 +555,11 @@ class _AddProductDialogState extends State<AddProductDialog> {
             } else if (errorMsg.contains('UNIQUE constraint failed: product_variants.sku')) {
               errorMsg = 'A product variant with this SKU already exists.';
             }
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errorMsg), backgroundColor: AppColors.DANGER),
+          AppToast.show(
+            context,
+            title: 'Creation Failed',
+            message: errorMsg,
+            type: ToastType.error,
           );
         }
       } finally {

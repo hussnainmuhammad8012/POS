@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/custom_text_field.dart';
 import '../../../core/widgets/glass_header.dart';
 import '../../../core/widgets/modern_card.dart';
+import '../../../core/widgets/toast_notification.dart';
 import '../application/customers_provider.dart';
 import 'widgets/add_customer_dialog.dart';
 
@@ -320,10 +321,24 @@ class _CustomersScreenState extends State<CustomersScreen> {
     if (confirm == true) {
       try {
         await provider.deleteCustomer(customer.id!);
-        setState(() => _selectedCustomerId = null);
+        if (context.mounted) {
+          Navigator.pop(context); // Close the AlertDialog
+          setState(() => _selectedCustomerId = null);
+          AppToast.show(
+            context,
+            title: 'Deleted',
+            message: 'Customer deleted successfully',
+            type: ToastType.success,
+          );
+        }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.DANGER));
+          AppToast.show(
+            context,
+            title: 'Error',
+            message: 'Failed to delete customer: $e',
+            type: ToastType.error,
+          );
         }
       }
     }

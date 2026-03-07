@@ -93,4 +93,37 @@ class NotificationProvider extends ChangeNotifier {
       );
     }
   }
+
+  /// Check for low stock items and generate notifications
+  Future<void> checkLowStock() async {
+    final db = AppDatabase.instance.db;
+    
+    final List<Map<String, dynamic>> lowStockItems = await db.rawQuery('''
+      SELECT sl.product_variant_id, p.name as product_name, sl.available_pieces, sl.low_stock_threshold
+      FROM stock_levels sl
+      JOIN product_variants pv ON sl.product_variant_id = pv.id
+      JOIN products p ON pv.product_id = p.id
+      WHERE sl.available_pieces <= sl.low_stock_threshold
+      AND NOT EXISTS (
+        SELECT 1 FROM notifications n 
+        WHERE n.type = 'LOW_STOCK' 
+        AND n.payload LIKE '%"variantId":"' || sl.product_variant_id || '"%'
+      )
+    ''');
+
+    for (var item in lowStockItems) {
+      final productName = item['product_name'];
+      final available = item['available_pieces'];
+      final variantId = item['product_variant_id'];
+
+      await addNotification(
+        title: 'Low Stock Alert',
+        message: '$productName is low on stock ($available pieces remaining).',
+        type: 'LOW_STOCK',
+        payload: jsonEncode({
+          'variantId': variantId,
+        }),
+      );
+    }
+  }
 }
