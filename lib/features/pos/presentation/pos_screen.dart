@@ -19,8 +19,9 @@ import 'widgets/searchable_customer_dropdown.dart';
 
 class PosScreen extends StatefulWidget {
   static const routeName = '/pos';
+  final bool isVisible;
 
-  const PosScreen({super.key});
+  const PosScreen({super.key, this.isVisible = false});
 
   @override
   State<PosScreen> createState() => _PosScreenState();
@@ -34,8 +35,18 @@ class _PosScreenState extends State<PosScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _barcodeFocusNode.requestFocus();
+      if (widget.isVisible) {
+        _barcodeFocusNode.requestFocus();
+      }
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant PosScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isVisible && !oldWidget.isVisible) {
+      _barcodeFocusNode.requestFocus();
+    }
   }
 
   @override

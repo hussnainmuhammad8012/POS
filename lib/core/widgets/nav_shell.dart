@@ -21,17 +21,6 @@ class NavShell extends StatefulWidget {
 class _NavShellState extends State<NavShell> {
   int _selectedIndex = 0;
 
-  final List<Widget> _screens = const [
-    DashboardScreen(),
-    PosScreen(),
-    InventoryScreen(),
-    CustomersScreen(),
-    TransactionsScreen(),
-    CreditsScreen(),
-    AnalyticsScreen(),
-    SettingsScreen(),
-  ];
-
   void _onDestinationSelected(int index) {
     if (index == _selectedIndex) return;
     setState(() {
@@ -55,7 +44,16 @@ class _NavShellState extends State<NavShell> {
                 Expanded(
                   child: IndexedStack(
                     index: _selectedIndex,
-                    children: _screens,
+                    children: [
+                      const DashboardScreen(),
+                      PosScreen(isVisible: _selectedIndex == 1),
+                      const InventoryScreen(),
+                      const CustomersScreen(),
+                      const TransactionsScreen(),
+                      const CreditsScreen(),
+                      const AnalyticsScreen(),
+                      const SettingsScreen(),
+                    ],
                   ),
                 ),
               ],

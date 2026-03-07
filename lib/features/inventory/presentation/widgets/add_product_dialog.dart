@@ -359,6 +359,14 @@ class _AddProductDialogState extends State<AddProductDialog> {
       key: const ValueKey(1),
       mainAxisSize: MainAxisSize.min,
       children: [
+        CustomTextField(
+          controller: _barcodeController,
+          label: 'Product Barcode',
+          prefixIcon: LucideIcons.scanLine,
+          hint: 'Scan or enter barcode...',
+          autofocus: true,
+        ),
+        const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
@@ -403,14 +411,6 @@ class _AddProductDialogState extends State<AddProductDialog> {
               ),
             ),
           ],
-        ),
-        const SizedBox(height: 16),
-        CustomTextField(
-          controller: _barcodeController,
-          label: 'Product Barcode',
-          prefixIcon: LucideIcons.scanLine,
-          hint: 'Scan or enter barcode...',
-          autofocus: true,
         ),
       ],
     );
