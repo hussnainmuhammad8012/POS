@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
@@ -18,9 +19,9 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final analytics = context.watch<AnalyticsProvider>();
-    final kpi = analytics.todayKpi;
+    final kpi = analytics.kpi;
 
-    if (analytics.last7DaysSales.isEmpty && !analytics.isLoading) {
+    if (analytics.revenueTrend.isEmpty && !analytics.isLoading) {
       Future.microtask(() => analytics.refreshData());
     }
 
@@ -83,7 +84,7 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildKpiRow(BuildContext context, DailyKpi kpi) {
+  Widget _buildKpiRow(BuildContext context, AnalyticsKpi kpi) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final isStarAdmin = theme.primaryColor == AppColors.STAR_PRIMARY;
@@ -95,7 +96,7 @@ class DashboardScreen extends StatelessWidget {
           Expanded(
             child: KpiCard(
               title: 'Sales Today',
-              value: 'Rs ${kpi.sales.toStringAsFixed(0)}',
+              value: 'Rs ${kpi.totalRevenue.toStringAsFixed(0)}',
               icon: LucideIcons.indianRupee,
               trend: '+5.2%',
               isTrendPositive: true,
@@ -120,7 +121,7 @@ class DashboardScreen extends StatelessWidget {
           Expanded(
             child: KpiCard(
               title: 'Credit Today',
-              value: 'Rs ${kpi.credit.toStringAsFixed(0)}',
+              value: 'Rs ${kpi.totalCreditToCollect.toStringAsFixed(0)}',
               icon: LucideIcons.creditCard,
               trend: '+2.1%',
               accentColor: isStarAdmin ? AppColors.STAR_TEAL : (isDark ? AppColors.SUCCESS_DARK : AppColors.SUCCESS),
@@ -152,7 +153,8 @@ class _SalesTrendCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final data = analytics.last7DaysSales;
+    final trendMap = analytics.revenueTrend;
+    final dataPoints = trendMap.entries.toList();
     final primaryColor = Theme.of(context).primaryColor;
 
     return ModernCard(
@@ -160,75 +162,78 @@ class _SalesTrendCard extends StatelessWidget {
       padding: const EdgeInsets.only(left: 24, right: 24, top: 16, bottom: 24),
       child: SizedBox(
         height: 300,
-        child: LineChart(
-          LineChartData(
-            gridData: FlGridData(
-              show: true,
-              drawVerticalLine: false,
-              horizontalInterval: 5000,
-              getDrawingHorizontalLine: (value) {
-                return FlLine(
-                  color: isDark ? AppColors.darkBorder : AppColors.border,
-                  strokeWidth: 1,
-                  dashArray: [4, 4],
-                );
-              },
-            ),
-            titlesData: FlTitlesData(
-              show: true,
-              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              leftTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 40,
-                  getTitlesWidget: (value, meta) {
-                    return Text(
-                      '${(value / 1000).toStringAsFixed(0)}k',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    );
-                  },
-                ),
-              ),
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  getTitlesWidget: (value, meta) {
-                    final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                    if (value.toInt() >= 0 && value.toInt() < days.length) {
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(
-                          days[value.toInt()],
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
+        child: dataPoints.isEmpty
+            ? const Center(child: Text('No data available'))
+            : LineChart(
+                LineChartData(
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    horizontalInterval: 5000,
+                    getDrawingHorizontalLine: (value) {
+                      return FlLine(
+                        color: isDark ? AppColors.darkBorder : AppColors.border,
+                        strokeWidth: 1,
+                        dashArray: [4, 4],
                       );
-                    }
-                    return const SizedBox();
-                  },
+                    },
+                  ),
+                  titlesData: FlTitlesData(
+                    show: true,
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 40,
+                        getTitlesWidget: (value, meta) {
+                          return Text(
+                            '${(value / 1000).toStringAsFixed(0)}k',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          );
+                        },
+                      ),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          final index = value.toInt();
+                          if (index >= 0 && index < dataPoints.length) {
+                            final date = DateTime.parse(dataPoints[index].key);
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Text(
+                                DateFormat('E').format(date),
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            );
+                          }
+                          return const SizedBox();
+                        },
+                      ),
+                    ),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  lineBarsData: [
+                    LineChartBarData(
+                      isCurved: true,
+                      color: primaryColor,
+                      barWidth: 2,
+                      isStrokeCapRound: true,
+                      dotData: const FlDotData(show: false),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        color: primaryColor.withValues(alpha: 0.05),
+                      ),
+                      spots: [
+                        for (var i = 0; i < dataPoints.length; i++)
+                          FlSpot(i.toDouble(), dataPoints[i].value),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-            ),
-            borderData: FlBorderData(show: false),
-            lineBarsData: [
-              LineChartBarData(
-                isCurved: true,
-                color: primaryColor,
-                barWidth: 2,
-                isStrokeCapRound: true,
-                dotData: FlDotData(show: false),
-                belowBarData: BarAreaData(
-                  show: true,
-                  color: primaryColor.withValues(alpha: 0.05),
-                ),
-                spots: [
-                  for (var i = 0; i < data.length; i++)
-                    FlSpot(i.toDouble(), data[i]),
-                ],
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -241,7 +246,7 @@ class _SalesByCategoryTodayCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final data = analytics.todaySalesByCategory;
+    final data = analytics.salesByCategory;
     final total = data.fold<double>(0, (sum, e) => sum + (e['value'] as double));
 
     return ModernCard(
