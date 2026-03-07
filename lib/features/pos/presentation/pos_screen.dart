@@ -97,7 +97,7 @@ class _PosScreenState extends State<PosScreen> {
                 ),
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.all(24.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
                     child: Column(
                       children: [
                         ModernCard(
@@ -106,9 +106,9 @@ class _PosScreenState extends State<PosScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               SizedBox(
-                                width: 100,
+                                width: 80,
                                 child: CustomTextField(
-                                  label: 'Quantity',
+                                  label: 'Qty',
                                   initialValue: pos.bulkQuantity.toString(),
                                   keyboardType: TextInputType.number,
                                   onChanged: (v) {
@@ -151,19 +151,50 @@ class _PosScreenState extends State<PosScreen> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 16),
+                        // Robust Cart Header
+                        if (pos.cartItems.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                            child: Row(
+                              children: [
+                                const SizedBox(width: 48), // Icon space
+                                const SizedBox(width: 20),
+                                Expanded(flex: 4, child: Text('PRODUCT', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.bold))),
+                                Expanded(flex: 2, child: Text('PRICE', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.bold))),
+                                Expanded(flex: 3, child: Center(child: Text('QUANTITY', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.bold)))),
+                                Expanded(flex: 2, child: Align(alignment: Alignment.centerRight, child: Text('TOTAL', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.bold)))),
+                                const SizedBox(width: 48), // Action space
+                              ],
+                            ),
+                          ),
                         Expanded(
                           child: Container(
                             decoration: BoxDecoration(
                               color: Theme.of(context).cardTheme.color,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Theme.of(context).dividerTheme.color ?? Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: Theme.of(context).dividerTheme.color?.withOpacity(0.5) ?? Colors.grey.withOpacity(0.1),
+                                width: 1,
+                              ),
                             ),
-                            child: const Center(
-                              child: Text('Product Grid Placeholder\n(Quick access categories)'),
-                            ),
+                            child: pos.cartItems.isEmpty
+                                ? const _EmptyCartState()
+                                : ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: ListView.separated(
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      itemCount: pos.cartItems.length,
+                                      separatorBuilder: (_, __) => Divider(height: 1, color: Theme.of(context).dividerTheme.color?.withOpacity(0.5)),
+                                      itemBuilder: (context, index) {
+                                        final item = pos.cartItems[index];
+                                        return _ModernCartRow(item: item);
+                                      },
+                                    ),
+                                  ),
                           ),
                         ),
+                        const SizedBox(height: 24),
                       ],
                     ),
                   ),
@@ -173,7 +204,7 @@ class _PosScreenState extends State<PosScreen> {
           ),
           // Right Side - The Cart Sidebar
           Container(
-            width: 400,
+            width: 340,
             decoration: BoxDecoration(
               color: Theme.of(context).cardTheme.color,
               border: Border(
@@ -185,18 +216,18 @@ class _PosScreenState extends State<PosScreen> {
                 Padding(
                   padding: const EdgeInsets.all(24.0),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Current Order', style: Theme.of(context).textTheme.titleLarge),
-                          IconButton(
-                            onPressed: () {},
-                            icon: const Icon(LucideIcons.moreHorizontal),
-                          ),
+                          Text('Checkout Details', style: Theme.of(context).textTheme.titleLarge),
+                          Icon(LucideIcons.shoppingCart, color: Theme.of(context).primaryColor, size: 24),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 24),
+                      Text('Customer', style: Theme.of(context).textTheme.labelLarge),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
                           Expanded(
@@ -222,21 +253,9 @@ class _PosScreenState extends State<PosScreen> {
                   ),
                 ),
                 const Divider(height: 1),
-                Expanded(
-                  child: pos.cartItems.isEmpty 
-                    ? const _EmptyCartState()
-                    : ListView.separated(
-                        itemCount: pos.cartItems.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
-                        itemBuilder: (context, index) {
-                          final item = pos.cartItems[index];
-                          return _ModernCartRow(item: item);
-                        },
-                      ),
-                ),
-                const Divider(height: 1),
-                const Flexible(
+                const Expanded(
                   child: SingleChildScrollView(
+                    padding: EdgeInsets.zero,
                     child: _CheckoutSummary(),
                   ),
                 ),
@@ -258,54 +277,74 @@ class _ModernCartRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final pos = context.read<PosProvider>();
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
               color: Theme.of(context).scaffoldBackgroundColor,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Theme.of(context).dividerTheme.color ?? Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(LucideIcons.package, size: 20),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 20),
           Expanded(
+            flex: 4,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   item.productName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 if (item.variantName.isNotEmpty)
                   Text(
                     item.variantName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
-                const SizedBox(height: 4),
-                Text(
-                  'Rs ${item.unitPrice.toStringAsFixed(2)}',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.secondary,
-                  ),
+              ],
+            ),
+          ),
+          // Price Info
+          Expanded(
+            flex: 2,
+            child: Text(
+              'Rs ${item.unitPrice.toStringAsFixed(2)}',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w500,
+                color: Theme.of(context).colorScheme.secondary,
+              ),
+            ),
+          ),
+          // Quantity Controls
+          Expanded(
+            flex: 3,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                const SizedBox(height: 12),
-                Row(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     _QuantityButton(
                       icon: LucideIcons.minus,
                       onTap: () => pos.decrementQuantity(item.variantId),
                     ),
-                    SizedBox(
+                    Container(
                       width: 40,
+                      alignment: Alignment.center,
                       child: Text(
                         item.quantity.toString(),
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                       ),
                     ),
                     _QuantityButton(
@@ -324,23 +363,29 @@ class _ModernCartRow extends StatelessWidget {
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
+          // Total
+          Expanded(
+            flex: 2,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text(
                 'Rs ${item.subtotal.toStringAsFixed(2)}',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Theme.of(context).primaryColor,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              const SizedBox(height: 8),
-              IconButton(
-                icon: const Icon(LucideIcons.trash2, size: 18),
-                color: Theme.of(context).colorScheme.error,
-                onPressed: () => pos.removeFromCart(item.variantId),
-              ),
-            ],
+            ),
+          ),
+          const SizedBox(width: 20),
+          IconButton(
+            icon: const Icon(LucideIcons.x, color: Colors.grey, size: 18),
+            onPressed: () => pos.removeFromCart(item.variantId),
+            visualDensity: VisualDensity.compact,
+            tooltip: 'Remove',
           ),
         ],
       ),
@@ -625,23 +670,71 @@ class _EmptyCartState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(LucideIcons.shoppingBag, size: 48, color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.5)),
-          const SizedBox(height: 16),
-          Text(
-            'Cart is empty',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Scan products to add them.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.secondary,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Theme.of(context).primaryColor.withOpacity(0.1),
+                  width: 2,
+                ),
+              ),
+              child: Icon(
+                LucideIcons.shoppingCart, 
+                size: 60, 
+                color: Theme.of(context).primaryColor.withOpacity(0.2),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 24),
+            Text(
+              'Your Cart is Ready',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: 300,
+              child: Text(
+                'Start scanning products or enter barcodes to build your customer\'s order.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.secondary.withOpacity(0.7),
+                  height: 1.4,
+                ),
+              ),
+            ),
+            const SizedBox(height: 32),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                   Icon(LucideIcons.info, size: 14, color: Theme.of(context).primaryColor),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Awaiting entries...',
+                    style: TextStyle(
+                      color: Theme.of(context).primaryColor,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
