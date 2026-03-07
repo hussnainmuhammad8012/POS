@@ -103,7 +103,7 @@ class AnalyticsProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> generateReport({
+  Future<String?> generateReport({
     required String storeName,
     required String storeAddress,
     required DateTime start,
@@ -132,7 +132,7 @@ class AnalyticsProvider extends ChangeNotifier {
       final reportCategories = await _analyticsRepository.getSalesByCategory(start, end);
       final reportProducts = await _analyticsRepository.getTopPerformingProducts(limit: 50, start: start, end: end);
 
-      await _pdfService.generateAndSaveReport(
+      return await _pdfService.generateAndSaveReport(
         storeName: storeName,
         storeAddress: storeAddress,
         start: start,
@@ -143,6 +143,7 @@ class AnalyticsProvider extends ChangeNotifier {
       );
     } catch (e) {
       debugPrint('Error generating report: $e');
+      return null;
     } finally {
       _isLoading = false;
       notifyListeners();

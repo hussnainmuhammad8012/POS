@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glass_header.dart';
 import '../../../core/widgets/kpi_card.dart';
 import '../../../core/widgets/modern_card.dart';
+import '../../../core/widgets/toast_notification.dart';
 import '../application/analytics_provider.dart';
 import '../../settings/application/settings_provider.dart';
 
@@ -120,13 +121,21 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     showDialog(
       context: context,
       builder: (context) => _ExportReportDialog(
-        onExport: (start, end) {
-          provider.generateReport(
+        onExport: (start, end) async {
+          final path = await provider.generateReport(
             storeName: settings.storeName,
             storeAddress: settings.storeAddress,
             start: start,
             end: end,
           );
+          if (path != null && context.mounted) {
+            AppToast.show(
+              context,
+              title: 'Success',
+              message: 'Report saved to $path',
+              type: ToastType.success,
+            );
+          }
         },
       ),
     );
@@ -134,7 +143,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 }
 
 class _ExportReportDialog extends StatefulWidget {
-  final Function(DateTime start, DateTime end) onExport;
+  final Future<void> Function(DateTime start, DateTime end) onExport;
 
   const _ExportReportDialog({required this.onExport});
 
@@ -148,6 +157,7 @@ class _ExportReportDialogState extends State<_ExportReportDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<AnalyticsProvider>();
     return AlertDialog(
       title: const Text('Export Analytics Report'),
       content: Column(
@@ -195,13 +205,24 @@ class _ExportReportDialogState extends State<_ExportReportDialog> {
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+          onPressed: provider.isLoading ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
         ElevatedButton(
-          onPressed: () {
-            widget.onExport(_startDate, _endDate);
-            Navigator.pop(context);
-          },
-          child: const Text('Generate PDF'),
+          onPressed: provider.isLoading
+              ? null
+              : () async {
+                  await widget.onExport(_startDate, _endDate);
+                  if (context.mounted) Navigator.pop(context);
+                },
+          child: provider.isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : const Text('Generate PDF'),
         ),
       ],
     );

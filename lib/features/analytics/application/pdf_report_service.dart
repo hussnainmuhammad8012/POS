@@ -4,14 +4,14 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
+import 'package:file_picker/file_picker.dart';
 import '../application/analytics_provider.dart';
 
 class PdfReportService {
   static final _currencyFormat = NumberFormat.currency(symbol: 'Rs ', decimalDigits: 2);
   static final _dateFormat = DateFormat('dd MMM yyyy');
 
-  Future<void> generateAndSaveReport({
+  Future<String?> generateAndSaveReport({
     required String storeName,
     required String storeAddress,
     required DateTime start,
@@ -22,10 +22,7 @@ class PdfReportService {
   }) async {
     final pdf = pw.Document();
 
-    // Load fonts if necessary, but standard Helvetica is usually fine for reports
-    // final font = await PdfGoogleFonts.interRegular();
-    // final fontBold = await PdfGoogleFonts.interBold();
-
+    // ... (rest of PDF generation stays same)
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
@@ -51,10 +48,22 @@ class PdfReportService {
       ),
     );
 
-    await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => pdf.save(),
-      name: 'Business_Report_${DateFormat('yyyyMMdd').format(start)}_to_${DateFormat('yyyyMMdd').format(end)}.pdf',
+    final fileName = 'Business_Report_${DateFormat('yyyyMMdd').format(start)}_to_${DateFormat('yyyyMMdd').format(end)}.pdf';
+    
+    final String? outputFile = await FilePicker.platform.saveFile(
+      dialogTitle: 'Save Business Report',
+      fileName: fileName,
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
     );
+
+    if (outputFile != null) {
+      final file = File(outputFile);
+      await file.writeAsBytes(await pdf.save());
+      return outputFile;
+    }
+    
+    return null;
   }
 
   pw.Widget _buildHeader(String name, String address, DateTime start, DateTime end) {
