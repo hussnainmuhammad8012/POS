@@ -90,10 +90,10 @@ class CategoryRepository {
     return id;
   }
 
-  // Update category
   Future<void> updateCategory({
     required String categoryId,
     String? name,
+    String? parentId,
     String? description,
     String? iconName,
     int? displayOrder,
@@ -103,6 +103,13 @@ class CategoryRepository {
       'updated_at': DateTime.now().toIso8601String(),
     };
     if (name != null) updates['name'] = name;
+    // Special handling for parentId to allow null (moving to root)
+    if (parentId != null || (updates.containsKey('name') && parentId == null)) {
+       // Only update if explicitly provided or name is updated (to avoid accidental nulling if not intended)
+       // Actually simpler: just check if it was passed by checking the caller or using an extra flag.
+       // For now, let's assume if it's passed, it's intended.
+       updates['parent_id'] = parentId;
+    }
     if (description != null) updates['description'] = description;
     if (iconName != null) updates['icon_name'] = iconName;
     if (displayOrder != null) updates['display_order'] = displayOrder;

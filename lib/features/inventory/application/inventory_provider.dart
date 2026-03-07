@@ -1,9 +1,7 @@
 // lib/features/inventory/application/inventory_provider.dart
 import 'package:flutter/foundation.dart' hide Category;
 import '../data/models/category_model.dart';
-import '../data/models/product_model.dart';
 import '../data/models/product_summary_model.dart';
-import '../data/models/product_variant_model.dart';
 import '../data/repositories/category_repository.dart';
 import '../data/repositories/product_repository.dart';
 
@@ -98,6 +96,28 @@ class InventoryProvider extends ChangeNotifier {
       return id;
     } catch (e) {
       _error = 'Failed to create category: $e';
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> updateCategory(String id, {
+    String? name,
+    String? parentId,
+    String? description,
+    String? iconName,
+  }) async {
+    try {
+      await _categoryRepository.updateCategory(
+        categoryId: id,
+        name: name,
+        parentId: parentId,
+        description: description,
+        iconName: iconName,
+      );
+      await loadCategories();
+    } catch (e) {
+      _error = 'Failed to update category: $e';
       notifyListeners();
       rethrow;
     }

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../../application/stock_provider.dart';
+import '../../application/inventory_provider.dart';
 import '../../../../core/widgets/modern_card.dart';
-import '../../../../core/widgets/badge_widget.dart';
+import '../../../../core/widgets/app_dropdown.dart';
 
 class StockTab extends StatelessWidget {
   const StockTab({super.key});
@@ -11,11 +13,16 @@ class StockTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<StockProvider>();
+    final inventoryProvider = context.watch<InventoryProvider>();
     final movements = provider.filteredMovements;
+    
+    final categories = inventoryProvider.categories;
+    final products = inventoryProvider.filteredProducts;
 
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -24,12 +31,49 @@ class StockTab extends StatelessWidget {
               _buildFilterChip(context, 'In', 'IN', provider),
               const SizedBox(width: 8),
               _buildFilterChip(context, 'Out', 'OUT', provider),
-              const Spacer(),
-              ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(LucideIcons.plus, size: 18),
-                label: const Text('Add Stock'),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              // Category Filter
+              Expanded(
+                child: AppDropdown<String?>(
+                  value: provider.selectedCategoryId,
+                  label: 'Category',
+                  hint: 'All Categories',
+                  prefixIcon: LucideIcons.folder,
+                  items: [
+                    const AppDropdownItem(value: null, label: 'All Categories'),
+                    ...categories.map((c) => AppDropdownItem(value: c.id, label: c.name)),
+                  ],
+                  onChanged: (val) => provider.setCategoryFilter(val),
+                ),
               ),
+              const SizedBox(width: 16),
+              // Product Filter
+              Expanded(
+                child: AppDropdown<String?>(
+                  value: provider.selectedProductId,
+                  label: 'Product',
+                  hint: 'All Products',
+                  prefixIcon: LucideIcons.package,
+                  items: [
+                    const AppDropdownItem(value: null, label: 'All Products'),
+                    ...products.map((p) => AppDropdownItem(value: p.product.id, label: p.product.name)),
+                  ],
+                  onChanged: (val) => provider.setProductFilter(val),
+                ),
+              ),
+              if (provider.selectedCategoryId != null || provider.selectedProductId != null)
+                Padding(
+                  padding: const EdgeInsets.only(left: 12.0, top: 22), // Align with center of dropdowns (which have labels)
+                  child: IconButton(
+                    icon: const Icon(LucideIcons.xCircle, color: Colors.grey),
+                    onPressed: () => provider.clearFilters(),
+                    tooltip: 'Clear filters',
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 16),
@@ -40,6 +84,7 @@ class StockTab extends StatelessWidget {
               child: movements.isEmpty
                   ? _buildEmptyState(context)
                   : ListView.separated(
+                      padding: EdgeInsets.zero,
                       itemCount: movements.length,
                       separatorBuilder: (context, index) => const Divider(height: 1),
                       itemBuilder: (context, index) {
@@ -55,11 +100,18 @@ class StockTab extends StatelessWidget {
   }
 
   Widget _buildFilterChip(BuildContext context, String label, String value, StockProvider provider) {
-    // Simplified filter chip logic
+    final isSelected = provider.movementTypeFilter == value;
     return FilterChip(
-      selected: false, // Replace with provider.movementTypeFilter == value
+      selected: isSelected,
       label: Text(label),
       onSelected: (selected) => provider.setMovementTypeFilter(value),
+      backgroundColor: Colors.transparent,
+      selectedColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+      checkmarkColor: Theme.of(context).primaryColor,
+      labelStyle: TextStyle(
+        color: isSelected ? Theme.of(context).primaryColor : null,
+        fontWeight: isSelected ? FontWeight.bold : null,
+      ),
     );
   }
 
@@ -67,7 +119,7 @@ class StockTab extends StatelessWidget {
     final bool isIn = movement.quantityChange > 0;
     return ListTile(
       leading: CircleAvatar(
-        backgroundColor: isIn ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+        backgroundColor: isIn ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
         child: Icon(
           isIn ? LucideIcons.arrowDownLeft : LucideIcons.arrowUpRight,
           color: isIn ? Colors.green : Colors.red,
@@ -104,7 +156,7 @@ class StockTab extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            movement.createdAt.toString().split('.')[0], // Simple format
+            DateFormat('MMM dd, HH:mm').format(movement.createdAt),
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -118,9 +170,9 @@ class StockTab extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(LucideIcons.history, size: 48, color: Colors.grey.withOpacity(0.5)),
+          Icon(LucideIcons.history, size: 48, color: Colors.grey.withValues(alpha: 0.5)),
           const SizedBox(height: 16),
-          const Text('No stock movements recorded yet.'),
+          const Text('No stock movements recorded for selected filters.'),
         ],
       ),
     );

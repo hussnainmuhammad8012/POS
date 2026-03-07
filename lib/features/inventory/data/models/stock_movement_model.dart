@@ -13,6 +13,8 @@ class StockMovement {
   final String? recordedBy;
   final String? productName;
   final String? categoryName;
+  final String? productId;     // Added
+  final String? categoryId;    // Added
   final DateTime createdAt;
 
   StockMovement({
@@ -29,6 +31,8 @@ class StockMovement {
     this.recordedBy,
     this.productName,
     this.categoryName,
+    this.productId,
+    this.categoryId,
     required this.createdAt,
   });
 
@@ -51,6 +55,8 @@ class StockMovement {
     recordedBy: json['recorded_by'],
     productName: json['product_name'],
     categoryName: json['category_name'],
+    productId: json['product_id'],
+    categoryId: json['category_id'],
     createdAt: DateTime.parse(json['created_at']),
   );
 

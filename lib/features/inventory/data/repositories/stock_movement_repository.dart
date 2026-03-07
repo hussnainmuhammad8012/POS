@@ -19,13 +19,13 @@ class StockMovementRepository {
     DateTime? endDate,
   }) async {
     String query = '''
-      SELECT m.*, p.name as product_name, c.name as category_name
+      SELECT m.*, p.name as product_name, c.name as category_name, p.id as product_id, p.category_id as category_id
       FROM stock_movements m
       JOIN product_variants v ON m.product_variant_id = v.id
       JOIN products p ON v.product_id = p.id
       LEFT JOIN categories c ON p.category_id = c.id
       WHERE 1=1
-    ''';
+''';
     List<dynamic> args = [];
 
     if (productVariantId != null) {

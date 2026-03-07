@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
@@ -57,7 +56,11 @@ class CategoryTab extends StatelessWidget {
           children: [
             IconButton(
               icon: const Icon(LucideIcons.pencil, size: 18),
-              onPressed: () {},
+              onPressed: () => showDialog(
+                context: context,
+                builder: (context) => AddCategoryDialog(category: category),
+              ),
+              tooltip: 'Edit Category',
             ),
             IconButton(
               icon: const Icon(LucideIcons.plusCircle, size: 18),
@@ -82,7 +85,11 @@ class CategoryTab extends StatelessWidget {
                   title: Text(sub.name),
                   trailing: IconButton(
                     icon: const Icon(LucideIcons.pencil, size: 16),
-                    onPressed: () {},
+                    onPressed: () => showDialog(
+                      context: context,
+                      builder: (context) => AddCategoryDialog(category: sub),
+                    ),
+                    tooltip: 'Edit Subcategory',
                   ),
                 )),
         ],
@@ -97,7 +104,7 @@ class CategoryTab extends StatelessWidget {
         children: [
           Icon(LucideIcons.layers,
               size: 48,
-              color: Theme.of(context).colorScheme.secondary.withOpacity(0.5)),
+              color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.5)),
           const SizedBox(height: 16),
           const Text('No categories found'),
         ],

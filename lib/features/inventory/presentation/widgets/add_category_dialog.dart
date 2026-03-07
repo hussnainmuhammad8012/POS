@@ -1,14 +1,15 @@
-import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import '../../data/models/category_model.dart';
 import '../../application/inventory_provider.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../../../../core/widgets/app_dropdown.dart';
 
 class AddCategoryDialog extends StatefulWidget {
   final String? parentId;
-  const AddCategoryDialog({super.key, this.parentId});
+  final Category? category;
+  const AddCategoryDialog({super.key, this.parentId, this.category});
 
   @override
   State<AddCategoryDialog> createState() => _AddCategoryDialogState();
@@ -16,22 +17,34 @@ class AddCategoryDialog extends StatefulWidget {
 
 class _AddCategoryDialogState extends State<AddCategoryDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _descController = TextEditingController();
+  late final TextEditingController _nameController;
+  late final TextEditingController _descController;
   String? _selectedParentId;
 
   @override
   void initState() {
     super.initState();
-    _selectedParentId = widget.parentId;
+    _nameController = TextEditingController(text: widget.category?.name);
+    _descController = TextEditingController(text: widget.category?.description);
+    _selectedParentId = widget.category?.parentId ?? widget.parentId;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<InventoryProvider>();
+    final isEditing = widget.category != null;
     
     return AlertDialog(
-      title: Text(widget.parentId == null ? 'Add Category' : 'Add Subcategory'),
+      title: Text(isEditing 
+        ? 'Edit Category' 
+        : (widget.parentId == null ? 'Add Category' : 'Add Subcategory')),
       content: SizedBox(
         width: 400,
         child: Form(
@@ -85,15 +98,24 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
         ElevatedButton(
           onPressed: () async {
             if (_formKey.currentState!.validate()) {
-              await provider.createCategory(
-                name: _nameController.text,
-                parentId: _selectedParentId,
-                description: _descController.text,
-              );
+              if (isEditing) {
+                await provider.updateCategory(
+                  widget.category!.id,
+                  name: _nameController.text,
+                  parentId: _selectedParentId,
+                  description: _descController.text,
+                );
+              } else {
+                await provider.createCategory(
+                  name: _nameController.text,
+                  parentId: _selectedParentId,
+                  description: _descController.text,
+                );
+              }
               if (context.mounted) Navigator.pop(context);
             }
           },
-          child: const Text('Save'),
+          child: Text(isEditing ? 'Update' : 'Save'),
         ),
       ],
     );

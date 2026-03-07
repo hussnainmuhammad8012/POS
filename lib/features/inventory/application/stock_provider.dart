@@ -1,7 +1,6 @@
 // lib/features/inventory/application/stock_provider.dart
 import 'package:flutter/foundation.dart';
 import '../data/models/carton_model.dart';
-import '../data/models/stock_level_model.dart';
 import '../data/models/stock_movement_model.dart';
 import '../data/repositories/carton_repository.dart';
 import '../data/repositories/stock_movement_repository.dart';
@@ -16,6 +15,8 @@ class StockProvider extends ChangeNotifier {
 
   // Filters
   String? _selectedProductVariantId;
+  String? _selectedCategoryId;
+  String? _selectedProductId;
   String _movementTypeFilter = 'ALL';
   DateTime _dateFrom = DateTime.now().subtract(const Duration(days: 30));
   DateTime _dateTo = DateTime.now();
@@ -35,6 +36,10 @@ class StockProvider extends ChangeNotifier {
   List<StockMovement> get filteredMovements => _getFilteredMovements();
   bool get isLoading => _isLoading;
   String? get error => _error;
+
+  String? get selectedCategoryId => _selectedCategoryId;
+  String? get selectedProductId => _selectedProductId;
+  String get movementTypeFilter => _movementTypeFilter;
 
   // Initialize
   Future<void> initialize() async {
@@ -128,15 +133,58 @@ class StockProvider extends ChangeNotifier {
     }
   }
 
+  // Record Customer Return
+  // Note: Added recordReturn method as it's common for POS
+  Future<void> recordReturn({
+    required String productVariantId,
+    required int quantityReturned,
+    required String transactionId,
+    String? notes,
+  }) async {
+    try {
+      await _movementRepository.recordReturn(
+        productVariantId: productVariantId,
+        quantityReturned: quantityReturned,
+        transactionId: transactionId,
+        notes: notes,
+      );
+      await loadMovements();
+    } catch (e) {
+      _error = 'Failed to record return: $e';
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   // Filtering
   void setMovementTypeFilter(String type) {
     _movementTypeFilter = type;
     notifyListeners();
   }
 
+  void setCategoryFilter(String? categoryId) {
+    _selectedCategoryId = categoryId;
+    // When category changes, we should probably reset product filter if it's not in the new category
+    _selectedProductId = null; 
+    notifyListeners();
+  }
+
+  void setProductFilter(String? productId) {
+    _selectedProductId = productId;
+    notifyListeners();
+  }
+
   void setDateRange(DateTime from, DateTime to) {
     _dateFrom = from;
     _dateTo = to;
+    notifyListeners();
+  }
+
+  void clearFilters() {
+    _movementTypeFilter = 'ALL';
+    _selectedCategoryId = null;
+    _selectedProductId = null;
+    _selectedProductVariantId = null;
     notifyListeners();
   }
 
@@ -148,6 +196,12 @@ class StockProvider extends ChangeNotifier {
     }
     if (_selectedProductVariantId != null) {
       filtered = filtered.where((m) => m.productVariantId == _selectedProductVariantId).toList();
+    }
+    if (_selectedCategoryId != null) {
+      filtered = filtered.where((m) => m.categoryId == _selectedCategoryId).toList();
+    }
+    if (_selectedProductId != null) {
+      filtered = filtered.where((m) => m.productId == _selectedProductId).toList();
     }
     return filtered;
   }
