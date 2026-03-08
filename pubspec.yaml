@@ -40,6 +40,12 @@ dependencies:
   pdf: ^3.11.3
   url_launcher: ^6.3.2
   tray_manager: ^0.5.2
+  http: ^1.2.1
+
+  # Networking for Companion App
+  shelf: ^1.4.1
+  shelf_router: ^1.1.4
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:

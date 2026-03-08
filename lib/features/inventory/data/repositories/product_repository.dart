@@ -414,4 +414,63 @@ class ProductRepository {
       });
     }
   }
+
+  // Update stock for a product's primary variant
+  Future<void> updateStock({
+    required String productId,
+    required int quantityChange,
+    required String reason,
+  }) async {
+    await _db.transaction((txn) async {
+      final now = DateTime.now().toIso8601String();
+      
+      // 1. Find the primary variant
+      final variants = await txn.query(
+        'product_variants',
+        where: 'product_id = ? AND is_active = 1',
+        whereArgs: [productId],
+        limit: 1,
+      );
+      
+      if (variants.isEmpty) return;
+      final variantId = variants.first['id'] as String;
+      
+      // 2. Get current stock
+      final stocks = await txn.query(
+        'stock_levels',
+        where: 'product_variant_id = ?',
+        whereArgs: [variantId],
+      );
+      
+      if (stocks.isEmpty) return;
+      final int prevStock = (stocks.first['available_pieces'] as int?) ?? 0;
+      final int newStock = prevStock + quantityChange;
+      final int threshold = (stocks.first['low_stock_threshold'] as int?) ?? 10;
+      
+      // 3. Update stock_levels
+      await txn.update(
+        'stock_levels',
+        {
+          'available_pieces': newStock,
+          'total_pieces': newStock, 
+          'is_low_stock_warning': newStock <= threshold ? 1 : 0,
+          'updated_at': now,
+        },
+        where: 'product_variant_id = ?',
+        whereArgs: [variantId],
+      );
+      
+      // 4. Record movement
+      await txn.insert('stock_movements', {
+        'id': 'mov_${DateTime.now().microsecondsSinceEpoch}',
+        'product_variant_id': variantId,
+        'movement_type': quantityChange > 0 ? 'ADJUSTMENT' : 'OUT',
+        'quantity_change': quantityChange,
+        'quantity_before': prevStock,
+        'quantity_after': newStock,
+        'reason': reason,
+        'created_at': now,
+      });
+    });
+  }
 }

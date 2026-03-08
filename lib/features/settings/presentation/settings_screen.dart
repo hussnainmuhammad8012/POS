@@ -11,6 +11,7 @@ import '../../../core/widgets/glass_header.dart';
 import '../../../core/widgets/modern_card.dart';
 import '../../../core/widgets/toast_notification.dart';
 import '../application/settings_provider.dart';
+import 'widgets/companion_server_settings.dart';
 
 class SettingsScreen extends StatefulWidget {
   static const routeName = '/settings';
@@ -22,7 +23,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  int _activeTab = 0; // 0: Store, 1: Receipt, 2: Payments, 3: Appearance, 4: Backup
+  int _activeTab = 0; // 0: Store, 1: Receipt, 2: Payments, 3: Appearance, 4: Backup, 5: Companion
 
   @override
   Widget build(BuildContext context) {
@@ -80,6 +81,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         isSelected: _activeTab == 4,
                         onTap: () => setState(() => _activeTab = 4),
                       ),
+                      _SettingsNavTile(
+                        icon: LucideIcons.smartphone,
+                        label: 'Companion App',
+                        isSelected: _activeTab == 5,
+                        onTap: () => setState(() => _activeTab = 5),
+                      ),
                     ],
                   ),
                 ),
@@ -95,6 +102,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         if (_activeTab == 2) _PaymentMethodsPanel(settings: settings),
                         if (_activeTab == 3) const _AppearancePanel(),
                         if (_activeTab == 4) const _BackupRestorePanel(),
+                        if (_activeTab == 5) const CompanionServerSettings(),
                       ],
                     ),
                   ),

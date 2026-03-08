@@ -31,6 +31,12 @@ class SettingsProvider extends ChangeNotifier {
   bool get autoBackupEnabled => _prefs.getBool('auto_backup_enabled') ?? true;
   String? get lastBackupDate => _prefs.getString('last_backup_date');
 
+  // Companion App Server Settings
+  bool get isServerEnabled => _prefs.getBool('is_server_enabled') ?? false;
+  int get sessionDurationHours => _prefs.getInt('session_duration_hours') ?? 24;
+  bool get dailyReportEnabled => _prefs.getBool('daily_report_enabled') ?? true;
+  String? get adminFcmToken => _prefs.getString('admin_fcm_token');
+
   final _backupService = DatabaseBackupService();
 
   // Setters
@@ -136,6 +142,26 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> resetToDefaults() async {
     await _prefs.clear();
+    notifyListeners();
+  }
+
+  Future<void> setServerEnabled(bool enabled) async {
+    await _prefs.setBool('is_server_enabled', enabled);
+    notifyListeners();
+  }
+
+  Future<void> setSessionDuration(int hours) async {
+    await _prefs.setInt('session_duration_hours', hours);
+    notifyListeners();
+  }
+
+  Future<void> setDailyReportEnabled(bool enabled) async {
+    await _prefs.setBool('daily_report_enabled', enabled);
+    notifyListeners();
+  }
+
+  Future<void> setAdminFcmToken(String token) async {
+    await _prefs.setString('admin_fcm_token', token);
     notifyListeners();
   }
 }

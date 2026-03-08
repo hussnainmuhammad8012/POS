@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:provider/provider.dart';
 import 'core/database/app_database.dart';
 import 'core/theme/app_theme.dart';
@@ -26,6 +27,8 @@ import 'core/features/notifications/application/notification_provider.dart';
 import 'features/analytics/data/analytics_repository.dart';
 import 'core/application/navigation_provider.dart';
 import 'core/application/global_search_provider.dart';
+import 'core/network/local_api_server.dart';
+import 'core/services/fcm_service.dart';
 import 'package:tray_manager/tray_manager.dart';
 
 Future<void> main() async {
@@ -53,6 +56,7 @@ class UtilityStorePosApp extends StatelessWidget {
 
     return MultiProvider(
       providers: [
+// ... (omitting unchanged repositories for brevity)
         // Repositories
         Provider<CategoryRepository>.value(value: categoryRepo),
         Provider<ProductRepository>.value(value: productRepo),
@@ -106,13 +110,25 @@ class UtilityStorePosApp extends StatelessWidget {
           ),
         ),
       ],
-      child: const _AppBootstrapper(),
+      child: _AppBootstrapper(
+        productRepo: productRepo,
+        categoryRepo: categoryRepo,
+        transactionRepo: transactionRepo,
+      ),
     );
   }
 }
 
 class _AppBootstrapper extends StatefulWidget {
-  const _AppBootstrapper();
+  final ProductRepository productRepo;
+  final CategoryRepository categoryRepo;
+  final TransactionRepository transactionRepo;
+
+  const _AppBootstrapper({
+    required this.productRepo,
+    required this.categoryRepo,
+    required this.transactionRepo,
+  });
 
   @override
   State<_AppBootstrapper> createState() => _AppBootstrapperState();
@@ -124,6 +140,52 @@ class _AppBootstrapperState extends State<_AppBootstrapper> with TrayListener {
     super.initState();
     trayManager.addListener(this);
     _initTray();
+    _initLocalServerAndFCM();
+  }
+
+  Future<void> _initLocalServerAndFCM() async {
+    final settings = context.read<SettingsProvider>();
+    
+    final fcmService = FCMService(
+      productRepository: widget.productRepo,
+      transactionRepository: widget.transactionRepo,
+      settingsProvider: settings,
+    );
+
+    final server = LocalApiServer();
+    server.setServices(
+      productRepository: widget.productRepo,
+      categoryRepository: widget.categoryRepo,
+      analyticsRepository: AnalyticsRepository(),
+      transactionRepository: widget.transactionRepo,
+      fcmService: fcmService,
+    );
+
+    if (settings.isServerEnabled) {
+      await server.start();
+    }
+
+    // Schedule daily summary
+    _scheduleDailySummary(fcmService);
+  }
+
+  void _scheduleDailySummary(FCMService fcm) {
+    // Basic daily timer logic
+    final now = DateTime.now();
+    var scheduledTime = DateTime(now.year, now.month, now.day, 21, 0); // 9:00 PM
+    if (now.isAfter(scheduledTime)) {
+      scheduledTime = scheduledTime.add(const Duration(days: 1));
+    }
+
+    final delay = scheduledTime.difference(now);
+    Timer(delay, () async {
+      final settings = context.read<SettingsProvider>();
+      if (settings.dailyReportEnabled) {
+        await fcm.sendDailySummary();
+      }
+      // Re-schedule for next day
+      _scheduleDailySummary(fcm);
+    });
   }
 
   @override
