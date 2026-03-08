@@ -7,8 +7,21 @@ import '../../application/inventory_provider.dart';
 import '../../../../core/widgets/modern_card.dart';
 import '../../../../core/widgets/app_dropdown.dart';
 
-class StockTab extends StatelessWidget {
+class StockTab extends StatefulWidget {
   const StockTab({super.key});
+
+  @override
+  State<StockTab> createState() => _StockTabState();
+}
+
+class _StockTabState extends State<StockTab> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +80,7 @@ class StockTab extends StatelessWidget {
               ),
               if (provider.selectedCategoryId != null || provider.selectedProductId != null)
                 Padding(
-                  padding: const EdgeInsets.only(left: 12.0, top: 22), // Align with center of dropdowns (which have labels)
+                  padding: const EdgeInsets.only(left: 12.0, top: 22), 
                   child: IconButton(
                     icon: const Icon(LucideIcons.xCircle, color: Colors.grey),
                     onPressed: () => provider.clearFilters(),
@@ -83,14 +96,19 @@ class StockTab extends StatelessWidget {
               mainAxisSize: MainAxisSize.max,
               child: movements.isEmpty
                   ? _buildEmptyState(context)
-                  : ListView.separated(
-                      padding: EdgeInsets.zero,
-                      itemCount: movements.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final movement = movements[index];
-                        return _buildMovementItem(context, movement);
-                      },
+                  : Scrollbar(
+                      controller: _scrollController,
+                      thumbVisibility: true,
+                      child: ListView.separated(
+                        controller: _scrollController,
+                        padding: EdgeInsets.zero,
+                        itemCount: movements.length,
+                        separatorBuilder: (context, index) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final movement = movements[index];
+                          return _buildMovementItem(context, movement);
+                        },
+                      ),
                     ),
             ),
           ),

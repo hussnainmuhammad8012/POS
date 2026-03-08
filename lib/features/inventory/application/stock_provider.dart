@@ -4,10 +4,12 @@ import '../data/models/carton_model.dart';
 import '../data/models/stock_movement_model.dart';
 import '../data/repositories/carton_repository.dart';
 import '../data/repositories/stock_movement_repository.dart';
+import '../../../core/services/data_sync_service.dart';
 
 class StockProvider extends ChangeNotifier {
   final CartonRepository _cartonRepository;
   final StockMovementRepository _movementRepository;
+  final DataSyncService? _syncService;
 
   // State
   List<Carton> _cartons = [];
@@ -28,8 +30,18 @@ class StockProvider extends ChangeNotifier {
   StockProvider({
     required CartonRepository cartonRepository,
     required StockMovementRepository movementRepository,
+    DataSyncService? syncService,
   })  : _cartonRepository = cartonRepository,
-        _movementRepository = movementRepository;
+        _movementRepository = movementRepository,
+        _syncService = syncService {
+    _syncService?.addListener(loadMovements);
+  }
+
+  @override
+  void dispose() {
+    _syncService?.removeListener(loadMovements);
+    super.dispose();
+  }
 
   // Getters
   List<Carton> get cartons => _cartons;
@@ -56,6 +68,8 @@ class StockProvider extends ChangeNotifier {
   // Load stock movements
   Future<void> loadMovements() async {
     try {
+      // Ensure we fetch up to the current moment if no specific filter is active
+      _dateTo = DateTime.now(); 
       _movements = await _movementRepository.getAllMovements(
         startDate: _dateFrom,
         endDate: _dateTo,

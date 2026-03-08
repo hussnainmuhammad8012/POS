@@ -37,9 +37,9 @@ class InventoryProvider extends ChangeNotifier {
 
         _products = prodData.map((j) => Product.fromJson(j)).toList();
         _categories = catData.map((j) => Category.fromJson(j)).toList();
-      } else if (prodRes.statusCode == 401 || prodRes.statusCode == 403) {
-        debugPrint('Session invalid during fetch');
-        // This will be handled by the UI or AuthProvider if we were listening
+        debugPrint('Fetched ${_products.length} products. Sample stock: ${_products.isNotEmpty ? _products.first.currentStock : "N/A"}');
+      } else {
+        debugPrint('Fetch failed: Prod ${prodRes.statusCode}, Cat ${catRes.statusCode}');
       }
     } catch (e) {
       debugPrint('Fetch error: $e');
@@ -65,8 +65,11 @@ class InventoryProvider extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        await fetchInventory(); // Refresh
+        debugPrint('Stock update success for $productId');
+        await fetchInventory(); // Force refresh local list
         return true;
+      } else {
+        debugPrint('Stock update failed: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       debugPrint('Stock update error: $e');
@@ -112,8 +115,11 @@ class InventoryProvider extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        await fetchInventory();
+        debugPrint('Product created successfully');
+        await fetchInventory(); // Refresh list immediately
         return true;
+      } else {
+        debugPrint('Add product failed: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       debugPrint('Add product error: $e');

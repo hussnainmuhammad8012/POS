@@ -4,9 +4,11 @@ import '../../../core/models/entities.dart';
 import '../../inventory/data/repositories/product_repository.dart';
 
 import '../../../core/repositories/transaction_repository.dart';
+import '../../../core/services/data_sync_service.dart';
 
 class PosProvider extends ChangeNotifier {
   final TransactionRepository _transactionRepository;
+  final DataSyncService? _syncService;
 
   // Cart items
   List<CartItem> _cartItems = [];
@@ -25,7 +27,7 @@ class PosProvider extends ChangeNotifier {
   bool _isProcessing = false;
   String? _error;
 
-  PosProvider(this._transactionRepository);
+  PosProvider(this._transactionRepository, [this._syncService]);
 
   // Getters
   List<CartItem> get cartItems => _cartItems;
@@ -268,6 +270,7 @@ class PosProvider extends ChangeNotifier {
       notifyListeners();
 
       onSuccess(savedTx);
+      _syncService?.notifyMobileUpdate(); // Trigger refresh for dashboard/analytics
       clearCart();
 
       return savedTx.id;

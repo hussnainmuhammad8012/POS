@@ -29,6 +29,7 @@ import 'core/application/navigation_provider.dart';
 import 'core/application/global_search_provider.dart';
 import 'core/network/local_api_server.dart';
 import 'core/services/fcm_service.dart';
+import 'core/services/data_sync_service.dart';
 import 'package:tray_manager/tray_manager.dart';
 
 Future<void> main() async {
@@ -68,25 +69,29 @@ class UtilityStorePosApp extends StatelessWidget {
         Provider<NotificationRepository>.value(value: notificationRepo),
         
         // Providers
-        ChangeNotifierProvider(create: (_) => PosProvider(transactionRepo)),
+        ChangeNotifierProvider(create: (_) => DataSyncService()),
+        ChangeNotifierProvider(create: (context) => PosProvider(transactionRepo, context.read<DataSyncService>())),
         ChangeNotifierProvider(
-          create: (_) => InventoryProvider(
+          create: (context) => InventoryProvider(
             categoryRepository: categoryRepo,
             productRepository: productRepo,
+            syncService: context.read<DataSyncService>(),
           ),
         ),
         ChangeNotifierProvider(
-          create: (_) => StockProvider(
+          create: (context) => StockProvider(
             cartonRepository: cartonRepo,
             movementRepository: movementRepo,
+            syncService: context.read<DataSyncService>(),
           ),
         ),
         ChangeNotifierProvider(create: (_) => CustomersProvider(repository: customerRepo)),
         ChangeNotifierProvider(create: (_) => CreditLedgerProvider(creditLedgerRepo)),
         ChangeNotifierProvider(
-          create: (_) => AnalyticsProvider(
+          create: (context) => AnalyticsProvider(
             analyticsRepository: AnalyticsRepository(),
             transactionRepository: transactionRepo,
+            syncService: context.read<DataSyncService>(),
           ),
         ),
         ChangeNotifierProvider(create: (_) => TransactionsProvider()),
@@ -160,6 +165,7 @@ class _AppBootstrapperState extends State<_AppBootstrapper> with TrayListener {
       transactionRepository: widget.transactionRepo,
       settingsProvider: settings,
       fcmService: fcmService,
+      dataSyncService: context.read<DataSyncService>(),
     );
 
     if (settings.isServerEnabled) {

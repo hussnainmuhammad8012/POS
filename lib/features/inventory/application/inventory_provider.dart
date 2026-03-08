@@ -4,10 +4,12 @@ import '../data/models/category_model.dart';
 import '../data/models/product_summary_model.dart';
 import '../data/repositories/category_repository.dart';
 import '../data/repositories/product_repository.dart';
+import '../../../core/services/data_sync_service.dart';
 
 class InventoryProvider extends ChangeNotifier {
   final CategoryRepository _categoryRepository;
   final ProductRepository _productRepository;
+  final DataSyncService? _syncService;
 
   // State
   List<Category> _categories = [];
@@ -29,8 +31,19 @@ class InventoryProvider extends ChangeNotifier {
   InventoryProvider({
     required CategoryRepository categoryRepository,
     required ProductRepository productRepository,
+    DataSyncService? syncService,
   })  : _categoryRepository = categoryRepository,
-        _productRepository = productRepository;
+        _productRepository = productRepository,
+        _syncService = syncService {
+    // Listen to sync events from mobile
+    _syncService?.addListener(loadProducts);
+  }
+
+  @override
+  void dispose() {
+    _syncService?.removeListener(loadProducts);
+    super.dispose();
+  }
 
   // Getters
   List<Category> get categories => _categories;

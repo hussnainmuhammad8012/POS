@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data/analytics_repository.dart';
 import '../../../core/repositories/transaction_repository.dart';
+import '../../../core/services/data_sync_service.dart';
 import 'pdf_report_service.dart';
 
 class AnalyticsKpi {
@@ -24,15 +25,26 @@ class AnalyticsKpi {
 class AnalyticsProvider extends ChangeNotifier {
   final AnalyticsRepository _analyticsRepository;
   final TransactionRepository _transactionRepository;
+  final DataSyncService? _syncService;
 
   AnalyticsProvider({
     required AnalyticsRepository analyticsRepository,
     required TransactionRepository transactionRepository,
+    DataSyncService? syncService,
   })  : _analyticsRepository = analyticsRepository,
         _transactionRepository = transactionRepository,
+        _syncService = syncService,
         _pdfService = PdfReportService() {
     // Initial load
     refreshData();
+    // Listen to mobile updates
+    _syncService?.addListener(refreshData);
+  }
+
+  @override
+  void dispose() {
+    _syncService?.removeListener(refreshData);
+    super.dispose();
   }
 
   final PdfReportService _pdfService;
@@ -75,21 +87,30 @@ class AnalyticsProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final revenue = await _analyticsRepository.getTotalRevenue(_startDate, _endDate);
-      final cost = await _analyticsRepository.getTotalCost(_startDate, _endDate);
-      final credit = await _analyticsRepository.getTotalCreditToCollect();
+      final now = DateTime.now();
+      _endDate = now; // Update end of charts range to now
+      final todayStart = DateTime(now.year, now.month, now.day);
+      final todayEnd = todayStart.add(const Duration(days: 1));
+
+      // 1. KPIs for "Today" (Strict 24h range)
+      final revenueToday = await _analyticsRepository.getTotalRevenue(todayStart, todayEnd);
+      final costToday = await _analyticsRepository.getTotalCost(todayStart, todayEnd);
+      final transactionsToday = await _transactionRepository.getTransactionsByDateRange(todayStart, todayEnd);
+      final creditToday = await _analyticsRepository.getTodayCreditSales(); // Specifically today's credits
+      
+      // Global metrics that aren't time-bound or have their own logic
       final lowStock = await _analyticsRepository.getLowStockCount();
-      final transactions = await _transactionRepository.getTransactionsByDateRange(_startDate, _endDate);
 
       _kpi = AnalyticsKpi(
-        totalRevenue: revenue,
-        totalCost: cost,
-        netProfit: revenue - cost,
-        totalCreditToCollect: credit,
-        transactions: transactions.length,
+        totalRevenue: revenueToday,
+        totalCost: costToday,
+        netProfit: revenueToday - costToday,
+        totalCreditToCollect: creditToday, // Card says "Credit Today"
+        transactions: transactionsToday.length,
         lowStockItems: lowStock,
       );
 
+      // 2. Historical Data (User-selected range, defaults to 30 days)
       _salesByCategory = await _analyticsRepository.getSalesByCategory(_startDate, _endDate);
       _topProducts = await _analyticsRepository.getTopPerformingProducts(limit: 10, start: _startDate, end: _endDate);
       _leastProducts = await _analyticsRepository.getLeastPerformingProducts(limit: 5);

@@ -108,13 +108,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
         ),
         child: TextField(
           controller: _searchController,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.white, fontSize: 16),
           onChanged: (v) => setState(() {}),
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             hintText: 'Search by name or SKU...',
-            hintStyle: TextStyle(color: Colors.white70),
+            hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
             border: InputBorder.none,
-            icon: Icon(LucideIcons.search, color: Colors.white70, size: 20),
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            filled: false,
+            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+            prefixIcon: const Icon(LucideIcons.search, color: Colors.white, size: 20),
           ),
         ),
       ),

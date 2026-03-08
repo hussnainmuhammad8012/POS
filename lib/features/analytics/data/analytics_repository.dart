@@ -170,8 +170,11 @@ class AnalyticsRepository {
   Future<int> getLowStockCount() async {
     final result = await _db.rawQuery('''
       SELECT COUNT(*) as count
-      FROM stock_levels
-      WHERE available_pieces <= low_stock_threshold
+      FROM stock_levels sl
+      JOIN product_variants pv ON sl.product_variant_id = pv.id
+      JOIN products p ON pv.product_id = p.id
+      WHERE sl.available_pieces <= sl.low_stock_threshold
+      AND p.is_active = 1
     ''');
     return (result.first['count'] as num?)?.toInt() ?? 0;
   }
@@ -183,6 +186,7 @@ class AnalyticsRepository {
       JOIN product_variants pv ON sl.product_variant_id = pv.id
       JOIN products p ON pv.product_id = p.id
       WHERE sl.available_pieces <= sl.low_stock_threshold
+      AND p.is_active = 1
     ''');
   }
 

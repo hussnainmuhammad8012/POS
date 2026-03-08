@@ -24,7 +24,7 @@ class StockMovementRepository {
       JOIN product_variants v ON m.product_variant_id = v.id
       JOIN products p ON v.product_id = p.id
       LEFT JOIN categories c ON p.category_id = c.id
-      WHERE 1=1
+      WHERE p.is_active = 1
 ''';
     List<dynamic> args = [];
 

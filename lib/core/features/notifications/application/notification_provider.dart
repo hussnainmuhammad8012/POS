@@ -104,6 +104,7 @@ class NotificationProvider extends ChangeNotifier {
       JOIN product_variants pv ON sl.product_variant_id = pv.id
       JOIN products p ON pv.product_id = p.id
       WHERE sl.available_pieces <= sl.low_stock_threshold
+      AND p.is_active = 1
       AND NOT EXISTS (
         SELECT 1 FROM notifications n 
         WHERE n.type = 'LOW_STOCK' 

@@ -12,6 +12,7 @@ import '../repositories/transaction_repository.dart';
 import '../../features/inventory/data/models/product_model.dart';
 import '../../features/settings/application/settings_provider.dart';
 import '../services/fcm_service.dart';
+import '../services/data_sync_service.dart';
 
 /// Local HTTP server for Companion App
 /// Runs on background isolate (handled via app initialization)
@@ -31,6 +32,7 @@ class LocalApiServer {
   TransactionRepository? _transactionRepository;
   SettingsProvider? _settingsProvider;
   FCMService? _fcmService;
+  DataSyncService? _dataSyncService;
   String? _localIp;
 
   // Server state
@@ -46,6 +48,7 @@ class LocalApiServer {
     required TransactionRepository transactionRepository,
     required SettingsProvider settingsProvider,
     required FCMService fcmService,
+    required DataSyncService dataSyncService,
   }) {
     _productRepository = productRepository;
     _categoryRepository = categoryRepository;
@@ -53,6 +56,7 @@ class LocalApiServer {
     _transactionRepository = transactionRepository;
     _settingsProvider = settingsProvider;
     _fcmService = fcmService;
+    _dataSyncService = dataSyncService;
   }
 
   /// Start server on available port (default 8080)
@@ -257,6 +261,9 @@ class LocalApiServer {
       lowStockThreshold: (data['lowStockThreshold'] as num?)?.toInt() ?? 10,
     );
     
+    // 3. Notify Sync
+    _dataSyncService?.notifyMobileUpdate();
+    
     return Response.ok(jsonEncode({'id': productId, 'status': 'success'}));
   }
 
@@ -297,6 +304,9 @@ class LocalApiServer {
         quantityChange: data['quantity_change'],
         reason: data['reason'] ?? 'Companion App Update',
       );
+      
+      // 3. Notify Sync
+      _dataSyncService?.notifyMobileUpdate();
       
       return Response.ok(jsonEncode({'status': 'success'}));
     } catch (e) {
