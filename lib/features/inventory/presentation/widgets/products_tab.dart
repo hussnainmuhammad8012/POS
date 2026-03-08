@@ -8,8 +8,10 @@ import '../../../../core/widgets/modern_card.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../../../../core/widgets/badge_widget.dart';
 import '../../../../core/widgets/app_dropdown.dart';
+import '../../../../core/widgets/toast_notification.dart';
 import '../product_details_screen.dart';
 import 'add_product_dialog.dart';
+import 'add_stock_dialog.dart';
 
 class ProductsTab extends StatefulWidget {
   const ProductsTab({super.key});
@@ -215,6 +217,18 @@ class _ProductsTabState extends State<ProductsTab> {
                   ),
                 );
               }),
+              Tooltip(
+                message: 'Add Stock',
+                child: IconButton(
+                  icon: const Icon(LucideIcons.plus, size: 18, color: Colors.blue),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AddStockDialog(productSummary: summary),
+                    );
+                  },
+                ),
+              ),
               IconButton(icon: const Icon(LucideIcons.pencil, size: 18), onPressed: () {
                 showDialog(
                   context: context,
@@ -258,14 +272,20 @@ class _ProductsTabState extends State<ProductsTab> {
               try {
                 await provider.deleteProduct(summary.product.id);
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Product deleted successfully'), backgroundColor: Colors.green),
+                  AppToast.show(
+                    context, 
+                    title: 'Product Deleted', 
+                    message: 'The product has been removed successfully.',
+                    type: ToastType.success,
                   );
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to delete: $e'), backgroundColor: Colors.red),
+                  AppToast.show(
+                    context, 
+                    title: 'Delete Failed', 
+                    message: 'Error: $e',
+                    type: ToastType.error,
                   );
                 }
               }

@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 
 import '../../../settings/application/settings_provider.dart';
 import '../../../../core/models/entities.dart';
+import '../../../../core/widgets/toast_notification.dart';
 import '../../application/pos_provider.dart';
 
 class InvoiceDialog extends StatefulWidget {
@@ -409,12 +410,11 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to print: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            behavior: SnackBarBehavior.floating,
-          ),
+        AppToast.show(
+          context, 
+          title: 'Print Failed', 
+          message: 'Error: $e',
+          type: ToastType.error,
         );
       }
     } finally {
@@ -460,12 +460,11 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to share to WhatsApp. Ensure the desktop app is installed.'),
-            backgroundColor: Colors.orange.shade800,
-            behavior: SnackBarBehavior.floating,
-          ),
+        AppToast.show(
+          context, 
+          title: 'Share Failed', 
+          message: 'Ensure WhatsApp is installed on your desktop.',
+          type: ToastType.warning,
         );
       }
     } finally {
