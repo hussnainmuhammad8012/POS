@@ -3,16 +3,22 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
+enum AppMode { selection, inventory, admin }
+
 class AuthProvider extends ChangeNotifier {
   String? _serverIp;
   String? _accessToken;
   bool _isPaired = false;
   bool _isLoggedIn = false;
+  AppMode _currentMode = AppMode.selection;
+  String? _shopName;
 
   String? get serverIp => _serverIp;
   String? get accessToken => _accessToken;
   bool get isPaired => _isPaired;
   bool get isLoggedIn => _isLoggedIn;
+  AppMode get currentMode => _currentMode;
+  String? get shopName => _shopName;
 
   AuthProvider() {
     _loadSettings();
@@ -22,6 +28,7 @@ class AuthProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     _serverIp = prefs.getString('server_ip');
     _accessToken = prefs.getString('access_token');
+    _shopName = prefs.getString('shop_name');
     _isPaired = _serverIp != null && _accessToken != null;
     notifyListeners();
   }
@@ -63,7 +70,8 @@ class AuthProvider extends ChangeNotifier {
         
         if (response.statusCode == 200) {
           debugPrint('USB Bridge Success!');
-          await _savePairing('127.0.0.1:$serverPort', sessionToken);
+          final String name = jsonDecode(response.body)['appName'] ?? 'Gravity POS';
+          await _savePairing('127.0.0.1:$serverPort', sessionToken, name);
           return true;
         }
       } catch (_) {
@@ -80,7 +88,8 @@ class AuthProvider extends ChangeNotifier {
 
       if (response.statusCode == 200) {
         debugPrint('Wi-Fi Connection Success!');
-        await _savePairing('$ip:$serverPort', sessionToken);
+        final String name = jsonDecode(response.body)['appName'] ?? 'Gravity POS';
+        await _savePairing('$ip:$serverPort', sessionToken, name);
         return true;
       }
     } catch (e) {
@@ -89,12 +98,14 @@ class AuthProvider extends ChangeNotifier {
     return false;
   }
 
-  Future<void> _savePairing(String address, String token) async {
+  Future<void> _savePairing(String address, String token, String name) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('server_ip', address);
     await prefs.setString('access_token', token);
+    await prefs.setString('shop_name', name);
     _serverIp = address;
     _accessToken = token;
+    _shopName = name;
     _isPaired = true;
     notifyListeners();
   }
@@ -130,10 +141,25 @@ class AuthProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('server_ip');
     await prefs.remove('access_token');
+    await prefs.remove('shop_name');
     _serverIp = null;
     _accessToken = null;
+    _shopName = null;
     _isPaired = false;
     _isLoggedIn = false;
+    _currentMode = AppMode.selection;
+    notifyListeners();
+  }
+
+  void setAppMode(AppMode mode) {
+    _currentMode = mode;
+    notifyListeners();
+  }
+
+  void resetMode() {
+    _currentMode = AppMode.selection;
+    _isLoggedIn = false;
+    // We don't necessarily unpair here, just go back to selection
     notifyListeners();
   }
 }

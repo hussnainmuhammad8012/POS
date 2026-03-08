@@ -10,6 +10,7 @@ import '../../features/inventory/data/repositories/category_repository.dart';
 import '../../features/analytics/data/analytics_repository.dart';
 import '../repositories/transaction_repository.dart';
 import '../../features/inventory/data/models/product_model.dart';
+import '../../features/settings/application/settings_provider.dart';
 import '../services/fcm_service.dart';
 
 /// Local HTTP server for Companion App
@@ -28,6 +29,7 @@ class LocalApiServer {
   CategoryRepository? _categoryRepository;
   AnalyticsRepository? _analyticsRepository;
   TransactionRepository? _transactionRepository;
+  SettingsProvider? _settingsProvider;
   FCMService? _fcmService;
   String? _localIp;
 
@@ -42,12 +44,14 @@ class LocalApiServer {
     required CategoryRepository categoryRepository,
     required AnalyticsRepository analyticsRepository,
     required TransactionRepository transactionRepository,
+    required SettingsProvider settingsProvider,
     required FCMService fcmService,
   }) {
     _productRepository = productRepository;
     _categoryRepository = categoryRepository;
     _analyticsRepository = analyticsRepository;
     _transactionRepository = transactionRepository;
+    _settingsProvider = settingsProvider;
     _fcmService = fcmService;
   }
 
@@ -134,7 +138,7 @@ class LocalApiServer {
       return Response.ok(jsonEncode({
         'status': 'ok', 
         'timestamp': DateTime.now().toIso8601String(),
-        'appName': 'Gravity POS'
+        'appName': _settingsProvider?.storeName ?? 'Gravity POS'
       }));
     });
     
@@ -230,14 +234,30 @@ class LocalApiServer {
     final body = await request.readAsString();
     final data = jsonDecode(body);
     
-    final id = await _productRepository!.createProduct(
+    // 1. Create Product
+    final productId = await _productRepository!.createProduct(
       categoryId: data['categoryId'],
       name: data['name'],
       baseSku: data['baseSku'],
+      description: data['description'],
       unitType: data['unitType'] ?? 'Pieces',
     );
+
+    // 2. Create Default Variant with Stock
+    await _productRepository!.createProductVariant(
+      productId: productId,
+      variantName: 'Default',
+      sku: '${data['baseSku']}-DEF',
+      barcode: data['barcode'],
+      costPrice: (data['costPrice'] as num).toDouble(),
+      retailPrice: (data['retailPrice'] as num).toDouble(),
+      wholesalePrice: (data['wholesalePrice'] as num?)?.toDouble(),
+      mrp: (data['mrp'] as num?)?.toDouble(),
+      initialStock: (data['initialStock'] as num?)?.toInt() ?? 0,
+      lowStockThreshold: (data['lowStockThreshold'] as num?)?.toInt() ?? 10,
+    );
     
-    return Response.ok(jsonEncode({'id': id, 'status': 'success'}));
+    return Response.ok(jsonEncode({'id': productId, 'status': 'success'}));
   }
 
   Future<Response> _getCategories(Request request) async {

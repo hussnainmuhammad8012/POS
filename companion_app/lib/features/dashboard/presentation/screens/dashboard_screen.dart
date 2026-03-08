@@ -3,15 +3,24 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../application/dashboard_provider.dart';
+import 'package:companion_app/features/auth/application/auth_provider.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.read<AuthProvider>();
+
     return Scaffold(
       backgroundColor: AppColors.STAR_BACKGROUND,
-      appBar: AppBar(title: const Text('Admin Dashboard')),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(LucideIcons.arrowLeft, size: 20),
+          onPressed: () => auth.resetMode(),
+        ),
+        title: const Text('Admin Dashboard'),
+      ),
       body: Consumer<DashboardProvider>(
         builder: (context, provider, _) {
           if (provider.isLoading && provider.data == null) {

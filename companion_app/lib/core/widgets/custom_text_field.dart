@@ -5,22 +5,30 @@ class CustomTextField extends StatefulWidget {
   final String? label;
   final String? hint;
   final IconData? prefixIcon;
+  final Widget? suffixIcon;
   final TextInputType keyboardType;
   final bool obscureText;
+  final bool readOnly;
+  final int maxLines;
   final TextEditingController? controller;
   final ValueChanged<String>? onChanged;
   final String? Function(String?)? validator;
+  final VoidCallback? onTap;
 
   const CustomTextField({
     super.key,
     this.label,
     this.hint,
     this.prefixIcon,
+    this.suffixIcon,
     this.keyboardType = TextInputType.text,
     this.obscureText = false,
+    this.readOnly = false,
+    this.maxLines = 1,
     this.controller,
     this.onChanged,
     this.validator,
+    this.onTap,
   });
 
   @override
@@ -72,12 +80,16 @@ class _CustomTextFieldState extends State<CustomTextField> {
             focusNode: _focusNode,
             controller: widget.controller,
             obscureText: widget.obscureText,
+            readOnly: widget.readOnly,
+            maxLines: widget.maxLines,
             keyboardType: widget.keyboardType,
             onChanged: widget.onChanged,
             validator: widget.validator,
+            onTap: widget.onTap,
             decoration: InputDecoration(
               hintText: widget.hint,
               prefixIcon: widget.prefixIcon != null ? Icon(widget.prefixIcon, size: 20) : null,
+              suffixIcon: widget.suffixIcon,
             ),
           ),
         ),

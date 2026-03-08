@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import '../data/models/product_model.dart';
-import '../data/models/category_model.dart';
+import 'package:companion_app/features/inventory/data/models/product_model.dart';
+import 'package:companion_app/features/inventory/data/models/category_model.dart';
 
 class InventoryProvider extends ChangeNotifier {
   final String serverIp;
@@ -70,6 +70,53 @@ class InventoryProvider extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Stock update error: $e');
+    }
+    return false;
+  }
+
+  Future<bool> addProduct({
+    required String categoryId,
+    required String name,
+    required String baseSku,
+    String? description,
+    String unitType = 'Pieces',
+    String? barcode,
+    required double costPrice,
+    required double retailPrice,
+    double? wholesalePrice,
+    double? mrp,
+    int initialStock = 0,
+    int lowStockThreshold = 10,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('http://$serverIp/inventory/products'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
+        body: jsonEncode({
+          'categoryId': categoryId,
+          'name': name,
+          'baseSku': baseSku,
+          'description': description,
+          'unitType': unitType,
+          'barcode': barcode,
+          'costPrice': costPrice,
+          'retailPrice': retailPrice,
+          'wholesalePrice': wholesalePrice,
+          'mrp': mrp,
+          'initialStock': initialStock,
+          'lowStockThreshold': lowStockThreshold,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        await fetchInventory();
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Add product error: $e');
     }
     return false;
   }

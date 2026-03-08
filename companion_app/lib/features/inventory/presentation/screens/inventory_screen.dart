@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../../application/inventory_provider.dart';
-import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/custom_text_field.dart';
-import 'scanner_screen.dart';
-import '../../data/models/product_model.dart';
+import 'package:companion_app/features/auth/application/auth_provider.dart';
+import 'package:companion_app/features/inventory/application/inventory_provider.dart';
+import 'package:companion_app/core/theme/app_theme.dart';
+import 'package:companion_app/core/widgets/custom_text_field.dart';
+import 'package:companion_app/features/inventory/presentation/widgets/add_product_dialog.dart';
+import 'package:companion_app/features/inventory/data/models/product_model.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -23,140 +24,115 @@ class _InventoryScreenState extends State<InventoryScreen> {
     Future.microtask(() => context.read<InventoryProvider>().fetchInventory());
   }
 
-  void _showAddStockDialog(Product product) {
-    final qtyController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Stock Update: ${product.name}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CustomTextField(
-              label: 'Add Quantity',
-              hint: 'e.g. 10 or -5',
-              keyboardType: TextInputType.number,
-              controller: qtyController,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              final qty = int.tryParse(qtyController.text);
-              if (qty != null) {
-                final messenger = ScaffoldMessenger.of(context);
-                final navigator = Navigator.of(context);
-                
-                final success = await context.read<InventoryProvider>().updateStock(
-                  product.id,
-                  qty,
-                  'Companion App Update',
-                );
-                
-                if (success) {
-                  navigator.pop();
-                  messenger.showSnackBar(
-                    const SnackBar(content: Text('Stock Updated!'), backgroundColor: AppColors.SUCCESS),
-                  );
-                }
-              }
-            },
-            child: const Text('Update'),
-          ),
-        ],
-      ),
-    );
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final inventory = context.watch<InventoryProvider>();
+    final auth = context.watch<AuthProvider>();
+
+    final filteredProducts = inventory.products.where((p) {
+      final query = _searchController.text.toLowerCase();
+      return p.name.toLowerCase().contains(query) || p.baseSku.toLowerCase().contains(query);
+    }).toList();
+
     return Scaffold(
       backgroundColor: AppColors.STAR_BACKGROUND,
       appBar: AppBar(
-        title: const Text('Inventory Manager'),
+        backgroundColor: AppColors.STAR_PRIMARY,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(LucideIcons.arrowLeft),
+          onPressed: () => auth.resetMode(),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              auth.shopName ?? 'Inventory Manager', 
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)
+            ),
+            Text(
+              auth.serverIp ?? 'Local Server', 
+              style: const TextStyle(fontSize: 10, color: AppColors.STAR_TEXT_SECONDARY),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(LucideIcons.refreshCw, size: 20),
-            onPressed: () => context.read<InventoryProvider>().fetchInventory(),
+            onPressed: () => inventory.fetchInventory(),
+          ),
+          IconButton(
+            icon: const Icon(LucideIcons.plusCircle),
+            onPressed: () {
+              final provider = context.read<InventoryProvider>();
+              showDialog(
+                context: context,
+                builder: (context) => ChangeNotifierProvider.value(
+                  value: provider,
+                  child: const AddProductDialog(),
+                ),
+              );
+            },
           ),
         ],
       ),
-      body: Consumer<InventoryProvider>(
-        builder: (context, provider, _) {
-          final products = provider.products.where((p) => 
-            p.name.toLowerCase().contains(_searchController.text.toLowerCase()) ||
-            p.baseSku.toLowerCase().contains(_searchController.text.toLowerCase())
-          ).toList();
-
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: CustomTextField(
-                  hint: 'Search by Product Name or SKU...',
-                  prefixIcon: LucideIcons.search,
-                  onChanged: (v) => setState(() {}),
-                  controller: _searchController,
-                ),
-              ),
-              Expanded(
-                child: provider.isLoading 
-                  ? const Center(child: CircularProgressIndicator())
-                  : _buildProductList(products),
-              ),
-            ],
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ScannerScreen(
-                onScan: (sku) {
-                  final provider = context.read<InventoryProvider>();
-                  final product = provider.products.where((p) => p.baseSku == sku).firstOrNull;
-                  if (product != null) {
-                    _showAddStockDialog(product);
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Product not found'), backgroundColor: AppColors.DANGER),
-                    );
-                  }
-                },
-              ),
-            ),
-          );
-        },
-        backgroundColor: AppColors.STAR_PRIMARY,
-        child: const Icon(LucideIcons.scanLine, color: Colors.white),
+      body: Column(
+        children: [
+          _buildSearchBar(),
+          Expanded(
+            child: inventory.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _buildProductList(filteredProducts),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildProductList(List products) {
-    if (products.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(LucideIcons.packageSearch, size: 60, color: AppColors.STAR_TEXT_SECONDARY.withOpacity(0.3)),
-            const SizedBox(height: 16),
-            const Text('No products found', style: TextStyle(color: AppColors.STAR_TEXT_SECONDARY)),
-          ],
+  Widget _buildSearchBar() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: AppColors.STAR_PRIMARY,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(12),
         ),
-      );
+        child: TextField(
+          controller: _searchController,
+          style: const TextStyle(color: Colors.white),
+          onChanged: (v) => setState(() {}),
+          decoration: const InputDecoration(
+            hintText: 'Search by name or SKU...',
+            hintStyle: TextStyle(color: Colors.white70),
+            border: InputBorder.none,
+            icon: Icon(LucideIcons.search, color: Colors.white70, size: 20),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProductList(List<Product> products) {
+    if (products.isEmpty) {
+      return const Center(child: Text('No products found', style: TextStyle(color: AppColors.STAR_TEXT_SECONDARY)));
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(16),
       itemCount: products.length,
       itemBuilder: (context, index) {
         final p = products[index];
         return Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           elevation: 0,
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
@@ -174,10 +150,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('SKU: ${p.baseSku}'),
+                Text('SKU: ${p.baseSku}', style: const TextStyle(fontSize: 12)),
+                const SizedBox(height: 4),
                 Text(
                   'Stock: ${p.currentStock} ${p.unitType}',
                   style: TextStyle(
+                    fontSize: 13,
                     color: p.currentStock <= 5 ? AppColors.DANGER : AppColors.STAR_TEXT_SECONDARY,
                     fontWeight: p.currentStock <= 5 ? FontWeight.bold : FontWeight.normal,
                   ),
@@ -194,12 +172,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 ),
                 const SizedBox(height: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
                     color: AppColors.STAR_PRIMARY.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Icon(LucideIcons.plus, size: 14, color: AppColors.STAR_PRIMARY),
+                  child: const Icon(LucideIcons.plus, size: 16, color: AppColors.STAR_PRIMARY),
                 ),
               ],
             ),
@@ -207,6 +185,117 @@ class _InventoryScreenState extends State<InventoryScreen> {
           ),
         );
       },
+    );
+  }
+
+  void _showAddStockDialog(Product product) {
+    final qtyController = TextEditingController();
+    final reasonController = TextEditingController(text: 'Restock from mobile');
+    final formKey = GlobalKey<FormState>();
+    final inventoryProvider = context.read<InventoryProvider>();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(LucideIcons.packagePlus, color: AppColors.STAR_PRIMARY),
+            const SizedBox(width: 12),
+            Expanded(child: Text('Stock Update: ${product.name}', style: const TextStyle(fontSize: 18))),
+          ],
+        ),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CustomTextField(
+                label: 'Adjustment Quantity',
+                hint: 'e.g. 10 or -5',
+                keyboardType: TextInputType.number,
+                controller: qtyController,
+                prefixIcon: LucideIcons.hash,
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Required';
+                  if (int.tryParse(v) == null) return 'Invalid number';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              CustomTextField(
+                label: 'Reason for Adjustment',
+                hint: 'e.g. Fresh stock, damage, etc.',
+                controller: reasonController,
+                prefixIcon: LucideIcons.text,
+                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext), 
+            child: const Text('Cancel', style: TextStyle(color: AppColors.STAR_TEXT_SECONDARY))
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.STAR_PRIMARY,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              
+              final qty = int.parse(qtyController.text);
+              final reason = reasonController.text;
+              
+              final messenger = ScaffoldMessenger.of(context);
+              final navigator = Navigator.of(context);
+              
+              // Show loading
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => const Center(child: CircularProgressIndicator()),
+              );
+              
+              bool success = false;
+              try {
+                success = await inventoryProvider.updateStock(
+                  product.id,
+                  qty,
+                  reason,
+                );
+              } catch (e) {
+                debugPrint('Update error: $e');
+              } finally {
+                navigator.pop(); // Close loading
+              }
+              
+              if (success) {
+                navigator.pop(); // Close adjustment dialog
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: const Text('Stock Updated successfully!'), 
+                    backgroundColor: AppColors.SUCCESS,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              } else {
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: const Text('Update failed. Check connection.'), 
+                    backgroundColor: AppColors.DANGER,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            child: const Text('Update Stock'),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import '../../../../core/theme/app_theme.dart';
+import 'package:companion_app/core/theme/app_theme.dart';
 
 class ScannerScreen extends StatefulWidget {
   final Function(String) onScan;

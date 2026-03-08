@@ -158,6 +158,7 @@ class _AppBootstrapperState extends State<_AppBootstrapper> with TrayListener {
       categoryRepository: widget.categoryRepo,
       analyticsRepository: AnalyticsRepository(),
       transactionRepository: widget.transactionRepo,
+      settingsProvider: settings,
       fcmService: fcmService,
     );
 
