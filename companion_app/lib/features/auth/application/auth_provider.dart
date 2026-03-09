@@ -114,13 +114,20 @@ class AuthProvider extends ChangeNotifier {
     if (!_isPaired) return false;
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final fcmToken = prefs.getString('fcm_token');
+
       final response = await http.post(
         Uri.parse('http://$_serverIp/auth/login'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_accessToken',
         },
-        body: jsonEncode({'username': username, 'password': password}),
+        body: jsonEncode({
+          'username': username, 
+          'password': password,
+          'fcmToken': fcmToken,
+        }),
       );
 
       if (response.statusCode == 200) {

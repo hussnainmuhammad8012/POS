@@ -35,6 +35,7 @@ class SettingsProvider extends ChangeNotifier {
   bool get isServerEnabled => _prefs.getBool('is_server_enabled') ?? false;
   int get sessionDurationHours => _prefs.getInt('session_duration_hours') ?? 24;
   bool get dailyReportEnabled => _prefs.getBool('daily_report_enabled') ?? true;
+  String get dailyReportTime => _prefs.getString('daily_report_time') ?? '20:00';
   String? get adminFcmToken => _prefs.getString('admin_fcm_token');
 
   final _backupService = DatabaseBackupService();
@@ -157,6 +158,11 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> setDailyReportEnabled(bool enabled) async {
     await _prefs.setBool('daily_report_enabled', enabled);
+    notifyListeners();
+  }
+
+  Future<void> setDailyReportTime(String time) async {
+    await _prefs.setString('daily_report_time', time);
     notifyListeners();
   }
 

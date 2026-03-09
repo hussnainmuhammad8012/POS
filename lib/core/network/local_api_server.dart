@@ -282,6 +282,13 @@ class LocalApiServer {
     final password = data['password'];
     
     if (username == 'admin' && (password == 'admin' || password == 'admin123')) {
+      // Save FCM Token if provided (for Admin Dashboard mode)
+      final fcmToken = data['fcmToken'];
+      if (fcmToken != null && _settingsProvider != null) {
+        _settingsProvider!.setAdminFcmToken(fcmToken);
+        print('LocalServer: Registered Admin FCM Token: $fcmToken');
+      }
+
       return Response.ok(jsonEncode({
         'status': 'success',
         'message': 'Logged in successfully',

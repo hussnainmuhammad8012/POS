@@ -41,6 +41,7 @@ dependencies:
   url_launcher: ^6.3.2
   tray_manager: ^0.5.2
   http: ^1.2.1
+  googleapis_auth: ^1.6.0
 
   # Networking for Companion App
   shelf: ^1.4.1
@@ -58,3 +59,4 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    - assets/fcm/

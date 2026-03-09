@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "92868399692",
+    "project_id": "companion-app-ca980",
+    "storage_bucket": "companion-app-ca980.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:92868399692:android:e0b2dde55bfab6dd1c9ae9",
+        "android_client_info": {
+          "package_name": "com.hunainmart.companion_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAZdc0xaULC3U_R8Jvmf7f0f0XyU5sm1Ro"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

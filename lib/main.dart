@@ -140,6 +140,9 @@ class _AppBootstrapper extends StatefulWidget {
 }
 
 class _AppBootstrapperState extends State<_AppBootstrapper> with TrayListener {
+  Timer? _reportTimer;
+  String? _lastScheduledTime;
+
   @override
   void initState() {
     super.initState();
@@ -154,6 +157,7 @@ class _AppBootstrapperState extends State<_AppBootstrapper> with TrayListener {
     final fcmService = FCMService(
       productRepository: widget.productRepo,
       transactionRepository: widget.transactionRepo,
+      analyticsRepository: AnalyticsRepository(),
       settingsProvider: settings,
     );
 
@@ -172,23 +176,42 @@ class _AppBootstrapperState extends State<_AppBootstrapper> with TrayListener {
       await server.start();
     }
 
-    // Schedule daily summary
+    // Schedule daily summary and listen for changes
     _scheduleDailySummary(fcmService);
+    settings.addListener(() {
+      if (_lastScheduledTime != settings.dailyReportTime) {
+        print('FCM: Settings changed. Re-scheduling reports...');
+        _scheduleDailySummary(fcmService);
+      }
+    });
   }
 
   void _scheduleDailySummary(FCMService fcm) {
-    // Basic daily timer logic
+    _reportTimer?.cancel();
+    
+    final settings = context.read<SettingsProvider>();
+    _lastScheduledTime = settings.dailyReportTime;
     final now = DateTime.now();
-    var scheduledTime = DateTime(now.year, now.month, now.day, 21, 0); // 9:00 PM
+    
+    // Parse time from settings (default 20:00)
+    final timeParts = settings.dailyReportTime.split(':');
+    final hour = int.parse(timeParts[0]);
+    final minute = int.parse(timeParts[1]);
+
+    var scheduledTime = DateTime(now.year, now.month, now.day, hour, minute);
     if (now.isAfter(scheduledTime)) {
       scheduledTime = scheduledTime.add(const Duration(days: 1));
     }
 
     final delay = scheduledTime.difference(now);
-    Timer(delay, () async {
-      final settings = context.read<SettingsProvider>();
+    print('FCM: Next report scheduled for $scheduledTime (in ${delay.inMinutes} mins)');
+    
+    _reportTimer = Timer(delay, () async {
+      print('FCM: Timer fired! Checking if reports are enabled...');
       if (settings.dailyReportEnabled) {
         await fcm.sendDailySummary();
+      } else {
+        print('FCM: Daily reports are disabled in settings. Skipping.');
       }
       // Re-schedule for next day
       _scheduleDailySummary(fcm);

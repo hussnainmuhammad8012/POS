@@ -1,30 +1,61 @@
 import 'dart:convert';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:googleapis_auth/auth_io.dart';
 import '../../features/inventory/data/repositories/product_repository.dart';
 import '../repositories/transaction_repository.dart';
+import '../../features/analytics/data/analytics_repository.dart';
 import '../../features/settings/application/settings_provider.dart';
 
 class FCMService {
-  final ProductRepository productRepository;
-  final TransactionRepository transactionRepository;
-  final SettingsProvider settingsProvider;
+  final ProductRepository _productRepository;
+  final TransactionRepository _transactionRepository;
+  final AnalyticsRepository _analyticsRepository;
+  final SettingsProvider _settingsProvider;
 
   FCMService({
-    required this.productRepository,
-    required this.transactionRepository,
-    required this.settingsProvider,
-  });
+    required ProductRepository productRepository,
+    required TransactionRepository transactionRepository,
+    required AnalyticsRepository analyticsRepository,
+    required SettingsProvider settingsProvider,
+  })  : _productRepository = productRepository,
+        _transactionRepository = transactionRepository,
+        _analyticsRepository = analyticsRepository,
+        _settingsProvider = settingsProvider;
 
-  static const String _fcmUrl = 'https://fcm.googleapis.com/fcm/send';
-  // Note: Server key should ideally be stored securely or passed from settings
-  static const String _serverKey = 'YOUR_FCM_SERVER_KEY_HERE';
+  static const String _scopes = 'https://www.googleapis.com/auth/firebase.messaging';
+  
+  /// Get OAuth2 access token for FCM v1
+  Future<String?> _getAccessToken() async {
+    try {
+      final jsonString = await rootBundle.loadString('assets/fcm/service-account.json');
+      final accountCredentialsRaw = json.decode(jsonString);
+      
+      final credentials = ServiceAccountCredentials.fromJson(accountCredentialsRaw);
+      final client = await clientViaServiceAccount(credentials, [_scopes]);
+      
+      final token = client.credentials.accessToken.data;
+      client.close();
+      return token;
+    } catch (e) {
+      print('FCM: Error getting access token: $e');
+      return null;
+    }
+  }
 
   /// Send daily summary to the paired admin device
   Future<void> sendDailySummary() async {
-    final token = settingsProvider.adminFcmToken;
-    if (token == null || token.isEmpty) return;
+    final token = _settingsProvider.adminFcmToken;
+    print('FCM: Attempting to send daily summary. Token present: ${token != null && token.isNotEmpty}');
+    
+    if (token == null || token.isEmpty) {
+      print('FCM: Skipping daily summary - No Admin FCM Token configured in Settings.');
+      return;
+    }
 
+    print('FCM: Generating real-time report for today...');
     final summary = await _generateDailySummary();
+    print('FCM: Report generated. Total Sales: Rs. ${summary['totalSales']}');
     
     await _sendToDevice(
       token: token,
@@ -39,7 +70,7 @@ class FCMService {
 
   /// Send on-demand report to a specific device
   Future<void> sendOnDemandReport(String token) async {
-    final report = await _generateDailySummary(); // reuse daily logic for now
+    final report = await _generateDailySummary();
     
     await _sendToDevice(
       token: token,
@@ -54,16 +85,23 @@ class FCMService {
 
   Future<Map<String, dynamic>> _generateDailySummary() async {
     final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day).toIso8601String();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final todayEnd = todayStart.add(const Duration(days: 1));
     
-    // This is a simplified summary based on existing logic
-    // In a real scenario, we'd query the transaction repo for today's totals
+    final totalSales = await _analyticsRepository.getTotalRevenue(todayStart, todayEnd);
+    final cashSales = totalSales - await _analyticsRepository.getTodayCreditSales();
+    final creditSales = await _analyticsRepository.getTodayCreditSales();
+    
+    // Get transaction count
+    final transactions = await _transactionRepository.getTransactionsByDateRange(todayStart, todayEnd);
+    final itemCount = transactions.length;
+
     return {
-      'date': today,
-      'totalSales': 12500.0, // Placeholder
-      'itemCount': 42,       // Placeholder
-      'cash': 8000.0,        // Placeholder
-      'credit': 4500.0,      // Placeholder
+      'date': todayStart.toIso8601String(),
+      'totalSales': totalSales.toStringAsFixed(2),
+      'itemCount': itemCount.toString(),
+      'cash': cashSales.toStringAsFixed(2),
+      'credit': creditSales.toStringAsFixed(2),
     };
   }
 
@@ -73,36 +111,51 @@ class FCMService {
     required Map<String, dynamic> data,
     required Map<String, String> notification,
   }) async {
-    if (_serverKey == 'YOUR_FCM_SERVER_KEY_HERE') {
-      print('FCM: Server Key not configured. Skipping push.');
+    final accessToken = await _getAccessToken();
+    if (accessToken == null) {
+      print('FCM: Failed to obtain OAuth2 token. Check assets/fcm/service-account.json');
       return;
     }
 
+    // Get Project ID from asset during runtime or hardcode from verified json
+    final jsonString = await rootBundle.loadString('assets/fcm/service-account.json');
+    final projectId = json.decode(jsonString)['project_id'];
+    final url = 'https://fcm.googleapis.com/v1/projects/$projectId/messages:send';
+
     final payload = {
-      'to': token,
-      'priority': 'high',
-      'notification': notification,
-      'data': {
-        ...data,
-        'type': type,
-        'sent_at': DateTime.now().toIso8601String(),
-      },
+      'message': {
+        'token': token,
+        'notification': notification,
+        'data': {
+          ...data,
+          'type': type,
+          'sent_at': DateTime.now().toIso8601String(),
+        },
+        'android': {
+          'priority': 'high',
+          'notification': {
+            'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+            'channel_id': 'high_importance_channel',
+          }
+        }
+      }
     };
 
     try {
       final response = await http.post(
-        Uri.parse(_fcmUrl),
+        Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'key=$_serverKey',
+          'Authorization': 'Bearer $accessToken',
         },
         body: jsonEncode(payload),
       );
 
       if (response.statusCode == 200) {
-        print('FCM: Push sent successfully to $token');
+        print('FCM: Push sent successfully to device.');
       } else {
         print('FCM: Failed to send push. Status: ${response.statusCode}');
+        print('FCM: Error Body: ${response.body}');
       }
     } catch (e) {
       print('FCM: Error sending push: $e');

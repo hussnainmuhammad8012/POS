@@ -179,6 +179,31 @@ class _CompanionServerSettingsState extends State<CompanionServerSettings> {
                 activeColor: Theme.of(context).colorScheme.primary,
                 onChanged: settings.setDailyReportEnabled,
               ),
+              if (settings.dailyReportEnabled) ...[
+                const Divider(),
+                ListTile(
+                  title: const Text('Closing Time (Report)'),
+                  subtitle: Text('Current: ${settings.dailyReportTime}'),
+                  trailing: const Icon(LucideIcons.clock),
+                  onTap: () async {
+                    final parts = settings.dailyReportTime.split(':');
+                    final initialTime = TimeOfDay(
+                      hour: int.parse(parts[0]),
+                      minute: int.parse(parts[1]),
+                    );
+                    
+                    final picked = await showTimePicker(
+                      context: context,
+                      initialTime: initialTime,
+                    );
+                    
+                    if (picked != null) {
+                      final formatted = '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+                      await settings.setDailyReportTime(formatted);
+                    }
+                  },
+                ),
+              ],
               const Divider(),
               ListTile(
                 title: const Text('Push Status'),
