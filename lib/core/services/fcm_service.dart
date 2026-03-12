@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:googleapis_auth/auth_io.dart';
@@ -23,16 +24,24 @@ class FCMService {
         _analyticsRepository = analyticsRepository,
         _settingsProvider = settingsProvider;
 
-  static const String _scopes = 'https://www.googleapis.com/auth/firebase.messaging';
+  static const List<String> _scopes = [
+    'https://www.googleapis.com/auth/firebase.messaging',
+    'https://www.googleapis.com/auth/cloud-platform',
+  ];
   
   /// Get OAuth2 access token for FCM v1
   Future<String?> _getAccessToken() async {
     try {
       final jsonString = await rootBundle.loadString('assets/fcm/service-account.json');
-      final accountCredentialsRaw = json.decode(jsonString);
+      Map<String, dynamic> data = json.decode(jsonString);
       
-      final credentials = ServiceAccountCredentials.fromJson(accountCredentialsRaw);
-      final client = await clientViaServiceAccount(credentials, [_scopes]);
+      // Ensure private key handles literal \n characters if they exist
+      if (data['private_key'] != null) {
+        data['private_key'] = data['private_key'].toString().replaceAll('\\n', '\n').trim();
+      }
+
+      final credentials = ServiceAccountCredentials.fromJson(data);
+      final client = await clientViaServiceAccount(credentials, _scopes);
       
       final token = client.credentials.accessToken.data;
       client.close();
