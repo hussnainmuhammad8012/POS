@@ -24,6 +24,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
   final _skuController = TextEditingController();
   final _descriptionController = TextEditingController();
   String? _selectedCategoryId;
+  String? _selectedSupplierId;
 
   // Step 2: Pricing & Units
   final _unitController = TextEditingController(text: 'Pieces');
@@ -173,6 +174,19 @@ class _AddProductDialogState extends State<AddProductDialog> {
             icon: LucideIcons.tag,
           )).toList(),
           onChanged: (v) => setState(() => _selectedCategoryId = v),
+        ),
+        const SizedBox(height: 16),
+        AppDropdown<String>(
+          label: 'Supplier (Optional)',
+          hint: 'Select Supplier',
+          prefixIcon: LucideIcons.truck,
+          value: _selectedSupplierId,
+          items: provider.suppliers.map((s) => AppDropdownItem<String>(
+            value: s.id,
+            label: s.name,
+            icon: LucideIcons.user,
+          )).toList(),
+          onChanged: (v) => setState(() => _selectedSupplierId = v),
         ),
         const SizedBox(height: 16),
         CustomTextField(
@@ -360,6 +374,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
         name: _nameController.text,
         baseSku: _skuController.text,
         description: _descriptionController.text,
+        supplierId: _selectedSupplierId,
         unitType: _unitController.text,
         barcode: _barcodeController.text.isEmpty ? null : _barcodeController.text,
         costPrice: double.parse(_costPriceController.text),

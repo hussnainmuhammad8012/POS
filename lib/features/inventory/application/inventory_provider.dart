@@ -144,6 +144,7 @@ class InventoryProvider extends ChangeNotifier {
     String? description,
     String? mainImagePath,
     required String unitType,
+    String? supplierId,
   }) async {
     try {
       final id = await _productRepository.createProduct(
@@ -153,6 +154,7 @@ class InventoryProvider extends ChangeNotifier {
         description: description,
         mainImagePath: mainImagePath,
         unitType: unitType,
+        supplierId: supplierId,
       );
       await loadProducts();
       return id;
@@ -170,6 +172,7 @@ class InventoryProvider extends ChangeNotifier {
     String? description,
     String? mainImagePath,
     String? unitType,
+    String? supplierId,
     double? costPrice,
     double? retailPrice,
     double? wholesalePrice,
@@ -182,6 +185,7 @@ class InventoryProvider extends ChangeNotifier {
       await _productRepository.updateProduct(id, 
         categoryId: categoryId, name: name, baseSku: baseSku, 
         description: description, mainImagePath: mainImagePath, unitType: unitType,
+        supplierId: supplierId,
         costPrice: costPrice, retailPrice: retailPrice, wholesalePrice: wholesalePrice,
         mrp: mrp, barcode: barcode, initialStock: initialStock, lowStockThreshold: lowStockThreshold,
       );

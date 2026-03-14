@@ -12,6 +12,13 @@ import '../../../core/widgets/modern_card.dart';
 import '../../../core/widgets/toast_notification.dart';
 import '../application/settings_provider.dart';
 import 'widgets/companion_server_settings.dart';
+import '../../customers/application/customers_provider.dart';
+import '../../suppliers/application/suppliers_provider.dart';
+import '../../inventory/application/inventory_provider.dart';
+import '../../inventory/application/stock_provider.dart';
+import '../../transactions/application/transactions_provider.dart';
+import '../../pos/application/pos_provider.dart';
+import '../../analytics/application/analytics_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   static const routeName = '/settings';
@@ -609,6 +616,17 @@ class _BackupRestorePanel extends StatelessWidget {
                 await settings.clearDatabase();
                 if (context.mounted) {
                   Navigator.pop(context);
+                  
+                  // Immediately clear UI state globally
+                  context.read<CustomersProvider>().loadCustomers();
+                  context.read<SuppliersProvider>().loadSuppliers();
+                  context.read<InventoryProvider>().loadCategories();
+                  context.read<InventoryProvider>().loadProducts();
+                  context.read<TransactionsProvider>().loadTransactions();
+                  context.read<StockProvider>().loadMovements();
+                  context.read<PosProvider>().clearCart();
+                  context.read<AnalyticsProvider>().refreshData();
+
                   AppToast.show(
                     context,
                     title: 'Database Cleared',

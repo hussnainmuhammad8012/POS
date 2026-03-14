@@ -20,6 +20,7 @@ class CartonRepository {
     required int receivedQuantity,
     DateTime? expiryDate,
     String? supplierBatchId,
+    String? supplierId,
     String? storageLocation,
     String? notes,
   }) async {
@@ -39,6 +40,7 @@ class CartonRepository {
         'is_opened': 0,
         'expiry_date': expiryDate?.toIso8601String(),
         'supplier_batch_id': supplierBatchId,
+        'supplier_id': supplierId,
         'storage_location': storageLocation,
         'notes': notes,
         'created_at': DateTime.now().toIso8601String(),

@@ -101,6 +101,7 @@ class StockProvider extends ChangeNotifier {
     required int receivedQuantity,
     DateTime? expiryDate,
     String? supplierBatchId,
+    String? supplierId,
     String? storageLocation,
     String? notes,
   }) async {
@@ -113,6 +114,7 @@ class StockProvider extends ChangeNotifier {
         receivedQuantity: receivedQuantity,
         expiryDate: expiryDate,
         supplierBatchId: supplierBatchId,
+        supplierId: supplierId,
         storageLocation: storageLocation,
         notes: notes,
       );

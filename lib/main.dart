@@ -32,7 +32,12 @@ import 'core/services/fcm_service.dart';
 import 'core/services/data_sync_service.dart';
 import 'package:tray_manager/tray_manager.dart';
 
-Future<void> main() async {
+import 'core/repositories/supplier_repository.dart';
+import 'features/suppliers/application/suppliers_provider.dart';
+
+// ... other imports ...
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppDatabase.instance.initialize();
   final prefs = await SharedPreferences.getInstance();
@@ -54,10 +59,10 @@ class UtilityStorePosApp extends StatelessWidget {
     final creditLedgerRepo = CreditLedgerRepository();
     final transactionRepo = TransactionRepository();
     final notificationRepo = NotificationRepository();
+    final supplierRepo = SupplierRepository();
 
     return MultiProvider(
       providers: [
-// ... (omitting unchanged repositories for brevity)
         // Repositories
         Provider<CategoryRepository>.value(value: categoryRepo),
         Provider<ProductRepository>.value(value: productRepo),
@@ -67,6 +72,7 @@ class UtilityStorePosApp extends StatelessWidget {
         Provider<CreditLedgerRepository>.value(value: creditLedgerRepo),
         Provider<TransactionRepository>.value(value: transactionRepo),
         Provider<NotificationRepository>.value(value: notificationRepo),
+        Provider<SupplierRepository>.value(value: supplierRepo),
         
         // Providers
         ChangeNotifierProvider(create: (_) => DataSyncService()),
@@ -86,6 +92,7 @@ class UtilityStorePosApp extends StatelessWidget {
           ),
         ),
         ChangeNotifierProvider(create: (_) => CustomersProvider(repository: customerRepo)),
+        ChangeNotifierProvider(create: (_) => SuppliersProvider(repository: supplierRepo)),
         ChangeNotifierProvider(create: (_) => CreditLedgerProvider(creditLedgerRepo)),
         ChangeNotifierProvider(
           create: (context) => AnalyticsProvider(
@@ -101,10 +108,11 @@ class UtilityStorePosApp extends StatelessWidget {
           s.checkAndPerformAutoBackup(); // Daily auto-backup check
           return s;
         }),
-        ChangeNotifierProvider(create: (_) {
-          final p = NotificationProvider(notificationRepo);
+        ChangeNotifierProvider(        create: (context) {
+          final p = NotificationProvider(context.read<NotificationRepository>());
           p.checkOverdueCredits(); // Trigger check on start
-          p.checkLowStock();       // Trigger low stock check on start
+          p.checkSupplierOverdueDues(); // Trigger supplier due check on start
+          p.checkLowStock(); // Trigger low stock check on start
           return p;
         }),
         ChangeNotifierProvider(create: (_) => NavigationProvider()),
@@ -165,6 +173,7 @@ class _AppBootstrapperState extends State<_AppBootstrapper> with TrayListener {
     server.setServices(
       productRepository: widget.productRepo,
       categoryRepository: widget.categoryRepo,
+      supplierRepository: context.read<SupplierRepository>(),
       analyticsRepository: AnalyticsRepository(),
       transactionRepository: widget.transactionRepo,
       settingsProvider: settings,

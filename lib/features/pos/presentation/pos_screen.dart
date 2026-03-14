@@ -511,6 +511,7 @@ class _CheckoutSummary extends StatelessWidget {
                     context.read<NotificationProvider>().checkLowStock();
                     context.read<InventoryProvider>().loadCategories();
                     context.read<InventoryProvider>().loadProducts(); // Fresh stock in product list
+                    context.read<CustomersProvider>().loadCustomers(); // Refresh customer credit/ledger
 
                     if (context.mounted) {
                       showDialog(

@@ -16,8 +16,9 @@ class NavigationProvider extends ChangeNotifier {
   void navigateToPos() => setSelectedIndex(1);
   void navigateToInventory() => setSelectedIndex(2);
   void navigateToCustomers() => setSelectedIndex(3);
-  void navigateToTransactions() => setSelectedIndex(4);
-  void navigateToCredits() => setSelectedIndex(5);
-  void navigateToAnalytics() => setSelectedIndex(6);
-  void navigateToSettings() => setSelectedIndex(7);
+  void navigateToSuppliers() => setSelectedIndex(4);
+  void navigateToTransactions() => setSelectedIndex(5);
+  void navigateToCredits() => setSelectedIndex(6);
+  void navigateToAnalytics() => setSelectedIndex(7);
+  void navigateToSettings() => setSelectedIndex(8);
 }

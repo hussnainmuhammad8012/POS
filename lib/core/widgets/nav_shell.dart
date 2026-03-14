@@ -5,9 +5,11 @@ import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/pos/presentation/pos_screen.dart';
 import '../../features/inventory/presentation/inventory_screen.dart';
 import '../../features/customers/presentation/customers_screen.dart';
+import '../../features/suppliers/presentation/suppliers_screen.dart';
 import '../../features/transactions/presentation/transactions_screen.dart';
 import '../../features/analytics/presentation/analytics_screen.dart';
 import '../../features/customers/presentation/credits_screen.dart';
+import '../../features/suppliers/presentation/dues_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/settings/application/settings_provider.dart';
 import '../features/notifications/application/notification_provider.dart';
@@ -44,10 +46,12 @@ class NavShell extends StatelessWidget {
                       PosScreen(isVisible: nav.selectedIndex == 1),
                       const InventoryScreen(),
                       const CustomersScreen(),
-                      const TransactionsScreen(),
-                      const CreditsScreen(),
-                      const AnalyticsScreen(),
-                      const SettingsScreen(),
+                      const SuppliersScreen(), // index 4
+                      const TransactionsScreen(), // index 5
+                      const CreditsScreen(), // index 6
+                      const DuesScreen(), // index 7
+                      const AnalyticsScreen(), // index 8
+                      const SettingsScreen(), // index 9
                     ],
                   ),
                 ),
@@ -76,8 +80,10 @@ class _Sidebar extends StatelessWidget {
       {'icon': LucideIcons.monitorUp, 'label': 'Point of Sale'},
       {'icon': LucideIcons.package2, 'label': 'Inventory'},
       {'icon': LucideIcons.users, 'label': 'Customers'},
+      {'icon': LucideIcons.truck, 'label': 'Suppliers'},
       {'icon': LucideIcons.receipt, 'label': 'Transactions'},
       {'icon': LucideIcons.landmark, 'label': 'Credits'},
+      {'icon': LucideIcons.wallet, 'label': 'Dues'},
       {'icon': LucideIcons.lineChart, 'label': 'Analytics'},
     ];
 
@@ -157,8 +163,8 @@ class _Sidebar extends StatelessWidget {
             child: _NavItem(
               icon: LucideIcons.settings,
               label: 'Settings',
-              isActive: selectedIndex == 7,
-              onTap: () => onDestinationSelected(7),
+              isActive: selectedIndex == 9,
+              onTap: () => onDestinationSelected(9),
             ),
           ),
         ],

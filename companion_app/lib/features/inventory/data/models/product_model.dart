@@ -6,6 +6,7 @@ class Product {
   final String baseSku;
   final String? mainImagePath;
   final String unitType;
+  final String? supplierId;
   final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -20,6 +21,7 @@ class Product {
     required this.baseSku,
     this.mainImagePath,
     required this.unitType,
+    this.supplierId,
     required this.isActive,
     required this.createdAt,
     required this.updatedAt,
@@ -35,6 +37,7 @@ class Product {
     baseSku: json['base_sku'],
     mainImagePath: json['main_image_path'],
     unitType: json['unit_type'],
+    supplierId: json['supplier_id'],
     isActive: json['is_active'] == 1 || json['is_active'] == true,
     createdAt: DateTime.parse(json['created_at']),
     updatedAt: DateTime.parse(json['updated_at']),
@@ -50,6 +53,7 @@ class Product {
     'base_sku': baseSku,
     'main_image_path': mainImagePath,
     'unit_type': unitType,
+    'supplier_id': supplierId,
     'is_active': isActive ? 1 : 0,
     'created_at': createdAt.toIso8601String(),
     'updated_at': updatedAt.toIso8601String(),

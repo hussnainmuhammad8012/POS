@@ -322,7 +322,6 @@ class _CustomersScreenState extends State<CustomersScreen> {
       try {
         await provider.deleteCustomer(customer.id!);
         if (context.mounted) {
-          Navigator.pop(context); // Close the AlertDialog
           setState(() => _selectedCustomerId = null);
           AppToast.show(
             context,

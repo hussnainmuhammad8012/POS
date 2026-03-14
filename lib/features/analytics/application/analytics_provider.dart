@@ -9,6 +9,7 @@ class AnalyticsKpi {
   final double netProfit;
   final double totalCost;
   final double totalCreditToCollect;
+  final double totalSupplierDues;
   final int transactions;
   final int lowStockItems;
 
@@ -17,6 +18,7 @@ class AnalyticsKpi {
     required this.netProfit,
     required this.totalCost,
     required this.totalCreditToCollect,
+    required this.totalSupplierDues,
     required this.transactions,
     required this.lowStockItems,
   });
@@ -54,6 +56,7 @@ class AnalyticsProvider extends ChangeNotifier {
     netProfit: 0,
     totalCost: 0,
     totalCreditToCollect: 0,
+    totalSupplierDues: 0,
     transactions: 0,
     lowStockItems: 0,
   );
@@ -64,6 +67,7 @@ class AnalyticsProvider extends ChangeNotifier {
   List<Map<String, dynamic>> _salesByCategory = [];
   List<Map<String, dynamic>> _topProducts = [];
   List<Map<String, dynamic>> _leastProducts = [];
+  List<Map<String, dynamic>> _topSuppliers = [];
   Map<String, double> _revenueTrend = {};
   bool _isLoading = false;
 
@@ -73,6 +77,7 @@ class AnalyticsProvider extends ChangeNotifier {
   List<Map<String, dynamic>> get salesByCategory => _salesByCategory;
   List<Map<String, dynamic>> get topProducts => _topProducts;
   List<Map<String, dynamic>> get leastProducts => _leastProducts;
+  List<Map<String, dynamic>> get topSuppliers => _topSuppliers;
   Map<String, double> get revenueTrend => _revenueTrend;
   bool get isLoading => _isLoading;
 
@@ -100,12 +105,14 @@ class AnalyticsProvider extends ChangeNotifier {
       
       // Global metrics that aren't time-bound or have their own logic
       final lowStock = await _analyticsRepository.getLowStockCount();
+      final supplierDues = await _analyticsRepository.getTotalSupplierDues();
 
       _kpi = AnalyticsKpi(
         totalRevenue: revenueToday,
         totalCost: costToday,
         netProfit: revenueToday - costToday,
         totalCreditToCollect: creditToday, // Card says "Credit Today"
+        totalSupplierDues: supplierDues,
         transactions: transactionsToday.length,
         lowStockItems: lowStock,
       );
@@ -114,6 +121,7 @@ class AnalyticsProvider extends ChangeNotifier {
       _salesByCategory = await _analyticsRepository.getSalesByCategory(_startDate, _endDate);
       _topProducts = await _analyticsRepository.getTopPerformingProducts(limit: 10, start: _startDate, end: _endDate);
       _leastProducts = await _analyticsRepository.getLeastPerformingProducts(limit: 5);
+      _topSuppliers = await _analyticsRepository.getTopSuppliers(limit: 5);
       _revenueTrend = await _analyticsRepository.getRevenueOverTime(_startDate, _endDate);
 
     } catch (e) {
@@ -146,6 +154,7 @@ class AnalyticsProvider extends ChangeNotifier {
         totalCost: cost,
         netProfit: revenue - cost,
         totalCreditToCollect: credit,
+        totalSupplierDues: await _analyticsRepository.getTotalSupplierDues(),
         transactions: transactions.length,
         lowStockItems: lowStock,
       );

@@ -65,15 +65,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             const SizedBox(width: 24),
                             Expanded(
                               child: KpiCard(
-                                title: 'Total Credit',
-                                value: _currencyFormat.format(kpi.totalCreditToCollect),
-                                icon: LucideIcons.wallet,
-                                accentColor: AppColors.DANGER,
-                              ),
-                            ),
-                            const SizedBox(width: 24),
-                            Expanded(
-                              child: KpiCard(
                                 title: 'Net Profit',
                                 value: _currencyFormat.format(kpi.netProfit),
                                 icon: LucideIcons.trendingUp,
@@ -89,6 +80,30 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                 accentColor: Colors.orange,
                               ),
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: KpiCard(
+                                title: 'Customer Credits',
+                                value: _currencyFormat.format(kpi.totalCreditToCollect),
+                                icon: LucideIcons.users,
+                                accentColor: AppColors.INFO,
+                              ),
+                            ),
+                            const SizedBox(width: 24),
+                            Expanded(
+                              child: KpiCard(
+                                title: 'Supplier Dues',
+                                value: _currencyFormat.format(kpi.totalSupplierDues),
+                                icon: LucideIcons.wallet,
+                                accentColor: AppColors.WARNING,
+                              ),
+                            ),
+                            const SizedBox(width: 24),
+                            const Expanded(child: SizedBox()), // empty slot
                           ],
                         ),
                         const SizedBox(height: 24),

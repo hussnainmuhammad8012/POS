@@ -10,6 +10,7 @@ import '../../../../core/widgets/app_dropdown.dart';
 import '../../../../core/widgets/toast_notification.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/product_summary_model.dart';
+import '../../../../features/suppliers/application/suppliers_provider.dart';
 
 class AddProductDialog extends StatefulWidget {
   final ProductSummary? initialProduct;
@@ -32,6 +33,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
   final _descriptionController = TextEditingController();
   String? _selectedImagePath; // replaces the text path field
   String? _selectedCategoryId;
+  String? _selectedSupplierId; // Supplier ID for Product
 
   // Step 2: Pricing & Units
   final _unitController = TextEditingController(text: 'Pieces');
@@ -56,6 +58,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
       _skuController.text = p.baseSku;
       _descriptionController.text = p.description ?? '';
       _selectedCategoryId = p.categoryId;
+      _selectedSupplierId = p.supplierId;
       _selectedImagePath = p.mainImagePath;
       _unitController.text = p.unitType;
       
@@ -82,6 +85,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<InventoryProvider>();
+    final suppliersProvider = context.watch<SuppliersProvider>();
 
     return AlertDialog(
       title: Row(
@@ -122,7 +126,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
                         child: AnimatedSwitcher(
                           duration: const Duration(milliseconds: 300),
                           child: _currentStep == 0 
-                            ? _buildStepOne(provider) 
+                            ? _buildStepOne(provider, suppliersProvider) 
                             : (_currentStep == 1 ? _buildStepTwo() : _buildStepThree()),
                         ),
                       ),
@@ -209,7 +213,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
     );
   }
 
-  Widget _buildStepOne(InventoryProvider provider) {
+  Widget _buildStepOne(InventoryProvider provider, SuppliersProvider suppliersProvider) {
     return Column(
       key: const ValueKey(0),
       mainAxisSize: MainAxisSize.min,
@@ -236,6 +240,19 @@ class _AddProductDialogState extends State<AddProductDialog> {
             )),
           ]).toList(),
           onChanged: (v) => setState(() => _selectedCategoryId = v),
+        ),
+        const SizedBox(height: 16),
+        AppDropdown<String>(
+          label: 'Default Supplier (Optional)',
+          hint: 'Select a primary supplier',
+          prefixIcon: LucideIcons.truck,
+          value: _selectedSupplierId,
+          items: suppliersProvider.suppliers.map((s) => AppDropdownItem<String>(
+            value: s.id!,
+            label: s.name,
+            icon: LucideIcons.user,
+          )).toList(),
+          onChanged: (v) => setState(() => _selectedSupplierId = v),
         ),
         const SizedBox(height: 16),
         CustomTextField(
@@ -487,6 +504,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
             description: _descriptionController.text,
             mainImagePath: _selectedImagePath,
             unitType: _unitController.text,
+            supplierId: _selectedSupplierId,
             costPrice: double.tryParse(_costPriceController.text) ?? 0.0,
             retailPrice: double.tryParse(_retailPriceController.text) ?? 0.0,
             wholesalePrice: _wholesalePriceController.text.isEmpty ? null : double.tryParse(_wholesalePriceController.text),
@@ -528,6 +546,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
           description: _descriptionController.text,
           mainImagePath: _selectedImagePath,
           unitType: _unitController.text,
+          supplierId: _selectedSupplierId,
         );
 
         // 2. Create Default Variant with Stock

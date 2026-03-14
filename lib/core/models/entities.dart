@@ -279,3 +279,74 @@ class StockMovement {
   });
 }
 
+@immutable
+class Supplier {
+  final String? id;
+  final String name;
+  final String? contactPerson;
+  final String? phone;
+  final String? email;
+  final String? address;
+  final double totalPurchased;
+  final double currentDue;
+  final DateTime createdAt;
+
+  const Supplier({
+    this.id,
+    required this.name,
+    this.contactPerson,
+    this.phone,
+    this.email,
+    this.address,
+    this.totalPurchased = 0.0,
+    this.currentDue = 0.0,
+    required this.createdAt,
+  });
+
+  Supplier copyWith({
+    String? id,
+    String? name,
+    String? contactPerson,
+    String? phone,
+    String? email,
+    String? address,
+    double? totalPurchased,
+    double? currentDue,
+    DateTime? createdAt,
+  }) {
+    return Supplier(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      contactPerson: contactPerson ?? this.contactPerson,
+      phone: phone ?? this.phone,
+      email: email ?? this.email,
+      address: address ?? this.address,
+      totalPurchased: totalPurchased ?? this.totalPurchased,
+      currentDue: currentDue ?? this.currentDue,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+}
+
+@immutable
+class SupplierLedger {
+  final String id;
+  final String supplierId;
+  final String? referenceId; // carton_id or payment_id
+  final String type; // 'PURCHASE', 'PAYMENT', or 'SYSTEM_NOTE'
+  final double amount;
+  final DateTime? dueDate;
+  final String? notes;
+  final DateTime createdAt;
+
+  const SupplierLedger({
+    required this.id,
+    required this.supplierId,
+    this.referenceId,
+    required this.type,
+    required this.amount,
+    this.dueDate,
+    this.notes,
+    required this.createdAt,
+  });
+}

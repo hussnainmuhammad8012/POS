@@ -127,4 +127,42 @@ class NotificationProvider extends ChangeNotifier {
       );
     }
   }
+
+  /// Check for overdue supplier dues and generate notifications
+  Future<void> checkSupplierOverdueDues() async {
+    final db = AppDatabase.instance.db;
+    final now = DateTime.now().toIso8601String();
+    
+    // Join supplier_ledgers with suppliers to get the supplier name
+    final List<Map<String, dynamic>> overdueLedgers = await db.rawQuery('''
+      SELECT sl.*, s.name as supplier_name
+      FROM supplier_ledgers sl
+      JOIN suppliers s ON sl.supplier_id = s.id
+      WHERE sl.type = 'PURCHASE' 
+      AND sl.due_date IS NOT NULL 
+      AND sl.due_date < ?
+      AND NOT EXISTS (
+        SELECT 1 FROM notifications n 
+        WHERE n.type = 'SUPPLIER_DUE_REMINDER' 
+        AND n.payload LIKE '%"ledgerId":"' || sl.id || '"%'
+      )
+    ''', [now]);
+
+    for (var ledger in overdueLedgers) {
+      final supplierName = ledger['supplier_name'];
+      final amount = ledger['amount'];
+      final ledgerId = ledger['id'];
+      final supplierId = ledger['supplier_id'];
+
+      await addNotification(
+        title: 'Supplier Dues Overdue',
+        message: 'Payment of Rs $amount to $supplierName is overdue.',
+        type: 'SUPPLIER_DUE_REMINDER',
+        payload: jsonEncode({
+          'ledgerId': ledgerId,
+          'supplierId': supplierId,
+        }),
+      );
+    }
+  }
 }

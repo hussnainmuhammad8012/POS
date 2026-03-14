@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:companion_app/features/inventory/data/models/product_model.dart';
 import 'package:companion_app/features/inventory/data/models/category_model.dart';
+import 'package:companion_app/features/inventory/data/models/supplier_model.dart';
 
 class InventoryProvider extends ChangeNotifier {
   final String serverIp;
@@ -10,10 +11,12 @@ class InventoryProvider extends ChangeNotifier {
 
   List<Product> _products = [];
   List<Category> _categories = [];
+  List<Supplier> _suppliers = [];
   bool _isLoading = false;
 
   List<Product> get products => _products;
   List<Category> get categories => _categories;
+  List<Supplier> get suppliers => _suppliers;
   bool get isLoading => _isLoading;
 
   InventoryProvider({required this.serverIp, required this.accessToken}) {
@@ -30,6 +33,7 @@ class InventoryProvider extends ChangeNotifier {
 
       final prodRes = await http.get(Uri.parse('$baseUrl/products'), headers: headers);
       final catRes = await http.get(Uri.parse('$baseUrl/categories'), headers: headers);
+      final supRes = await http.get(Uri.parse('$baseUrl/suppliers'), headers: headers);
 
       if (prodRes.statusCode == 200 && catRes.statusCode == 200) {
         final List prodData = jsonDecode(prodRes.body);
@@ -37,6 +41,12 @@ class InventoryProvider extends ChangeNotifier {
 
         _products = prodData.map((j) => Product.fromJson(j)).toList();
         _categories = catData.map((j) => Category.fromJson(j)).toList();
+        
+        if (supRes.statusCode == 200) {
+          final List supData = jsonDecode(supRes.body);
+          _suppliers = supData.map((j) => Supplier.fromJson(j)).toList();
+        }
+        
         debugPrint('Fetched ${_products.length} products. Sample stock: ${_products.isNotEmpty ? _products.first.currentStock : "N/A"}');
       } else {
         debugPrint('Fetch failed: Prod ${prodRes.statusCode}, Cat ${catRes.statusCode}');
@@ -82,6 +92,7 @@ class InventoryProvider extends ChangeNotifier {
     required String name,
     required String baseSku,
     String? description,
+    String? supplierId,
     String unitType = 'Pieces',
     String? barcode,
     required double costPrice,
@@ -103,6 +114,7 @@ class InventoryProvider extends ChangeNotifier {
           'name': name,
           'baseSku': baseSku,
           'description': description,
+          'supplierId': supplierId,
           'unitType': unitType,
           'barcode': barcode,
           'costPrice': costPrice,

@@ -21,6 +21,7 @@ class ProductRepository {
     String? description,
     String? mainImagePath,
     required String unitType,
+    String? supplierId,
   }) async {
     final id = 'prod_${DateTime.now().millisecondsSinceEpoch}';
     await _db.insert('products', {
@@ -31,6 +32,7 @@ class ProductRepository {
       'base_sku': baseSku,
       'main_image_path': mainImagePath,
       'unit_type': unitType,
+      'supplier_id': supplierId,
       'is_active': 1,
       'created_at': DateTime.now().toIso8601String(),
       'updated_at': DateTime.now().toIso8601String(),
@@ -46,6 +48,7 @@ class ProductRepository {
     String? description,
     String? mainImagePath,
     String? unitType,
+    String? supplierId,
     double? costPrice,
     double? retailPrice,
     double? wholesalePrice,
@@ -65,6 +68,9 @@ class ProductRepository {
       if (description != null) pUpdates['description'] = description;
       if (mainImagePath != null) pUpdates['main_image_path'] = mainImagePath;
       if (unitType != null) pUpdates['unit_type'] = unitType;
+      // Allow clearing supplier ID explicitly by checking if it's passed or handle it separately if needed
+      // For now, if supplierId is passed, update it. If we need to clear it, we might need a different approach.
+      if (supplierId != null) pUpdates['supplier_id'] = supplierId.isEmpty ? null : supplierId;
 
       await txn.update('products', pUpdates, where: 'id = ?', whereArgs: [id]);
 

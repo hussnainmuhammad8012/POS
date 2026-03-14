@@ -21,10 +21,6 @@ class DashboardScreen extends StatelessWidget {
     final analytics = context.watch<AnalyticsProvider>();
     final kpi = analytics.kpi;
 
-    if (analytics.revenueTrend.isEmpty && !analytics.isLoading) {
-      Future.microtask(() => analytics.refreshData());
-    }
-
     return Scaffold(
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -75,7 +71,20 @@ class DashboardScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 24),
-                const _RecentTransactionsCard(),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Expanded(
+                      flex: 2,
+                      child: _RecentTransactionsCard(),
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      flex: 1,
+                      child: _TopSuppliersCard(analytics: analytics),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -89,58 +98,82 @@ class DashboardScreen extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
     final isStarAdmin = theme.primaryColor == AppColors.STAR_PRIMARY;
 
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: KpiCard(
-              title: 'Sales Today',
-              value: 'Rs ${kpi.totalRevenue.toStringAsFixed(0)}',
-              icon: LucideIcons.indianRupee,
-              trend: '+5.2%',
-              isTrendPositive: true,
-              isPrimary: isStarAdmin || !isDark, 
-              accentColor: isStarAdmin ? AppColors.STAR_PRIMARY : (isDark ? AppColors.PRIMARY_ACCENT_DARK : AppColors.PRIMARY_ACCENT_LIGHT),
-              softBackground: isDark ? null : (isStarAdmin ? AppColors.STAR_PRIMARY.withAlpha(20) : AppColors.LIGHT_PRIMARY_SOFT),
-            ),
+    return Column(
+      children: [
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: KpiCard(
+                  title: 'Sales Today',
+                  value: 'Rs ${kpi.totalRevenue.toStringAsFixed(0)}',
+                  icon: LucideIcons.indianRupee,
+                  trend: '+5.2%',
+                  isTrendPositive: true,
+                  isPrimary: isStarAdmin || !isDark, 
+                  accentColor: isStarAdmin ? AppColors.STAR_PRIMARY : (isDark ? AppColors.PRIMARY_ACCENT_DARK : AppColors.PRIMARY_ACCENT_LIGHT),
+                  softBackground: isDark ? null : (isStarAdmin ? AppColors.STAR_PRIMARY.withAlpha(20) : AppColors.LIGHT_PRIMARY_SOFT),
+                ),
+              ),
+              const SizedBox(width: 24),
+              Expanded(
+                child: KpiCard(
+                  title: 'Transactions',
+                  value: kpi.transactions.toString(),
+                  icon: LucideIcons.receipt,
+                  trend: '+8%',
+                  accentColor: isStarAdmin ? AppColors.STAR_BLUE : (isDark ? AppColors.INFO_DARK : AppColors.INFO),
+                  softBackground: isDark ? null : (isStarAdmin ? AppColors.STAR_BLUE.withAlpha(20) : AppColors.LIGHT_INFO_SOFT),
+                  isTrendPositive: true,
+                ),
+              ),
+              const SizedBox(width: 24),
+              Expanded(
+                child: KpiCard(
+                  title: 'Credit Today',
+                  value: 'Rs ${kpi.totalCreditToCollect.toStringAsFixed(0)}',
+                  icon: LucideIcons.creditCard,
+                  trend: '+2.1%',
+                  accentColor: isStarAdmin ? AppColors.STAR_TEAL : (isDark ? AppColors.SUCCESS_DARK : AppColors.SUCCESS),
+                  softBackground: isDark ? null : (isStarAdmin ? AppColors.STAR_TEAL.withAlpha(20) : AppColors.LIGHT_SUCCESS_SOFT),
+                  isTrendPositive: false,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 24),
-          Expanded(
-            child: KpiCard(
-              title: 'Transactions',
-              value: kpi.transactions.toString(),
-              icon: LucideIcons.receipt,
-              trend: '+8%',
-              accentColor: isStarAdmin ? AppColors.STAR_BLUE : (isDark ? AppColors.INFO_DARK : AppColors.INFO),
-              softBackground: isDark ? null : (isStarAdmin ? AppColors.STAR_BLUE.withAlpha(20) : AppColors.LIGHT_INFO_SOFT),
-              isTrendPositive: true,
-            ),
+        ),
+        const SizedBox(height: 24),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: KpiCard(
+                  title: 'Low Stock',
+                  value: kpi.lowStockItems.toString(),
+                  icon: LucideIcons.packageMinus,
+                  accentColor: isStarAdmin ? AppColors.STAR_YELLOW : (isDark ? AppColors.WARNING_DARK : AppColors.WARNING),
+                  softBackground: isDark ? null : (isStarAdmin ? AppColors.STAR_YELLOW.withAlpha(20) : AppColors.LIGHT_WARNING_SOFT),
+                ),
+              ),
+              const SizedBox(width: 24),
+              Expanded(
+                child: KpiCard(
+                  title: 'Supplier Dues',
+                  value: 'Rs ${kpi.totalSupplierDues.toStringAsFixed(0)}',
+                  icon: LucideIcons.wallet,
+                  accentColor: AppColors.DANGER,
+                  softBackground: isDark ? null : AppColors.DANGER.withValues(alpha: 0.1),
+                  isTrendPositive: false,
+                ),
+              ),
+              const SizedBox(width: 24),
+              const Expanded(child: SizedBox()), // Empty space to keep card sizes equal
+            ],
           ),
-          const SizedBox(width: 24),
-          Expanded(
-            child: KpiCard(
-              title: 'Credit Today',
-              value: 'Rs ${kpi.totalCreditToCollect.toStringAsFixed(0)}',
-              icon: LucideIcons.creditCard,
-              trend: '+2.1%',
-              accentColor: isStarAdmin ? AppColors.STAR_TEAL : (isDark ? AppColors.SUCCESS_DARK : AppColors.SUCCESS),
-              softBackground: isDark ? null : (isStarAdmin ? AppColors.STAR_TEAL.withAlpha(20) : AppColors.LIGHT_SUCCESS_SOFT),
-              isTrendPositive: false,
-            ),
-          ),
-          const SizedBox(width: 24),
-          Expanded(
-            child: KpiCard(
-              title: 'Low Stock',
-              value: kpi.lowStockItems.toString(),
-              icon: LucideIcons.packageMinus,
-              accentColor: isStarAdmin ? AppColors.STAR_YELLOW : (isDark ? AppColors.WARNING_DARK : AppColors.WARNING),
-              softBackground: isDark ? null : (isStarAdmin ? AppColors.STAR_YELLOW.withAlpha(20) : AppColors.LIGHT_WARNING_SOFT),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -451,6 +484,49 @@ class _EmptyState extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _TopSuppliersCard extends StatelessWidget {
+  final AnalyticsProvider analytics;
+
+  const _TopSuppliersCard({required this.analytics});
+
+  @override
+  Widget build(BuildContext context) {
+    final items = analytics.topSuppliers;
+
+    return ModernCard(
+      title: 'Top Suppliers (Purchase)',
+      padding: EdgeInsets.zero,
+      child: items.isEmpty
+          ? const SizedBox(height: 100, child: Center(child: Text('No suppliers found')))
+          : ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final item = items[index];
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                    child: Text(item['name'].toString().isNotEmpty ? item['name'].toString()[0].toUpperCase() : 'S', style: TextStyle(color: Theme.of(context).primaryColor)),
+                  ),
+                  title: Text(item['name'] as String, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text('Rs ${(item['total_purchased'] as num?)?.toStringAsFixed(0) ?? '0'}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      if ((item['current_due'] as num?) != null && (item['current_due'] as num) > 0)
+                        Text('Dues: Rs ${(item['current_due'] as num).toStringAsFixed(0)}', style: const TextStyle(fontSize: 10, color: AppColors.WARNING, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                );
+              },
+              separatorBuilder: (_, __) => const Divider(height: 1),
+            ),
     );
   }
 }

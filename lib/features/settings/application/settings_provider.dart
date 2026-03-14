@@ -38,6 +38,9 @@ class SettingsProvider extends ChangeNotifier {
   String get dailyReportTime => _prefs.getString('daily_report_time') ?? '20:00';
   String? get adminFcmToken => _prefs.getString('admin_fcm_token');
 
+  // Supplier Settings
+  bool get isSupplierLedgerEnabled => _prefs.getBool('is_supplier_ledger_enabled') ?? true;
+
   final _backupService = DatabaseBackupService();
 
   // Setters
@@ -169,5 +172,12 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setAdminFcmToken(String token) async {
     await _prefs.setString('admin_fcm_token', token);
     notifyListeners();
+  }
+
+  Future<void> setSupplierLedgerEnabled(bool enabled) async {
+    await _prefs.setBool('is_supplier_ledger_enabled', enabled);
+    notifyListeners();
+    // Note: The logic to add a SYSTEM_NOTE to ledgers will be handled by the UI / SupplierProvider
+    // when calling this method, as SettingsProvider shouldn't depend on SupplierRepository directly.
   }
 }

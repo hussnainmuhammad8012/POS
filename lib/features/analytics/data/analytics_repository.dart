@@ -70,6 +70,21 @@ class AnalyticsRepository {
     return (result.first['total'] as num?)?.toDouble() ?? 0.0;
   }
 
+  Future<double> getTotalSupplierDues() async {
+    final result = await _db.rawQuery('SELECT SUM(current_due) as total FROM suppliers');
+    return (result.first['total'] as num?)?.toDouble() ?? 0.0;
+  }
+
+  Future<List<Map<String, dynamic>>> getTopSuppliers({int limit = 5}) async {
+    final result = await _db.rawQuery('''
+      SELECT name, total_purchased, current_due
+      FROM suppliers
+      ORDER BY total_purchased DESC
+      LIMIT ?
+    ''', [limit]);
+    return result;
+  }
+
   Future<List<Map<String, dynamic>>> getTodaySalesByCategory() async {
     final now = DateTime.now();
     final startOfDay = DateTime(now.year, now.month, now.day).toIso8601String();

@@ -11,6 +11,8 @@ import '../../features/analytics/data/analytics_repository.dart';
 import '../repositories/transaction_repository.dart';
 import '../../features/inventory/data/models/product_model.dart';
 import '../../features/settings/application/settings_provider.dart';
+import '../../features/suppliers/application/suppliers_provider.dart';
+import '../repositories/supplier_repository.dart';
 import '../services/fcm_service.dart';
 import '../services/data_sync_service.dart';
 
@@ -28,6 +30,7 @@ class LocalApiServer {
   
   ProductRepository? _productRepository;
   CategoryRepository? _categoryRepository;
+  SupplierRepository? _supplierRepository;
   AnalyticsRepository? _analyticsRepository;
   TransactionRepository? _transactionRepository;
   SettingsProvider? _settingsProvider;
@@ -44,6 +47,7 @@ class LocalApiServer {
   void setServices({
     required ProductRepository productRepository,
     required CategoryRepository categoryRepository,
+    required SupplierRepository supplierRepository,
     required AnalyticsRepository analyticsRepository,
     required TransactionRepository transactionRepository,
     required SettingsProvider settingsProvider,
@@ -52,6 +56,7 @@ class LocalApiServer {
   }) {
     _productRepository = productRepository;
     _categoryRepository = categoryRepository;
+    _supplierRepository = supplierRepository;
     _analyticsRepository = analyticsRepository;
     _transactionRepository = transactionRepository;
     _settingsProvider = settingsProvider;
@@ -154,6 +159,7 @@ class LocalApiServer {
     router.post('/inventory/products', _createProduct);
     router.post('/inventory/stock-update', _updateStock);
     router.get('/inventory/categories', _getCategories);
+    router.get('/inventory/suppliers', _getSuppliers);
     
     // ANALYTICS ROUTES
     router.get('/analytics/summary', _getAnalyticsSummary);
@@ -245,6 +251,7 @@ class LocalApiServer {
       baseSku: data['baseSku'],
       description: data['description'],
       unitType: data['unitType'] ?? 'Pieces',
+      supplierId: data['supplierId'],
     );
 
     // 2. Create Default Variant with Stock
@@ -271,6 +278,16 @@ class LocalApiServer {
     if (_categoryRepository == null) return Response.internalServerError();
     final categories = await _categoryRepository!.getAllCategories();
     return Response.ok(jsonEncode(categories));
+  }
+
+  Future<Response> _getSuppliers(Request request) async {
+    if (_supplierRepository == null) return Response.internalServerError();
+    final suppliers = await _supplierRepository!.getAll();
+    final list = suppliers.map((s) => {
+      'id': s.id,
+      'name': s.name,
+    }).toList();
+    return Response.ok(jsonEncode(list));
   }
 
   Future<Response> _login(Request request) async {

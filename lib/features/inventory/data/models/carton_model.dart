@@ -12,6 +12,7 @@ class Carton {
   final bool isOpened;
   final DateTime? expiryDate;
   final String? supplierBatchId;
+  final String? supplierId;
   final String? storageLocation;
   final String? notes;
   final DateTime createdAt;
@@ -30,6 +31,7 @@ class Carton {
     required this.isOpened,
     this.expiryDate,
     this.supplierBatchId,
+    this.supplierId,
     this.storageLocation,
     this.notes,
     required this.createdAt,
@@ -54,6 +56,7 @@ class Carton {
     isOpened: json['is_opened'] == 1,
     expiryDate: json['expiry_date'] != null ? DateTime.parse(json['expiry_date']) : null,
     supplierBatchId: json['supplier_batch_id'],
+    supplierId: json['supplier_id'],
     storageLocation: json['storage_location'],
     notes: json['notes'],
     createdAt: DateTime.parse(json['created_at']),
@@ -73,6 +76,7 @@ class Carton {
     'is_opened': isOpened ? 1 : 0,
     'expiry_date': expiryDate?.toIso8601String(),
     'supplier_batch_id': supplierBatchId,
+    'supplier_id': supplierId,
     'storage_location': storageLocation,
     'notes': notes,
     'created_at': createdAt.toIso8601String(),
