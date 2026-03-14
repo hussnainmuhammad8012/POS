@@ -43,3 +43,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Sensitive Firebase/Google Cloud Files
+service-account.json
+google-services.json
+**/google-services.json
+**/service-account.json
+*.p12
+*.jks
+*.keystore
+secrets.dart
