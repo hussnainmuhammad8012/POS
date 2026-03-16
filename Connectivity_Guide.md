@@ -27,7 +27,7 @@ Windows often blocks mobile apps by default. To allow the connection, run this c
 1. Click **Start** and type **cmd**.
 2. Right-click **Command Prompt** and select **Run as Administrator**.
 3. Copy and paste the following command:
-   ```cmd
+   ```
    netsh advfirewall firewall add rule name="POS_Companion_Link" dir=in action=allow protocol=TCP localport=8080 profile=any
    ```
 4. Press Enter. It should say **"Ok."**
