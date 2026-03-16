@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ import '../../../../core/widgets/toast_notification.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/product_summary_model.dart';
 import '../../../../features/suppliers/application/suppliers_provider.dart';
+import '../../../../features/suppliers/presentation/widgets/add_supplier_dialog.dart';
 
 class AddProductDialog extends StatefulWidget {
   final ProductSummary? initialProduct;
@@ -26,6 +28,8 @@ class _AddProductDialogState extends State<AddProductDialog> {
   final _scrollController = ScrollController();
   int _currentStep = 0;
   bool _isSaving = false;
+  bool _skuManuallyEdited = false;
+  bool _isAutoGeneratingSku = false;
 
   // Step 1: Identity
   final _nameController = TextEditingController();
@@ -52,10 +56,13 @@ class _AddProductDialogState extends State<AddProductDialog> {
   @override
   void initState() {
     super.initState();
+    _nameController.addListener(_onNameChanged);
+    _skuController.addListener(_onSkuChanged);
     if (isEditing) {
       final p = widget.initialProduct!.product;
       _nameController.text = p.name;
       _skuController.text = p.baseSku;
+      _skuManuallyEdited = true; // Pretend it's edited so we don't overwrite existing SKU
       _descriptionController.text = p.description ?? '';
       _selectedCategoryId = p.categoryId;
       _selectedSupplierId = p.supplierId;
@@ -78,8 +85,31 @@ class _AddProductDialogState extends State<AddProductDialog> {
 
   @override
   void dispose() {
+    _nameController.removeListener(_onNameChanged);
+    _skuController.removeListener(_onSkuChanged);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onNameChanged() {
+    if (!_skuManuallyEdited && _nameController.text.isNotEmpty) {
+      _isAutoGeneratingSku = true;
+      final text = _nameController.text.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+      final prefix = text.length >= 3 ? text.substring(0, 3) : (text.isNotEmpty ? text : 'PRD');
+      final random = (1000 + math.Random().nextInt(9000)).toString();
+      _skuController.text = '$prefix-$random';
+      _isAutoGeneratingSku = false;
+    } else if (!_skuManuallyEdited && _nameController.text.isEmpty) {
+      _isAutoGeneratingSku = true;
+      _skuController.text = '';
+      _isAutoGeneratingSku = false;
+    }
+  }
+
+  void _onSkuChanged() {
+    if (!_isAutoGeneratingSku && _skuController.text.isNotEmpty) {
+      _skuManuallyEdited = true;
+    }
   }
 
   @override
@@ -242,17 +272,34 @@ class _AddProductDialogState extends State<AddProductDialog> {
           onChanged: (v) => setState(() => _selectedCategoryId = v),
         ),
         const SizedBox(height: 16),
-        AppDropdown<String>(
-          label: 'Default Supplier (Optional)',
-          hint: 'Select a primary supplier',
-          prefixIcon: LucideIcons.truck,
-          value: _selectedSupplierId,
-          items: suppliersProvider.suppliers.map((s) => AppDropdownItem<String>(
-            value: s.id!,
-            label: s.name,
-            icon: LucideIcons.user,
-          )).toList(),
-          onChanged: (v) => setState(() => _selectedSupplierId = v),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: AppDropdown<String>(
+                label: 'Default Supplier (Optional)',
+                hint: 'Select a primary supplier',
+                prefixIcon: LucideIcons.truck,
+                value: _selectedSupplierId,
+                items: suppliersProvider.suppliers.map((s) => AppDropdownItem<String>(
+                  value: s.id!,
+                  label: '${s.name}${s.contactPerson != null && s.contactPerson!.isNotEmpty ? ' - ${s.contactPerson}' : ''}',
+                  icon: LucideIcons.user,
+                )).toList(),
+                onChanged: (v) => setState(() => _selectedSupplierId = v),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              margin: const EdgeInsets.only(top: 24),
+              child: IconButton(
+                onPressed: () => _showAddSupplier(context),
+                icon: const Icon(LucideIcons.plusCircle),
+                color: Theme.of(context).primaryColor,
+                tooltip: 'Add New Supplier',
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         CustomTextField(
@@ -369,6 +416,14 @@ class _AddProductDialogState extends State<AddProductDialog> {
                 ],
               ),
       ),
+    );
+  }
+
+  void _showAddSupplier(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AddSupplierDialog(),
     );
   }
 

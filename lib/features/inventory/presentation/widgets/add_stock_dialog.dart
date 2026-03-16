@@ -13,6 +13,7 @@ import '../../../../core/widgets/toast_notification.dart';
 import '../../../../core/widgets/app_dropdown.dart';
 import '../../../settings/application/settings_provider.dart';
 import '../../../suppliers/application/suppliers_provider.dart';
+import '../../../suppliers/presentation/widgets/add_supplier_dialog.dart';
 
 class AddStockDialog extends StatefulWidget {
   final ProductSummary productSummary;
@@ -133,16 +134,30 @@ class _AddStockDialogState extends State<AddStockDialog> {
                           children: [
                             const Text('Supplier (Optional)', style: TextStyle(fontWeight: FontWeight.w600)),
                             const SizedBox(height: 8),
-                            AppDropdown<String>(
-                              hint: 'Select a supplier',
-                              prefixIcon: LucideIcons.truck,
-                              value: _selectedSupplierId,
-                              items: suppliersProv.suppliers.map((s) => AppDropdownItem<String>(
-                                value: s.id!,
-                                label: s.name,
-                                icon: LucideIcons.user,
-                              )).toList(),
-                              onChanged: (v) => setState(() => _selectedSupplierId = v),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: AppDropdown<String>(
+                                    hint: 'Select a supplier',
+                                    prefixIcon: LucideIcons.truck,
+                                    value: _selectedSupplierId,
+                                    items: suppliersProv.suppliers.map((s) => AppDropdownItem<String>(
+                                      value: s.id!,
+                                      label: '${s.name}${s.contactPerson != null && s.contactPerson!.isNotEmpty ? ' - ${s.contactPerson}' : ''}',
+                                      icon: LucideIcons.user,
+                                    )).toList(),
+                                    onChanged: (v) => setState(() => _selectedSupplierId = v),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  onPressed: () => _showAddSupplier(context),
+                                  icon: const Icon(LucideIcons.plusCircle),
+                                  color: Theme.of(context).primaryColor,
+                                  tooltip: 'Add New Supplier',
+                                ),
+                              ],
                             ),
                             if (_selectedSupplierId != null && settingsProv.isSupplierLedgerEnabled) ...[
                               const SizedBox(height: 16),
@@ -237,6 +252,14 @@ class _AddStockDialogState extends State<AddStockDialog> {
               ),
         ),
       ),
+    );
+  }
+
+  void _showAddSupplier(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AddSupplierDialog(),
     );
   }
 

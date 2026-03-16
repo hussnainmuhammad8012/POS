@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +7,7 @@ import 'package:companion_app/core/widgets/custom_text_field.dart';
 import 'package:companion_app/core/widgets/app_dropdown.dart';
 import 'package:companion_app/features/inventory/application/inventory_provider.dart';
 import 'package:companion_app/features/inventory/presentation/screens/scanner_screen.dart';
+import 'package:companion_app/features/inventory/presentation/widgets/add_supplier_dialog.dart';
 
 class AddProductDialog extends StatefulWidget {
   const AddProductDialog({super.key});
@@ -18,6 +20,8 @@ class _AddProductDialogState extends State<AddProductDialog> {
   final _formKey = GlobalKey<FormState>();
   int _currentStep = 0;
   bool _isSaving = false;
+  bool _skuManuallyEdited = false;
+  bool _isAutoGeneratingSku = false;
 
   // Step 1: Identity
   final _nameController = TextEditingController();
@@ -37,6 +41,44 @@ class _AddProductDialogState extends State<AddProductDialog> {
   // Step 3: Stock Management
   final _initialStockController = TextEditingController(text: '0');
   final _lowStockThresholdController = TextEditingController(text: '10');
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController.addListener(_onNameChanged);
+    _skuController.addListener(_onSkuChanged);
+  }
+
+  @override
+  void dispose() {
+    _nameController.removeListener(_onNameChanged);
+    _skuController.removeListener(_onSkuChanged);
+    _nameController.dispose();
+    _skuController.dispose();
+    // other disposals...
+    super.dispose();
+  }
+
+  void _onNameChanged() {
+    if (!_skuManuallyEdited && _nameController.text.isNotEmpty) {
+      _isAutoGeneratingSku = true;
+      final text = _nameController.text.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+      final prefix = text.length >= 3 ? text.substring(0, 3) : (text.isNotEmpty ? text : 'PRD');
+      final random = (1000 + math.Random().nextInt(9000)).toString();
+      _skuController.text = '$prefix-$random';
+      _isAutoGeneratingSku = false;
+    } else if (!_skuManuallyEdited && _nameController.text.isEmpty) {
+      _isAutoGeneratingSku = true;
+      _skuController.text = '';
+      _isAutoGeneratingSku = false;
+    }
+  }
+
+  void _onSkuChanged() {
+    if (!_isAutoGeneratingSku && _skuController.text.isNotEmpty) {
+      _skuManuallyEdited = true;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -176,17 +218,39 @@ class _AddProductDialogState extends State<AddProductDialog> {
           onChanged: (v) => setState(() => _selectedCategoryId = v),
         ),
         const SizedBox(height: 16),
-        AppDropdown<String>(
-          label: 'Supplier (Optional)',
-          hint: 'Select Supplier',
-          prefixIcon: LucideIcons.truck,
-          value: _selectedSupplierId,
-          items: provider.suppliers.map((s) => AppDropdownItem<String>(
-            value: s.id,
-            label: s.name,
-            icon: LucideIcons.user,
-          )).toList(),
-          onChanged: (v) => setState(() => _selectedSupplierId = v),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: AppDropdown<String>(
+                label: 'Supplier (Optional)',
+                hint: 'Select Supplier',
+                prefixIcon: LucideIcons.truck,
+                value: _selectedSupplierId,
+                items: provider.suppliers.map((s) => AppDropdownItem<String>(
+                  value: s.id,
+                  label: '${s.name}${s.contactPerson != null && s.contactPerson!.isNotEmpty ? ' - ${s.contactPerson}' : ''}',
+                  icon: LucideIcons.user,
+                )).toList(),
+                onChanged: (v) => setState(() => _selectedSupplierId = v),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              margin: const EdgeInsets.only(top: 24),
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.STAR_PRIMARY.withOpacity(0.1),
+                  foregroundColor: AppColors.STAR_PRIMARY,
+                  elevation: 0,
+                  padding: const EdgeInsets.all(12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () => _showAddSupplier(context),
+                child: const Icon(LucideIcons.plusCircle, size: 20),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         CustomTextField(
@@ -353,6 +417,14 @@ class _AddProductDialogState extends State<AddProductDialog> {
           },
         ),
       ),
+    );
+  }
+
+  void _showAddSupplier(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AddSupplierDialog(),
     );
   }
 

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../../core/models/entities.dart';
 import '../../../core/repositories/supplier_repository.dart';
+import '../../../core/services/data_sync_service.dart';
 
 class SuppliersProvider extends ChangeNotifier {
   final SupplierRepository _repository;
+  final DataSyncService? _syncService;
   
   List<Supplier> _suppliers = [];
   bool _isLoading = false;
@@ -12,9 +14,19 @@ class SuppliersProvider extends ChangeNotifier {
 
   String _searchQuery = '';
 
-  SuppliersProvider({required SupplierRepository repository}) 
-      : _repository = repository {
+  SuppliersProvider({
+    required SupplierRepository repository,
+    DataSyncService? syncService,
+  })  : _repository = repository,
+        _syncService = syncService {
     loadSuppliers();
+    _syncService?.addListener(loadSuppliers);
+  }
+
+  @override
+  void dispose() {
+    _syncService?.removeListener(loadSuppliers);
+    super.dispose();
   }
 
   bool get isLoading => _isLoading;

@@ -290,7 +290,7 @@ class _AppDropdownState<T> extends State<AppDropdown<T>>
   }
 }
 
-class _DropdownMenu<T> extends StatelessWidget {
+class _DropdownMenu<T> extends StatefulWidget {
   final List<AppDropdownItem<T>> items;
   final T? selectedValue;
   final double width;
@@ -306,6 +306,19 @@ class _DropdownMenu<T> extends StatelessWidget {
   });
 
   @override
+  State<_DropdownMenu<T>> createState() => _DropdownMenuState<T>();
+}
+
+class _DropdownMenuState<T> extends State<_DropdownMenu<T>> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -318,8 +331,8 @@ class _DropdownMenu<T> extends StatelessWidget {
     final subtitleColor = isDark ? AppColors.DARK_TEXT_SECONDARY : AppColors.LIGHT_TEXT_SECONDARY;
 
     return Container(
-      width: width,
-      constraints: BoxConstraints(maxHeight: maxHeight),
+      width: widget.width,
+      constraints: BoxConstraints(maxHeight: widget.maxHeight),
       decoration: BoxDecoration(
         color: menuBg,
         borderRadius: BorderRadius.circular(12),
@@ -336,14 +349,16 @@ class _DropdownMenu<T> extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: Scrollbar(
-          thumbVisibility: items.length > 5,
+          controller: _scrollController,
+          thumbVisibility: widget.items.length > 5,
           child: ListView.builder(
+            controller: _scrollController,
             shrinkWrap: true,
             padding: const EdgeInsets.symmetric(vertical: 6),
-            itemCount: items.length,
+            itemCount: widget.items.length,
             itemBuilder: (context, index) {
-              final item = items[index];
-              final isSelected = item.value == selectedValue;
+              final item = widget.items[index];
+              final isSelected = item.value == widget.selectedValue;
 
               if (item.isGroupHeader) {
                 return Padding(
@@ -367,7 +382,7 @@ class _DropdownMenu<T> extends StatelessWidget {
                 textColor: textColor,
                 subtitleColor: subtitleColor,
                 primary: primary,
-                onTap: () => onSelect(item.value),
+                onTap: () => widget.onSelect(item.value as T),
               );
             },
           ),

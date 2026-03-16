@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,6 +10,10 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
+import 'package:screenshot/screenshot.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:pasteboard/pasteboard.dart';
 
 import '../../../settings/application/settings_provider.dart';
 import '../../../../core/models/entities.dart';
@@ -30,9 +35,10 @@ class InvoiceDialog extends StatefulWidget {
 }
 
 class _InvoiceDialogState extends State<InvoiceDialog> {
-  final _currencyFormat = NumberFormat.currency(symbol: '\$');
+  final _currencyFormat = NumberFormat.currency(symbol: 'Rs. ', decimalDigits: 2);
   bool _isPrinting = false;
   bool _isSharing = false;
+  final ScreenshotController _screenshotController = ScreenshotController();
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +88,10 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _buildReceiptDetails(context),
+                    Screenshot(
+                      controller: _screenshotController,
+                      child: _buildReceiptDetails(context),
+                    ),
                   ],
                 ),
               ),
@@ -120,7 +129,7 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
                       icon: _isSharing 
                           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                           : const Icon(LucideIcons.messageCircle),
-                      label: const Text('Share WhatsApp'),
+                      label: const Text('WhatsApp'),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -302,6 +311,7 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
   // Generate PDF Document
   Future<Uint8List> _generatePdf() async {
     final pdf = pw.Document();
+    final settings = context.read<SettingsProvider>();
 
     pdf.addPage(
       pw.Page(
@@ -311,11 +321,55 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
             crossAxisAlignment: pw.CrossAxisAlignment.stretch,
             children: [
               pw.Center(
-                child: pw.Text('STORE RECEIPT', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16)),
+                child: pw.Text(settings.storeName.toUpperCase(), style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16)),
+              ),
+              pw.Center(
+                child: pw.Text(settings.storeAddress, style: const pw.TextStyle(fontSize: 10)),
+              ),
+              pw.Center(
+                child: pw.Text('PH: ${settings.storePhone}', style: const pw.TextStyle(fontSize: 10)),
               ),
               pw.SizedBox(height: 10),
-              pw.Text('Invoice: ${widget.transaction.invoiceNumber}'),
-              pw.Text('Date: ${DateFormat('MM/dd/yyyy HH:mm').format(widget.transaction.createdAt)}'),
+              pw.Center(
+                child: pw.Text('STORE RECEIPT', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+              ),
+              pw.SizedBox(height: 10),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('Invoice:', style: const pw.TextStyle(fontSize: 10)),
+                  pw.Text('#${widget.transaction.invoiceNumber}', style: const pw.TextStyle(fontSize: 10)),
+                ],
+              ),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                   pw.Text('Date:', style: const pw.TextStyle(fontSize: 10)),
+                   pw.Text(DateFormat('MM/dd/yyyy HH:mm').format(widget.transaction.createdAt), style: const pw.TextStyle(fontSize: 10)),
+                ],
+              ),
+              if (widget.transaction.customerId != null)
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Customer ID:', style: const pw.TextStyle(fontSize: 10)),
+                    pw.Text(widget.transaction.customerId!, style: const pw.TextStyle(fontSize: 10)),
+                  ],
+                ),
+              pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Payment Method:', style: const pw.TextStyle(fontSize: 10)),
+                    pw.Text(widget.transaction.paymentMethod, style: const pw.TextStyle(fontSize: 10)),
+                  ],
+                ),
+              pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Status:', style: const pw.TextStyle(fontSize: 10)),
+                    pw.Text(widget.transaction.paymentStatus, style: const pw.TextStyle(fontSize: 10)),
+                  ],
+                ),
               pw.SizedBox(height: 10),
               pw.Divider(),
               ...widget.cartItems.map((CartItem item) {
@@ -326,7 +380,7 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
                     children: [
                       pw.Expanded(
                         child: pw.Text(
-                          '${item.productName} x${item.quantity}',
+                          '${item.productName}${item.variantName.isNotEmpty ? " (${item.variantName})" : ""} x${item.quantity}',
                           style: const pw.TextStyle(fontSize: 10),
                         ),
                       ),
@@ -371,7 +425,7 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
                 ],
               ),
               if (widget.transaction.creditAmount > 0) ...[
-                pw.SizedBox(height: 5),
+                pw.Divider(),
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
@@ -382,14 +436,14 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text('On Credit:', style: const pw.TextStyle(fontSize: 10)),
+                    pw.Text('Remaining Credit:', style: const pw.TextStyle(fontSize: 10)),
                     pw.Text(_currencyFormat.format(widget.transaction.creditAmount), style: const pw.TextStyle(fontSize: 10)),
                   ],
                 ),
               ],
               pw.SizedBox(height: 20),
               pw.Center(
-                child: pw.Text('Thank you for shopping!', style: const pw.TextStyle(fontSize: 10)),
+                child: pw.Text(settings.receiptCustomMessage.isNotEmpty ? settings.receiptCustomMessage : 'Thank you for shopping!', style: pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic)),
               ),
             ],
           );
@@ -427,43 +481,73 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
   Future<void> _handleShareWhatsApp() async {
     setState(() => _isSharing = true);
     try {
-      final sb = StringBuffer();
-      sb.writeln('*STORE RECEIPT*');
-      sb.writeln('Invoice: ${widget.transaction.invoiceNumber}');
-      sb.writeln('Date: ${DateFormat('MM/dd/yyyy HH:mm').format(widget.transaction.createdAt)}');
-      sb.writeln('------------------------');
+      // Capture the receipt details as an image
+      final imageBytes = await _screenshotController.capture(
+        delay: const Duration(milliseconds: 100),
+        pixelRatio: 2.0, 
+      );
       
-      for (var item in widget.cartItems) {
-        sb.writeln('${item.productName} x${item.quantity} - ${_currencyFormat.format(item.subtotal)}');
-      }
-      
-      sb.writeln('------------------------');
-      sb.writeln('*TOTAL: ${_currencyFormat.format(widget.transaction.finalAmount)}*');
-      sb.writeln('');
-      sb.writeln('Thank you for your purchase!');
+      if (imageBytes == null) throw Exception('Failed to generate receipt image.');
 
-      final encodedMessage = Uri.encodeComponent(sb.toString());
+      // WhatsApp Desktop doesn't support direct image attachments via URL.
+      // So we copy the image to the clipboard, and open WhatsApp directly. 
+      // The user just has to press Ctrl+V to paste the image.
+      await Pasteboard.writeImage(imageBytes);
+
+      // Close the receipt dialog immediately after capturing
+      if (mounted) {
+        Navigator.pop(context);
+      }
+
+      // Open WhatsApp directly using the protocol
+      final encodedMessage = Uri.encodeComponent(
+        'Here is today\'s purchase slip.'
+      );
       
-      // Try launching WhatsApp protocol
       final uri = Uri.parse('whatsapp://send?text=$encodedMessage');
       
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri);
+        
+        if (mounted) {
+           AppToast.show(
+             context, 
+             title: 'Copied to Clipboard!', 
+             message: 'Press Ctrl+V in WhatsApp to paste the receipt.',
+             type: ToastType.success,
+           );
+        }
       } else {
         // Fallback to web WhatsApp specifically
         final webUri = Uri.parse('https://wa.me/?text=$encodedMessage');
         if (await canLaunchUrl(webUri)) {
           await launchUrl(webUri);
+          if (mounted) {
+             AppToast.show(
+               context, 
+               title: 'Copied to Clipboard!', 
+               message: 'Press Ctrl+V in WhatsApp to paste the receipt.',
+               type: ToastType.success,
+             );
+          }
         } else {
-          throw Exception('WhatsApp not installed and unable to open web browser.');
+          // If all else fails, fallback to native share sheet as a backup
+          final tempDir = await getTemporaryDirectory();
+          final file = File('${tempDir.path}/receipt_${widget.transaction.invoiceNumber}.png');
+          await file.writeAsBytes(imageBytes);
+          await Share.shareXFiles(
+            [XFile(file.path)],
+            text: 'Store Receipt - Invoice #${widget.transaction.invoiceNumber}',
+          );
         }
       }
+
     } catch (e) {
       if (mounted) {
         AppToast.show(
           context, 
           title: 'Share Failed', 
-          message: 'Ensure WhatsApp is installed on your desktop.',
+          message: e.toString(),
           type: ToastType.warning,
         );
       }

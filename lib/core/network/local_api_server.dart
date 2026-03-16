@@ -7,11 +7,11 @@ import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
 import '../../features/inventory/data/repositories/product_repository.dart';
 import '../../features/inventory/data/repositories/category_repository.dart';
+import '../../features/inventory/data/repositories/carton_repository.dart';
 import '../../features/analytics/data/analytics_repository.dart';
 import '../repositories/transaction_repository.dart';
-import '../../features/inventory/data/models/product_model.dart';
+import '../models/entities.dart';
 import '../../features/settings/application/settings_provider.dart';
-import '../../features/suppliers/application/suppliers_provider.dart';
 import '../repositories/supplier_repository.dart';
 import '../services/fcm_service.dart';
 import '../services/data_sync_service.dart';
@@ -30,6 +30,7 @@ class LocalApiServer {
   
   ProductRepository? _productRepository;
   CategoryRepository? _categoryRepository;
+  CartonRepository? _cartonRepository;
   SupplierRepository? _supplierRepository;
   AnalyticsRepository? _analyticsRepository;
   TransactionRepository? _transactionRepository;
@@ -47,6 +48,7 @@ class LocalApiServer {
   void setServices({
     required ProductRepository productRepository,
     required CategoryRepository categoryRepository,
+    required CartonRepository cartonRepository,
     required SupplierRepository supplierRepository,
     required AnalyticsRepository analyticsRepository,
     required TransactionRepository transactionRepository,
@@ -56,6 +58,7 @@ class LocalApiServer {
   }) {
     _productRepository = productRepository;
     _categoryRepository = categoryRepository;
+    _cartonRepository = cartonRepository;
     _supplierRepository = supplierRepository;
     _analyticsRepository = analyticsRepository;
     _transactionRepository = transactionRepository;
@@ -158,8 +161,10 @@ class LocalApiServer {
     router.get('/inventory/products', _getProducts);
     router.post('/inventory/products', _createProduct);
     router.post('/inventory/stock-update', _updateStock);
+    router.post('/inventory/receive-carton', _receiveCarton);
     router.get('/inventory/categories', _getCategories);
     router.get('/inventory/suppliers', _getSuppliers);
+    router.post('/inventory/suppliers', _createSupplier);
     
     // ANALYTICS ROUTES
     router.get('/analytics/summary', _getAnalyticsSummary);
@@ -244,34 +249,37 @@ class LocalApiServer {
     final body = await request.readAsString();
     final data = jsonDecode(body);
     
-    // 1. Create Product
-    final productId = await _productRepository!.createProduct(
-      categoryId: data['categoryId'],
-      name: data['name'],
-      baseSku: data['baseSku'],
-      description: data['description'],
-      unitType: data['unitType'] ?? 'Pieces',
-      supplierId: data['supplierId'],
-    );
-
-    // 2. Create Default Variant with Stock
-    await _productRepository!.createProductVariant(
-      productId: productId,
-      variantName: 'Default',
-      sku: '${data['baseSku']}-DEF',
-      barcode: data['barcode'],
-      costPrice: (data['costPrice'] as num).toDouble(),
-      retailPrice: (data['retailPrice'] as num).toDouble(),
-      wholesalePrice: (data['wholesalePrice'] as num?)?.toDouble(),
-      mrp: (data['mrp'] as num?)?.toDouble(),
-      initialStock: (data['initialStock'] as num?)?.toInt() ?? 0,
-      lowStockThreshold: (data['lowStockThreshold'] as num?)?.toInt() ?? 10,
-    );
-    
-    // 3. Notify Sync
-    _dataSyncService?.notifyMobileUpdate();
-    
-    return Response.ok(jsonEncode({'id': productId, 'status': 'success'}));
+    try {
+      // 1. Create Product
+      final productId = await _productRepository!.createProductWithDefaultVariant(
+        categoryId: data['categoryId'],
+        name: data['name'],
+        baseSku: data['baseSku'],
+        description: data['description'],
+        unitType: data['unitType'] ?? 'Pieces',
+        supplierId: data['supplierId'],
+        barcode: (data['barcode']?.toString().isEmpty ?? true) ? null : data['barcode'],
+        costPrice: (data['costPrice'] as num?)?.toDouble() ?? 0.0,
+        retailPrice: (data['retailPrice'] as num?)?.toDouble() ?? 0.0,
+        wholesalePrice: (data['wholesalePrice'] as num?)?.toDouble(),
+        mrp: (data['mrp'] as num?)?.toDouble(),
+        initialStock: (data['initialStock'] as num?)?.toInt() ?? 0,
+        lowStockThreshold: (data['lowStockThreshold'] as num?)?.toInt() ?? 10,
+      );
+      
+      // 3. Notify Sync
+      _dataSyncService?.notifyMobileUpdate();
+      
+      return Response.ok(jsonEncode({'id': productId, 'status': 'success'}));
+    } catch (e) {
+      if (e.toString().contains('UNIQUE constraint failed')) {
+        return Response(400, body: jsonEncode({
+          'error': 'Duplicate Entry',
+          'message': 'A product with this SKU or Barcode already exists. Please use a unique SKU and Barcode.'
+        }));
+      }
+      return Response.internalServerError(body: jsonEncode({'error': e.toString()}));
+    }
   }
 
   Future<Response> _getCategories(Request request) async {
@@ -286,8 +294,31 @@ class LocalApiServer {
     final list = suppliers.map((s) => {
       'id': s.id,
       'name': s.name,
+      'contactPerson': s.contactPerson,
     }).toList();
     return Response.ok(jsonEncode(list));
+  }
+
+  Future<Response> _createSupplier(Request request) async {
+    if (_supplierRepository == null) return Response.internalServerError();
+    final body = await request.readAsString();
+    final data = jsonDecode(body);
+    
+    try {
+      await _supplierRepository!.insert(Supplier(
+        name: data['name'],
+        contactPerson: data['contactPerson'],
+        phone: data['phone'],
+        email: data['email'],
+        address: data['address'],
+        createdAt: DateTime.now(),
+      ));
+      
+      _dataSyncService?.notifyMobileUpdate();
+      return Response.ok(jsonEncode({'status': 'success'}));
+    } catch (e) {
+      return Response.internalServerError(body: jsonEncode({'error': e.toString()}));
+    }
   }
 
   Future<Response> _login(Request request) async {
@@ -333,6 +364,77 @@ class LocalApiServer {
       _dataSyncService?.notifyMobileUpdate();
       
       return Response.ok(jsonEncode({'status': 'success'}));
+    } catch (e) {
+      return Response.internalServerError(body: jsonEncode({'error': e.toString()}));
+    }
+  }
+
+  Future<Response> _receiveCarton(Request request) async {
+    if (_cartonRepository == null || _productRepository == null) {
+      return Response.internalServerError();
+    }
+
+    final body = await request.readAsString();
+    final data = jsonDecode(body);
+
+    try {
+      final productId = data['product_id'];
+      final quantity = data['quantity'] as int;
+      final totalCost = (data['total_cost'] as num).toDouble();
+      final paidAmount = (data['paid_amount'] as num).toDouble();
+      final supplierId = data['supplier_id'] as String?;
+      final notes = data['notes'] as String?;
+      final dueDateStr = data['due_date'] as String?;
+      final dueDate = dueDateStr != null ? DateTime.parse(dueDateStr) : null;
+
+      // 1. Get primary variant
+      final variantId = await _productRepository!.getPrimaryVariantId(productId);
+      if (variantId == null) {
+        return Response.badRequest(body: jsonEncode({'error': 'Product variant not found'}));
+      }
+
+      // 2. Receive Carton
+      final costPerPiece = quantity > 0 ? (totalCost / quantity) : 0.0;
+      final cartonId = await _cartonRepository!.receiveCarton(
+        productVariantId: variantId,
+        cartonNumber: 'CTN-${DateTime.now().millisecondsSinceEpoch}',
+        piecesPerCarton: quantity,
+        costPerPiece: costPerPiece,
+        receivedQuantity: quantity,
+        supplierId: supplierId,
+        notes: notes?.isNotEmpty == true ? notes : 'Purchased from Companion App',
+      );
+
+      // 3. Update Supplier Ledger if enabled
+      if (supplierId != null && _settingsProvider?.isSupplierLedgerEnabled == true && _supplierRepository != null) {
+        await _supplierRepository!.addLedgerEntry(SupplierLedger(
+          id: 'pur_${DateTime.now().millisecondsSinceEpoch}',
+          supplierId: supplierId,
+          referenceId: cartonId,
+          type: 'PURCHASE',
+          amount: totalCost,
+          dueDate: dueDate,
+          notes: 'Carton $cartonId (Mobile)',
+          createdAt: DateTime.now(),
+        ));
+
+        if (paidAmount > 0) {
+          await _supplierRepository!.addLedgerEntry(SupplierLedger(
+            id: 'pay_${DateTime.now().millisecondsSinceEpoch}',
+            supplierId: supplierId,
+            referenceId: cartonId,
+            type: 'PAYMENT',
+            amount: paidAmount,
+            notes: 'Payment for Carton $cartonId (Mobile)',
+            createdAt: DateTime.now(),
+          ));
+        }
+      }
+
+      // 4. Notify Sync
+      _dataSyncService?.notifyMobileUpdate();
+
+      return Response.ok(jsonEncode({'status': 'success', 'carton_id': cartonId}));
     } catch (e) {
       return Response.internalServerError(body: jsonEncode({'error': e.toString()}));
     }

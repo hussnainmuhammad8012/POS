@@ -4,7 +4,9 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   bitsdojo_window_windows
+  pasteboard
   printing
+  share_plus
   tray_manager
   url_launcher_windows
 )

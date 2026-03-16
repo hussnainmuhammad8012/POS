@@ -40,6 +40,103 @@ class ProductRepository {
     return id;
   }
 
+  /// Creates a product, its default variant, and initial stock level in a single transaction.
+  Future<String> createProductWithDefaultVariant({
+    required String categoryId,
+    required String name,
+    required String baseSku,
+    String? description,
+    String? unitType,
+    String? supplierId,
+    String? barcode,
+    required double costPrice,
+    required double retailPrice,
+    double? wholesalePrice,
+    double? mrp,
+    int initialStock = 0,
+    int lowStockThreshold = 10,
+  }) async {
+    return await _db.transaction((txn) async {
+      final now = DateTime.now().toIso8601String();
+      final productId = 'prod_${DateTime.now().millisecondsSinceEpoch}';
+      
+      // 1. Create Product
+      await txn.insert('products', {
+        'id': productId,
+        'category_id': categoryId,
+        'name': name,
+        'description': description,
+        'base_sku': baseSku,
+        'unit_type': unitType ?? 'Pieces',
+        'supplier_id': supplierId,
+        'is_active': 1,
+        'created_at': now,
+        'updated_at': now,
+      });
+
+      // 2. Create Default Variant
+      final variantId = 'var_${DateTime.now().millisecondsSinceEpoch}';
+      await txn.insert('product_variants', {
+        'id': variantId,
+        'product_id': productId,
+        'variant_name': 'Default',
+        'sku': '$baseSku-DEF',
+        'barcode': barcode,
+        'cost_price': costPrice,
+        'retail_price': retailPrice,
+        'wholesale_price': wholesalePrice,
+        'mrp': mrp,
+        'is_active': 1,
+        'created_at': now,
+        'updated_at': now,
+      });
+
+      // 3. Create Stock Level
+      final stockId = 'stk_${DateTime.now().millisecondsSinceEpoch}';
+      await txn.insert('stock_levels', {
+        'id': stockId,
+        'product_variant_id': variantId,
+        'total_pieces': initialStock,
+        'total_cartons': 0,
+        'reserved_pieces': 0,
+        'available_pieces': initialStock,
+        'low_stock_threshold': lowStockThreshold,
+        'reorder_point': lowStockThreshold * 2,
+        'is_low_stock_warning': initialStock <= lowStockThreshold ? 1 : 0,
+        'created_at': now,
+        'updated_at': now,
+      });
+
+      // 4. Record Initial Stock Movement
+      if (initialStock > 0) {
+        await txn.insert('stock_movements', {
+          'id': 'mov_${DateTime.now().microsecondsSinceEpoch}',
+          'product_variant_id': variantId,
+          'movement_type': 'IN',
+          'quantity_change': initialStock,
+          'quantity_before': 0,
+          'quantity_after': initialStock,
+          'reason': 'Initial Stock Configured',
+          'created_at': now,
+        });
+      }
+
+      return productId;
+    });
+  }
+
+  Future<String?> getPrimaryVariantId(String productId) async {
+    final results = await _db.query(
+      'product_variants',
+      columns: ['id'],
+      where: 'product_id = ? AND is_active = 1',
+      whereArgs: [productId],
+      limit: 1,
+    );
+    if (results.isEmpty) return null;
+    return results.first['id'] as String;
+  }
+
   // Update product, its primary variant, and its stock level
   Future<void> updateProduct(String id, {
     String? categoryId,

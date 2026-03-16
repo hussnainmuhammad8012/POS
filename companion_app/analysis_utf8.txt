@@ -1,0 +1,49 @@
+﻿Analyzing companion_app...                                      
+
+   info - The constant name 'STAR_PRIMARY' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:6:22 - constant_identifier_names
+   info - The constant name 'STAR_SIDEBAR' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:7:22 - constant_identifier_names
+   info - The constant name 'STAR_BACKGROUND' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:8:22 - constant_identifier_names
+   info - The constant name 'STAR_CARD' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:9:22 - constant_identifier_names
+   info - The constant name 'STAR_BLUE' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:11:22 - constant_identifier_names
+   info - The constant name 'STAR_TEAL' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:12:22 - constant_identifier_names
+   info - The constant name 'STAR_YELLOW' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:13:22 - constant_identifier_names
+   info - The constant name 'STAR_TEXT_PRIMARY' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:15:22 - constant_identifier_names
+   info - The constant name 'STAR_TEXT_SECONDARY' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:16:22 - constant_identifier_names
+   info - The constant name 'STAR_BORDER' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:17:22 - constant_identifier_names
+   info - The constant name 'DANGER' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:19:22 - constant_identifier_names
+   info - The constant name 'SUCCESS' isn't a lowerCamelCase identifier - lib\core\theme\app_theme.dart:20:22 - constant_identifier_names
+   info - 'background' is deprecated and shouldn't be used. Use surface instead. This feature was deprecated after v3.18.0-0.1.pre - lib\core\theme\app_theme.dart:39:7 - deprecated_member_use
+   info - 'onBackground' is deprecated and shouldn't be used. Use onSurface instead. This feature was deprecated after v3.18.0-0.1.pre - lib\core\theme\app_theme.dart:43:7 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\core\theme\app_theme.dart:86:73 - deprecated_member_use
+   info - The private field _hasError could be 'final' - lib\core\widgets\app_dropdown.dart:51:8 - prefer_final_fields
+warning - The value of the field '_hasError' isn't used - lib\core\widgets\app_dropdown.dart:51:8 - unused_field
+warning - The value of the field '_errorText' isn't used - lib\core\widgets\app_dropdown.dart:52:11 - unused_field
+   info - Statements in an if should be enclosed in a block - lib\core\widgets\app_dropdown.dart:79:18 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\core\widgets\app_dropdown.dart:79:33 - curly_braces_in_flow_control_structures
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\core\widgets\app_dropdown.dart:126:47 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\core\widgets\app_dropdown.dart:190:116 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\core\widgets\custom_text_field.dart:72:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\screens\login_screen.dart:49:49 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\screens\pairing_screen.dart:64:35 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\screens\pairing_screen.dart:96:70 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\auth\presentation\screens\selection_screen.dart:91:32 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\dashboard\presentation\screens\dashboard_screen.dart:111:52 - deprecated_member_use
+   info - Don't use 'BuildContext's across async gaps - lib\features\inventory\presentation\screens\inventory_screen.dart:27:28 - use_build_context_synchronously
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\inventory\presentation\screens\inventory_screen.dart:109:31 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\inventory\presentation\screens\inventory_screen.dart:118:54 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\inventory\presentation\screens\inventory_screen.dart:184:51 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\inventory\presentation\screens\inventory_screen.dart:290:73 - deprecated_member_use
+   info - Don't use 'BuildContext's across async gaps - lib\features\inventory\presentation\screens\inventory_screen.dart:410:34 - use_build_context_synchronously
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\inventory\presentation\widgets\add_product_dialog.dart:243:59 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\inventory\presentation\widgets\add_product_dialog.dart:298:59 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\inventory\presentation\widgets\add_product_dialog.dart:387:43 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\inventory\presentation\widgets\add_product_dialog.dart:389:62 - deprecated_member_use
+warning - Unused import: 'package:lucide_icons/lucide_icons.dart' - lib\main.dart:3:8 - unused_import
+
+flutter : 39 issues found. (ran in 5.5s)
+At line:1 char:1
++ flutter analyze > analysis_output.txt 2>&1; cat analysis_output.txt
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (39 issues found. (ran in 5.5s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

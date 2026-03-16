@@ -87,6 +87,46 @@ class InventoryProvider extends ChangeNotifier {
     return false;
   }
 
+  Future<bool> receiveCarton({
+    required String productId,
+    required int quantity,
+    required double totalCost,
+    required double paidAmount,
+    String? supplierId,
+    String? notes,
+    DateTime? dueDate,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('http://$serverIp/inventory/receive-carton'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
+        body: jsonEncode({
+          'product_id': productId,
+          'quantity': quantity,
+          'total_cost': totalCost,
+          'paid_amount': paidAmount,
+          'supplier_id': supplierId,
+          'notes': notes,
+          'due_date': dueDate?.toIso8601String(),
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        debugPrint('Carton received successfully');
+        await fetchInventory();
+        return true;
+      } else {
+        debugPrint('Receive carton failed: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      debugPrint('Receive carton error: $e');
+    }
+    return false;
+  }
+
   Future<bool> addProduct({
     required String categoryId,
     required String name,
@@ -135,6 +175,42 @@ class InventoryProvider extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Add product error: $e');
+    }
+    return false;
+  }
+
+  Future<bool> addSupplier({
+    required String name,
+    String? contactPerson,
+    String? phone,
+    String? email,
+    String? address,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('http://$serverIp/inventory/suppliers'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
+        body: jsonEncode({
+          'name': name,
+          'contactPerson': contactPerson,
+          'phone': phone,
+          'email': email,
+          'address': address,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        debugPrint('Supplier created successfully');
+        await fetchInventory(); // Refresh list immediately
+        return true;
+      } else {
+        debugPrint('Add supplier failed: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      debugPrint('Add supplier error: $e');
     }
     return false;
   }
