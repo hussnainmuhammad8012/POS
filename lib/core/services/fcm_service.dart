@@ -72,7 +72,7 @@ class FCMService {
       data: summary,
       notification: {
         'title': 'Hunain Mart - Daily Summary',
-        'body': 'Sales: Rs. ${summary['totalSales']}, Supply: Rs. ${summary['supplyReceived']}, Dues: Rs. ${summary['supplyDues']}',
+        'body': 'Sales: Rs. ${summary['totalSales']}, Credit: Rs. ${summary['creditSales']}, Supply: Rs. ${summary['supplyReceived']}, Dues: Rs. ${summary['supplyDues']}',
       },
     );
   }
