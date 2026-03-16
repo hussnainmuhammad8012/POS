@@ -264,6 +264,8 @@ class LocalApiServer {
       'updated_at': s.product.updatedAt.toIso8601String(),
       'current_stock': s.totalStock,
       'price': s.minPrice,
+      'barcode': s.barcode ?? s.product.baseSku,
+      'qr_code': s.qrCode ?? s.barcode ?? s.product.baseSku,
     }).toList();
     return Response.ok(jsonEncode(list));
   }
@@ -283,6 +285,7 @@ class LocalApiServer {
         unitType: data['unitType'] ?? 'Pieces',
         supplierId: data['supplierId'],
         barcode: (data['barcode']?.toString().isEmpty ?? true) ? null : data['barcode'],
+        qrCode: (data['qrCode']?.toString().isEmpty ?? true) ? null : data['qrCode'],
         costPrice: (data['costPrice'] as num?)?.toDouble() ?? 0.0,
         retailPrice: (data['retailPrice'] as num?)?.toDouble() ?? 0.0,
         wholesalePrice: (data['wholesalePrice'] as num?)?.toDouble(),

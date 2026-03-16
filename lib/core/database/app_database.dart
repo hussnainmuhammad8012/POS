@@ -17,11 +17,12 @@ import 'migrations/migration_v4.dart';
 import 'migrations/migration_v5.dart';
 import 'migrations/migration_v6.dart';
 import 'migrations/migration_v7.dart';
+import 'migrations/migration_v8.dart';
 
 /// Centralized SQLite database initialization and access.
 class AppDatabase {
   static const String _databaseName = 'utility_store_pos.db';
-  static const int _databaseVersion = 7; // Increment to 7 for Supplier Dues
+  static const int _databaseVersion = 8; // Increment to 8 for Dedicated QR Codes
 
   static final AppDatabase instance = AppDatabase._();
 
@@ -60,6 +61,7 @@ class AppDatabase {
           await migrateToV5(db);
           await migrateToV6(db);
           await migrateToV7(db);
+          await migrateToV8(db);
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) {
@@ -79,6 +81,9 @@ class AppDatabase {
           }
           if (oldVersion < 7) {
             await migrateToV7(db);
+          }
+          if (oldVersion < 8) {
+            await migrateToV8(db);
           }
         },
       ),

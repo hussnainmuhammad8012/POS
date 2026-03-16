@@ -10,6 +10,7 @@ import 'package:companion_app/features/inventory/data/models/product_model.dart'
 import 'package:companion_app/features/inventory/presentation/widgets/add_product_dialog.dart';
 import 'package:companion_app/core/widgets/app_dropdown.dart';
 import 'package:companion_app/features/inventory/presentation/widgets/add_supplier_dialog.dart';
+import 'package:companion_app/features/inventory/presentation/widgets/product_details_dialog.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -184,11 +185,39 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     color: AppColors.STAR_PRIMARY.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Icon(LucideIcons.plus, size: 16, color: AppColors.STAR_PRIMARY),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                        icon: const Icon(LucideIcons.scanLine, size: 16, color: AppColors.STAR_PRIMARY),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => ProductDetailsDialog(
+                              product: p,
+                              onAddStock: () => _showAddStockDialog(p),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(LucideIcons.plus, size: 16, color: AppColors.STAR_PRIMARY),
+                    ],
+                  ),
                 ),
               ],
             ),
-            onTap: () => _showAddStockDialog(p),
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (context) => ProductDetailsDialog(
+                  product: p,
+                  onAddStock: () => _showAddStockDialog(p),
+                ),
+              );
+            },
           ),
         );
       },
@@ -220,7 +249,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               ),
               child: Row(
                 children: [
-                   const Icon(LucideIcons.packagePlus, color: Colors.white),
+                   const Icon(LucideIcons.package, color: Colors.white),
                    const SizedBox(width: 12),
                    Expanded(
                      child: Text(

@@ -49,6 +49,7 @@ class ProductRepository {
     String? unitType,
     String? supplierId,
     String? barcode,
+    String? qrCode,
     required double costPrice,
     required double retailPrice,
     double? wholesalePrice,
@@ -82,6 +83,7 @@ class ProductRepository {
         'variant_name': 'Default',
         'sku': '$baseSku-DEF',
         'barcode': barcode,
+        'qr_code': qrCode,
         'cost_price': costPrice,
         'retail_price': retailPrice,
         'wholesale_price': wholesalePrice,
@@ -151,6 +153,7 @@ class ProductRepository {
     double? wholesalePrice,
     double? mrp,
     String? barcode,
+    String? qrCode,
     int? initialStock,
     int? lowStockThreshold,
   }) async {
@@ -188,6 +191,7 @@ class ProductRepository {
         if (wholesalePrice != null) vUpdates['wholesale_price'] = wholesalePrice;
         if (mrp != null) vUpdates['mrp'] = mrp;
         if (barcode != null) vUpdates['barcode'] = barcode;
+        if (qrCode != null) vUpdates['qr_code'] = qrCode;
 
         if (vUpdates.length > 1) {
           await txn.update('product_variants', vUpdates, where: 'id = ?', whereArgs: [variantId]);
@@ -243,6 +247,7 @@ class ProductRepository {
     String? variantName,
     required String sku,
     String? barcode,
+    String? qrCode,
     required double costPrice,
     required double retailPrice,
     double? wholesalePrice,
@@ -258,6 +263,7 @@ class ProductRepository {
       'variant_name': variantName,
       'sku': sku,
       'barcode': barcode,
+      'qr_code': qrCode,
       'cost_price': costPrice,
       'retail_price': retailPrice,
       'wholesale_price': wholesalePrice,
@@ -324,6 +330,7 @@ class ProductRepository {
         MIN(v.wholesale_price) as wholesale_price,
         MIN(v.mrp) as mrp,
         MAX(v.barcode) as barcode,
+        MAX(v.qr_code) as qr_code,
         SUM(s.available_pieces) as total_stock,
         MAX(s.low_stock_threshold) as low_stock_threshold,
         MAX(s.is_low_stock_warning) as is_low_stock_warning
@@ -388,6 +395,7 @@ class ProductRepository {
         wholesalePrice: (row['wholesale_price'] as num?)?.toDouble(),
         mrp: (row['mrp'] as num?)?.toDouble(),
         barcode: row['barcode'] as String?,
+        qrCode: row['qr_code'] as String?,
         totalStock: (row['total_stock'] as num?)?.toInt() ?? 0,
         lowStockThreshold: (row['low_stock_threshold'] as num?)?.toInt() ?? 10,
         isLowStockWarning: (row['is_low_stock_warning'] as int?) == 1,

@@ -107,7 +107,7 @@ class _PairingScreenState extends State<PairingScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 20),
                     child: Column(
                       children: [
-                        Icon(LucideIcons.qrCode, color: Colors.white.withOpacity(0.5), size: 40),
+                        Icon(LucideIcons.scanLine, color: Colors.white.withOpacity(0.5), size: 40),
                         const SizedBox(height: 12),
                         const Text(
                           'Tip: If Wi-Fi is slow, connect via USB\nfor an instant connection.',

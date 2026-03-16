@@ -12,6 +12,8 @@ class Product {
   final DateTime updatedAt;
   final int currentStock;
   final double price;
+  final String? barcode;
+  final String? qrCode;
   
   Product({
     required this.id,
@@ -27,6 +29,8 @@ class Product {
     required this.updatedAt,
     this.currentStock = 0,
     this.price = 0.0,
+    this.barcode,
+    this.qrCode,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) => Product(
@@ -43,6 +47,8 @@ class Product {
     updatedAt: DateTime.parse(json['updated_at']),
     currentStock: (json['current_stock'] as num?)?.toInt() ?? 0,
     price: (json['price'] as num?)?.toDouble() ?? 0.0,
+    barcode: json['barcode'],
+    qrCode: json['qr_code'],
   );
 
   Map<String, dynamic> toJson() => {
@@ -59,5 +65,7 @@ class Product {
     'updated_at': updatedAt.toIso8601String(),
     'current_stock': currentStock,
     'price': price,
+    'barcode': barcode,
+    'qr_code': qrCode,
   };
 }

@@ -12,6 +12,7 @@ import '../../../../core/widgets/toast_notification.dart';
 import '../product_details_screen.dart';
 import 'add_product_dialog.dart';
 import 'add_stock_dialog.dart';
+import 'barcode_dialog.dart';
 
 class ProductsTab extends StatefulWidget {
   const ProductsTab({super.key});
@@ -21,6 +22,14 @@ class ProductsTab extends StatefulWidget {
 }
 
 class _ProductsTabState extends State<ProductsTab> {
+  final ScrollController _horizontalScrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _horizontalScrollController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<InventoryProvider>();
@@ -154,21 +163,38 @@ class _ProductsTabState extends State<ProductsTab> {
               _buildEmptyState(context)
             else
               Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.vertical,
+                child: Scrollbar(
                   child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      columns: const [
-                        DataColumn(label: Text('Product')),
-                        DataColumn(label: Text('SKU')),
-                        DataColumn(label: Text('Category')),
-                        DataColumn(label: Text('Prices')),
-                        DataColumn(label: Text('Current Stock')),
-                        DataColumn(label: Text('Unit')),
-                        DataColumn(label: Text('Actions')),
-                      ],
-                      rows: products.map((product) => _buildProductRow(context, product, provider)).toList(),
+                    scrollDirection: Axis.vertical,
+                    primary: true,
+                    child: Scrollbar(
+                      controller: _horizontalScrollController,
+                      thumbVisibility: true,
+                      thickness: 8,
+                      radius: const Radius.circular(4),
+                      child: SingleChildScrollView(
+                        controller: _horizontalScrollController,
+                        scrollDirection: Axis.horizontal,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minWidth: MediaQuery.of(context).size.width - 48,
+                          ),
+                          child: DataTable(
+                            horizontalMargin: 24,
+                            columnSpacing: 24,
+                            columns: const [
+                              DataColumn(label: Text('Product')),
+                              DataColumn(label: Text('SKU')),
+                              DataColumn(label: Text('Category')),
+                              DataColumn(label: Text('Prices')),
+                              DataColumn(label: Text('Current Stock')),
+                              DataColumn(label: Text('Unit')),
+                              DataColumn(label: Text('Actions')),
+                            ],
+                            rows: products.map((product) => _buildProductRow(context, product, provider)).toList(),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -225,6 +251,18 @@ class _ProductsTabState extends State<ProductsTab> {
                     showDialog(
                       context: context,
                       builder: (context) => AddStockDialog(productSummary: summary),
+                    );
+                  },
+                ),
+              ),
+              Tooltip(
+                message: 'Print Labels',
+                child: IconButton(
+                  icon: const Icon(LucideIcons.scanLine, size: 18, color: Colors.blue),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => BarcodeDialog(productSummary: summary),
                     );
                   },
                 ),

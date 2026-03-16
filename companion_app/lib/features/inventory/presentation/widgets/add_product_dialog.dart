@@ -37,6 +37,9 @@ class _AddProductDialogState extends State<AddProductDialog> {
   final _retailPriceController = TextEditingController();
   final _wholesalePriceController = TextEditingController();
   final _mrpController = TextEditingController();
+  final _qrController = TextEditingController();
+  bool _qrManuallyEdited = false;
+  bool _isAutoGeneratingQr = false;
 
   // Step 3: Stock Management
   final _initialStockController = TextEditingController(text: '0');
@@ -47,15 +50,26 @@ class _AddProductDialogState extends State<AddProductDialog> {
     super.initState();
     _nameController.addListener(_onNameChanged);
     _skuController.addListener(_onSkuChanged);
+    _qrController.addListener(_onQrChanged);
   }
 
   @override
   void dispose() {
     _nameController.removeListener(_onNameChanged);
     _skuController.removeListener(_onSkuChanged);
+    _qrController.removeListener(_onQrChanged);
     _nameController.dispose();
     _skuController.dispose();
-    // other disposals...
+    _descriptionController.dispose();
+    _unitController.dispose();
+    _barcodeController.dispose();
+    _costPriceController.dispose();
+    _retailPriceController.dispose();
+    _wholesalePriceController.dispose();
+    _mrpController.dispose();
+    _qrController.dispose();
+    _initialStockController.dispose();
+    _lowStockThresholdController.dispose();
     super.dispose();
   }
 
@@ -80,75 +94,134 @@ class _AddProductDialogState extends State<AddProductDialog> {
     }
   }
 
+  void _onQrChanged() {
+    if (!_isAutoGeneratingQr && _qrController.text.isNotEmpty) {
+      _qrManuallyEdited = true;
+    }
+  }
+
+  void _generateInternalBarcode() {
+    final random = math.Random();
+    String code = '';
+    for (int i = 0; i < 12; i++) {
+      code += random.nextInt(10).toString();
+    }
+    setState(() {
+      _barcodeController.text = code;
+    });
+  }
+
+  void _generateInternalQr() {
+    _isAutoGeneratingQr = true;
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final random = math.Random();
+    String code = '';
+    for (int i = 0; i < 8; i++) {
+      code += chars[random.nextInt(chars.length)];
+    }
+    setState(() {
+      _qrController.text = code;
+      _qrManuallyEdited = false;
+    });
+    _isAutoGeneratingQr = false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
+    final screenSize = MediaQuery.of(context).size;
+    
+    return Dialog(
       backgroundColor: AppColors.STAR_BACKGROUND,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      titlePadding: EdgeInsets.zero,
-      title: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: AppColors.STAR_PRIMARY,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Row(
+      child: Container(
+        width: screenSize.width * 0.95,
+        height: screenSize.height * 0.85,
+        constraints: const BoxConstraints(maxWidth: 500),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(LucideIcons.packagePlus, color: Colors.white),
-            const SizedBox(width: 12),
-            const Text('Add New Product', style: TextStyle(color: Colors.white, fontSize: 18)),
-            const Spacer(),
-            IconButton(
-              icon: const Icon(LucideIcons.x, color: Colors.white, size: 20),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ],
-        ),
-      ),
-      content: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.9,
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildStepIndicator(),
-              const SizedBox(height: 24),
-              Flexible(
-                child: SingleChildScrollView(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    child: _currentStep == 0 
-                      ? _buildIdentityStep() 
-                      : (_currentStep == 1 ? _buildPricingStep() : _buildStockStep()),
+            _buildDialogHeader(),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      _buildStepIndicator(),
+                      const SizedBox(height: 20),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            child: _currentStep == 0 
+                              ? _buildIdentityStep() 
+                              : (_currentStep == 1 ? _buildPricingStep() : _buildStockStep()),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+            _buildDialogActions(),
+          ],
         ),
       ),
-      actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-      actions: [
-        if (_currentStep > 0)
-          TextButton(
-            onPressed: _isSaving ? null : () => setState(() => _currentStep--),
-            child: const Text('Back', style: TextStyle(color: AppColors.STAR_TEXT_SECONDARY)),
+    );
+  }
+
+  Widget _buildDialogHeader() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(
+        color: AppColors.STAR_PRIMARY,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Row(
+        children: [
+          const Icon(LucideIcons.package, color: Colors.white),
+          const SizedBox(width: 12),
+          const Text('Add New Product', style: TextStyle(color: Colors.white, fontSize: 18)),
+          const Spacer(),
+          IconButton(
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            icon: const Icon(LucideIcons.x, color: Colors.white, size: 20),
+            onPressed: () => Navigator.pop(context),
           ),
-        const Spacer(),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.STAR_PRIMARY,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDialogActions() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      child: Row(
+        children: [
+          if (_currentStep > 0)
+            TextButton(
+              onPressed: _isSaving ? null : () => setState(() => _currentStep--),
+              child: const Text('Back', style: TextStyle(color: AppColors.STAR_TEXT_SECONDARY)),
+            ),
+          const Spacer(),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.STAR_PRIMARY,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: _isSaving ? null : _handleNext,
+            child: _isSaving 
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : Text(_currentStep < 2 ? 'Next Step' : 'Create Product'),
           ),
-          onPressed: _isSaving ? null : _handleNext,
-          child: _isSaving 
-            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : Text(_currentStep < 2 ? 'Next Step' : 'Create Product'),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -359,6 +432,39 @@ class _AddProductDialogState extends State<AddProductDialog> {
           prefixIcon: LucideIcons.layers,
           hint: 'Pieces, Kg, Liter, etc.',
         ),
+        const SizedBox(height: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: CustomTextField(
+                controller: _qrController,
+                label: 'Internal QR Code',
+                prefixIcon: LucideIcons.scanLine,
+                hint: 'Auto-generate or type...',
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.STAR_PRIMARY.withOpacity(0.1),
+                foregroundColor: AppColors.STAR_PRIMARY,
+                elevation: 0,
+                padding: const EdgeInsets.all(12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: _generateInternalQr,
+              child: const Icon(LucideIcons.refreshCw, size: 20),
+            ),
+          ],
+        ),
+        const Padding(
+          padding: EdgeInsets.only(top: 8, left: 4),
+          child: Text(
+            'Generated codes are for internal inventory use only.',
+            style: TextStyle(fontSize: 10, color: Colors.grey, fontStyle: FontStyle.italic),
+          ),
+        ),
       ],
     );
   }
@@ -439,9 +545,9 @@ class _AddProductDialogState extends State<AddProductDialog> {
     setState(() => _isSaving = true);
     final provider = context.read<InventoryProvider>();
     
-    bool success = false;
+    String? error;
     try {
-      success = await provider.addProduct(
+      error = await provider.addProduct(
         categoryId: _selectedCategoryId!,
         name: _nameController.text,
         baseSku: _skuController.text,
@@ -455,15 +561,17 @@ class _AddProductDialogState extends State<AddProductDialog> {
         mrp: double.tryParse(_mrpController.text),
         initialStock: int.tryParse(_initialStockController.text) ?? 0,
         lowStockThreshold: int.tryParse(_lowStockThresholdController.text) ?? 10,
+        qrCode: _qrController.text.isEmpty ? null : _qrController.text,
       );
     } catch (e) {
+      error = e.toString();
       debugPrint('Add product error: $e');
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
 
     if (mounted) {
-      if (success) {
+      if (error == null) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -475,9 +583,10 @@ class _AddProductDialogState extends State<AddProductDialog> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Failed to create product'), 
+            content: Text(error), 
             backgroundColor: AppColors.DANGER,
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
           ),
         );
       }

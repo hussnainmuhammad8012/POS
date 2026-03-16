@@ -42,6 +42,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
   // Step 2: Pricing & Units
   final _unitController = TextEditingController(text: 'Pieces');
   final _barcodeController = TextEditingController();
+  final _qrController = TextEditingController();
   final _costPriceController = TextEditingController();
   final _retailPriceController = TextEditingController();
   final _wholesalePriceController = TextEditingController();
@@ -75,6 +76,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
       _wholesalePriceController.text = widget.initialProduct!.wholesalePrice?.toString() ?? '';
       _mrpController.text = widget.initialProduct!.mrp?.toString() ?? '';
       _barcodeController.text = widget.initialProduct!.barcode ?? '';
+      _qrController.text = widget.initialProduct!.qrCode ?? '';
 
       // Stock
       _initialStockController.text = widget.initialProduct!.totalStock.toString();
@@ -432,12 +434,74 @@ class _AddProductDialogState extends State<AddProductDialog> {
       key: const ValueKey(1),
       mainAxisSize: MainAxisSize.min,
       children: [
-        CustomTextField(
-          controller: _barcodeController,
-          label: 'Product Barcode',
-          prefixIcon: LucideIcons.scanLine,
-          hint: 'Scan or enter barcode...',
-          autofocus: true,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: CustomTextField(
+                controller: _barcodeController,
+                label: 'Product Barcode',
+                prefixIcon: LucideIcons.scanLine,
+                hint: 'Scan or enter barcode...',
+                autofocus: true,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              margin: const EdgeInsets.only(bottom: 4),
+              child: IconButton(
+                icon: const Icon(LucideIcons.refreshCw),
+                onPressed: _generateInternalBarcode,
+                tooltip: 'Generate Internal Barcode',
+                color: Theme.of(context).primaryColor,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.amber.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.amber.withOpacity(0.2)),
+          ),
+          child: Row(
+            children: [
+              const Icon(LucideIcons.alertTriangle, size: 14, color: Colors.amber),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Generated barcodes are for internal inventory use and are not GS1 registered product codes.',
+                  style: TextStyle(fontSize: 11, color: Colors.amber, fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: CustomTextField(
+                controller: _qrController,
+                label: 'Internal QR Code',
+                prefixIcon: LucideIcons.scanLine,
+                hint: 'Generate or enter QR code data...',
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              margin: const EdgeInsets.only(bottom: 4),
+              child: IconButton(
+                icon: const Icon(LucideIcons.refreshCw),
+                onPressed: _generateInternalQr,
+                tooltip: 'Generate Alphanumeric QR',
+                color: Colors.green,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         Row(
@@ -542,6 +606,27 @@ class _AddProductDialogState extends State<AddProductDialog> {
     );
   }
 
+  void _generateInternalBarcode() {
+    final random = math.Random();
+    String code = '';
+    for (int i = 0; i < 12; i++) {
+      code += random.nextInt(10).toString();
+    }
+    setState(() => _barcodeController.text = code);
+    AppToast.show(context, title: 'Barcode Generated', message: 'Internal barcode $code created.', type: ToastType.success);
+  }
+
+  void _generateInternalQr() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final random = math.Random();
+    String code = '';
+    for (int i = 0; i < 8; i++) {
+      code += chars[random.nextInt(chars.length)];
+    }
+    setState(() => _qrController.text = code);
+    AppToast.show(context, title: 'QR Data Generated', message: 'Internal QR code $code created.', type: ToastType.success);
+  }
+
   void _handleNext(InventoryProvider provider) async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -565,6 +650,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
             wholesalePrice: _wholesalePriceController.text.isEmpty ? null : double.tryParse(_wholesalePriceController.text),
             mrp: _mrpController.text.isEmpty ? null : double.tryParse(_mrpController.text),
             barcode: _barcodeController.text.isEmpty ? null : _barcodeController.text,
+            qrCode: _qrController.text.isEmpty ? null : _qrController.text,
             initialStock: int.tryParse(_initialStockController.text) ?? 0,
             lowStockThreshold: int.tryParse(_lowStockThresholdController.text) ?? 10,
           );
@@ -610,6 +696,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
           variantName: 'Default',
           sku: '${_skuController.text}-DEF',
           barcode: _barcodeController.text.isEmpty ? null : _barcodeController.text,
+          qrCode: _qrController.text.isEmpty ? null : _qrController.text,
           costPrice: double.tryParse(_costPriceController.text) ?? 0.0,
           retailPrice: double.tryParse(_retailPriceController.text) ?? 0.0,
           wholesalePrice: _wholesalePriceController.text.isEmpty ? null : double.tryParse(_wholesalePriceController.text),

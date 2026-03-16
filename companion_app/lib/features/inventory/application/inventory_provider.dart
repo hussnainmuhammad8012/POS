@@ -127,7 +127,7 @@ class InventoryProvider extends ChangeNotifier {
     return false;
   }
 
-  Future<bool> addProduct({
+  Future<String?> addProduct({
     required String categoryId,
     required String name,
     required String baseSku,
@@ -141,6 +141,7 @@ class InventoryProvider extends ChangeNotifier {
     double? mrp,
     int initialStock = 0,
     int lowStockThreshold = 10,
+    String? qrCode,
   }) async {
     try {
       final response = await http.post(
@@ -157,6 +158,7 @@ class InventoryProvider extends ChangeNotifier {
           'supplierId': supplierId,
           'unitType': unitType,
           'barcode': barcode,
+          'qrCode': qrCode,
           'costPrice': costPrice,
           'retailPrice': retailPrice,
           'wholesalePrice': wholesalePrice,
@@ -169,14 +171,17 @@ class InventoryProvider extends ChangeNotifier {
       if (response.statusCode == 200) {
         debugPrint('Product created successfully');
         await fetchInventory(); // Refresh list immediately
-        return true;
+        return null;
       } else {
-        debugPrint('Add product failed: ${response.statusCode} - ${response.body}');
+        final body = jsonDecode(response.body);
+        final errorMessage = body['message'] ?? body['error'] ?? 'Unknown error occurred';
+        debugPrint('Add product failed: ${response.statusCode} - $errorMessage');
+        return errorMessage;
       }
     } catch (e) {
       debugPrint('Add product error: $e');
+      return e.toString();
     }
-    return false;
   }
 
   Future<bool> addSupplier({

@@ -10,6 +10,7 @@ class ProductSummary {
   final double? wholesalePrice;
   final double? mrp;
   final String? barcode;
+  final String? qrCode;
   final int totalStock;
   final int lowStockThreshold;
   final bool isLowStockWarning;
@@ -23,6 +24,7 @@ class ProductSummary {
     this.wholesalePrice,
     this.mrp,
     this.barcode,
+    this.qrCode,
     required this.totalStock,
     required this.lowStockThreshold,
     required this.isLowStockWarning,
