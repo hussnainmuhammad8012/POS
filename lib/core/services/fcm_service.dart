@@ -72,7 +72,7 @@ class FCMService {
       data: summary,
       notification: {
         'title': 'Hunain Mart - Daily Summary',
-        'body': 'Sales: Rs. ${summary['totalSales']}, Items: ${summary['itemCount']}',
+        'body': 'Sales: Rs. ${summary['totalSales']}, Supply: Rs. ${summary['supplyReceived']}, Dues: Rs. ${summary['supplyDues']}',
       },
     );
   }
@@ -105,12 +105,18 @@ class FCMService {
     final transactions = await _transactionRepository.getTransactionsByDateRange(todayStart, todayEnd);
     final itemCount = transactions.length;
 
+    // Get supply stats
+    final supplyStats = await _analyticsRepository.getTodaySupplyStats();
+
     return {
       'date': todayStart.toIso8601String(),
       'totalSales': totalSales.toStringAsFixed(2),
+      'creditSales': creditSales.toStringAsFixed(2),
       'itemCount': itemCount.toString(),
       'cash': cashSales.toStringAsFixed(2),
-      'credit': creditSales.toStringAsFixed(2),
+      'supplyReceived': supplyStats['totalReceived']!.toStringAsFixed(2),
+      'supplyPaid': supplyStats['totalPaid']!.toStringAsFixed(2),
+      'supplyDues': supplyStats['dues']!.toStringAsFixed(2),
     };
   }
 

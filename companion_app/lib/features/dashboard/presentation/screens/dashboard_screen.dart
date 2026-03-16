@@ -66,12 +66,65 @@ class DashboardScreen extends StatelessWidget {
                     AppColors.STAR_TEAL,
                   ),
                   const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildSmallStatCard(
+                          context,
+                          'Credit Sales',
+                          'Rs. ${data?.todayCreditSales.toStringAsFixed(0) ?? "0"}',
+                          LucideIcons.userMinus,
+                          AppColors.STAR_PRIMARY,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildSmallStatCard(
+                          context,
+                          'Active Credits',
+                          'Rs. ${data?.activeCredits.toStringAsFixed(0) ?? "0"}',
+                          LucideIcons.creditCard,
+                          AppColors.STAR_PRIMARY,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Supply Received (Today)',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
                   _buildStatCard(
                     context,
-                    'Active Credits',
-                    'Rs. ${data?.activeCredits.toStringAsFixed(0) ?? "0"}',
-                    LucideIcons.creditCard,
+                    'Total Supply',
+                    'Rs. ${data?.supplyStats['totalReceived'].toStringAsFixed(0) ?? "0"}',
+                    LucideIcons.package,
                     AppColors.STAR_PRIMARY,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildSmallStatCard(
+                          context,
+                          'Paid Amount',
+                          'Rs. ${data?.supplyStats['totalPaid'].toStringAsFixed(0) ?? "0"}',
+                          LucideIcons.checkCircle,
+                          AppColors.STAR_TEAL,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildSmallStatCard(
+                          context,
+                          'Current Dues',
+                          'Rs. ${data?.supplyStats['dues'].toStringAsFixed(0) ?? "0"}',
+                          LucideIcons.alertCircle,
+                          Colors.redAccent,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 24),
                   const Text(
@@ -119,6 +172,31 @@ class DashboardScreen extends StatelessWidget {
               Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSmallStatCard(BuildContext context, String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppColors.STAR_CARD,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.STAR_BORDER),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 16),
+              const SizedBox(width: 8),
+              Text(title, style: const TextStyle(color: AppColors.STAR_TEXT_SECONDARY, fontSize: 12)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         ],
       ),
     );

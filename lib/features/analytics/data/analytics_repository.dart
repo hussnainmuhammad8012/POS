@@ -220,4 +220,31 @@ class AnalyticsRepository {
     }
     return trend;
   }
+
+  Future<Map<String, double>> getTodaySupplyStats() async {
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day).toIso8601String();
+
+    final purchaseResult = await _db.rawQuery('''
+      SELECT SUM(amount) as total
+      FROM supplier_ledgers
+      WHERE type = 'PURCHASE' AND created_at >= ?
+    ''', [startOfDay]);
+
+    final paymentResult = await _db.rawQuery('''
+      SELECT SUM(amount) as total
+      FROM supplier_ledgers
+      WHERE type = 'PAYMENT' AND created_at >= ?
+    ''', [startOfDay]);
+
+    final totalReceived = (purchaseResult.first['total'] as num?)?.toDouble() ?? 0.0;
+    final totalPaid = (paymentResult.first['total'] as num?)?.toDouble() ?? 0.0;
+    final dues = totalReceived - totalPaid;
+
+    return {
+      'totalReceived': totalReceived,
+      'totalPaid': totalPaid,
+      'dues': dues,
+    };
+  }
 }

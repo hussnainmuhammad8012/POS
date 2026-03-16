@@ -4,19 +4,29 @@ import 'package:http/http.dart' as http;
 
 class DashboardData {
   final double todaySales;
+  final double todayCreditSales;
   final double activeCredits;
+  final Map<String, dynamic> supplyStats;
   final Map<String, dynamic>? yesterdayReport;
 
   DashboardData({
     required this.todaySales,
+    required this.todayCreditSales,
     required this.activeCredits,
+    required this.supplyStats,
     this.yesterdayReport,
   });
 
   factory DashboardData.fromJson(Map<String, dynamic> json) {
     return DashboardData(
       todaySales: (json['today_sales'] as num?)?.toDouble() ?? 0.0,
+      todayCreditSales: (json['today_credit_sales'] as num?)?.toDouble() ?? 0.0,
       activeCredits: (json['active_credits'] as num?)?.toDouble() ?? 0.0,
+      supplyStats: json['supply_stats'] ?? {
+        'totalReceived': 0.0,
+        'totalPaid': 0.0,
+        'dues': 0.0,
+      },
       yesterdayReport: json['yesterday_report'],
     );
   }

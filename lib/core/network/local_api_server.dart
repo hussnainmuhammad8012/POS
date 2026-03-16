@@ -477,7 +477,9 @@ class LocalApiServer {
 
     try {
       final todaySales = await _analyticsRepository!.getTotalRevenue(todayStart, todayEnd);
+      final todayCreditSales = await _analyticsRepository!.getTodayCreditSales();
       final activeCredits = await _analyticsRepository!.getTotalCreditToCollect();
+      final supplyStats = await _analyticsRepository!.getTodaySupplyStats();
       
       // Get yesterday's summary for the "Recent Alert"
       final yesterdayStart = todayStart.subtract(const Duration(days: 1));
@@ -487,7 +489,9 @@ class LocalApiServer {
 
       return Response.ok(jsonEncode({
         'today_sales': todaySales,
+        'today_credit_sales': todayCreditSales,
         'active_credits': activeCredits,
+        'supply_stats': supplyStats,
         'yesterday_report': {
           'total_sales': yesterdaySales,
           'profit': yesterdaySales - yesterdayCost,
