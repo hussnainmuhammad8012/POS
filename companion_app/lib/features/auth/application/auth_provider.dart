@@ -33,67 +33,85 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> pairWithServer(String qrData) async {
+  Future<bool> pairWithServer(String qrData, {Function(String status)? onProgress}) async {
     try {
       final trimmedData = qrData.trim();
       debugPrint('Scanned QR Content: "$trimmedData"');
       
-      String ip;
+      List<String> ips = [];
       int port;
       String token;
 
+      onProgress?.call('Parsing QR data...');
+      debugPrint('[AUTH] Raw QR Data: $trimmedData');
+
       if (trimmedData.startsWith('{')) {
         final Map<String, dynamic> data = jsonDecode(trimmedData);
-        ip = data['ip'];
+        debugPrint('[AUTH] Decoded JSON: $data');
+        if (data.containsKey('ips')) {
+          ips = List<String>.from(data['ips']);
+        } else if (data.containsKey('ip')) {
+          ips = [data['ip']];
+        }
         port = data['port'];
         token = data['session_key'];
       } else if (trimmedData.contains('|')) {
         final parts = trimmedData.split('|');
         if (parts.length != 3) return false;
-        ip = parts[1].split(':')[0];
+        ips = [parts[1].split(':')[0]];
         port = int.parse(parts[1].split(':')[1]);
         token = parts[2];
       } else {
+        onProgress?.call('Invalid QR format');
         return false;
       }
       
       final int serverPort = port;
       final String sessionToken = token;
 
-      // STEP 1: Try USB/Localhost FIRST (Instant)
-      debugPrint('Trying USB Bridge (localhost:$serverPort)...');
-      try {
-        final response = await http.get(
-          Uri.parse('http://127.0.0.1:$serverPort/ping'),
-          headers: {'Authorization': 'Bearer $sessionToken'},
-        ).timeout(const Duration(seconds: 2));
-        
-        if (response.statusCode == 200) {
-          debugPrint('USB Bridge Success!');
-          final String name = jsonDecode(response.body)['appName'] ?? 'Gravity POS';
-          await _savePairing('127.0.0.1:$serverPort', sessionToken, name);
-          return true;
-        }
-      } catch (_) {
-        debugPrint('USB not available, falling back to Wi-Fi...');
+      onProgress?.call('Scanning all network paths...');
+      
+      // Ensure 127.0.0.1 is always tried for USB
+      if (!ips.contains('127.0.0.1')) {
+        ips.insert(0, '127.0.0.1');
       }
 
-      // STEP 2: Try Wi-Fi IP
-      final String wifiUri = 'http://$ip:$serverPort/ping';
-      debugPrint('Trying Wi-Fi ($wifiUri)...');
-      final response = await http.get(
-        Uri.parse(wifiUri),
-        headers: {'Authorization': 'Bearer $sessionToken'},
-      ).timeout(const Duration(seconds: 5));
+      // Create parallel connection tasks
+      final List<Future<bool>> tasks = ips.map((targetIp) async {
+        final isLocalhost = targetIp == '127.0.0.1';
+        try {
+          final uri = Uri.parse('http://$targetIp:$serverPort/ping');
+          debugPrint('[AUTH] Testing $targetIp...');
+          final response = await http.get(
+            uri,
+            headers: {'Authorization': 'Bearer $sessionToken'},
+          ).timeout(Duration(seconds: isLocalhost ? 2 : 5));
+          
+          if (response.statusCode == 200) {
+            final String name = jsonDecode(response.body)['appName'] ?? 'Gravity POS';
+            debugPrint('[AUTH] SUCCESS on $targetIp');
+            await _savePairing('$targetIp:$serverPort', sessionToken, name);
+            return true;
+          }
+        } catch (_) {}
+        return false;
+      }).toList();
 
-      if (response.statusCode == 200) {
-        debugPrint('Wi-Fi Connection Success!');
-        final String name = jsonDecode(response.body)['appName'] ?? 'Gravity POS';
-        await _savePairing('$ip:$serverPort', sessionToken, name);
+      // Wait for the first success or all failures
+      bool found = false;
+      await Future.wait(tasks.map((task) async {
+        if (await task) found = true;
+      }));
+
+      if (found) {
+        onProgress?.call('Connected successfully!');
         return true;
       }
+      
+      onProgress?.call('No PC found. Please check Firewall or Hotspot.');
     } catch (e) {
       debugPrint('Pairing error: $e');
+      onProgress?.call('Error: ${e.toString()}');
     }
     return false;
   }

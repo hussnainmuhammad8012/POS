@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../application/auth_provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/toast_notification.dart';
 
 class PairingScreen extends StatefulWidget {
   const PairingScreen({super.key});
@@ -22,26 +23,39 @@ class _PairingScreenState extends State<PairingScreen> {
     for (final barcode in barcodes) {
       if (barcode.rawValue != null) {
         setState(() => _isScanning = false);
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Analyzing QR Code...'), backgroundColor: AppColors.STAR_PRIMARY),
-        );
 
-        final success = await context.read<AuthProvider>().pairWithServer(barcode.rawValue!);
+        final success = await context.read<AuthProvider>().pairWithServer(
+          barcode.rawValue!,
+          onProgress: (status) {
+            if (mounted) {
+              AppToast.show(
+                context, 
+                title: 'Pairing Status', 
+                message: status,
+                type: ToastType.info,
+              );
+            }
+          },
+        );
         
         if (mounted) {
           if (success) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Devices Paired Successfully!'), backgroundColor: AppColors.SUCCESS),
+            AppToast.show(
+              context, 
+              title: 'Success!', 
+              message: 'Devices paired successfully.',
+              type: ToastType.success,
             );
+            // No manual navigation here! 
+            // The root MaterialApp in main.dart listens to AuthProvider
+            // and will automatically switch from PairingScreen to Inventory/Admin.
           } else {
             setState(() => _isScanning = true);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Pairing Failed. Check terminal logs or try USB.'), 
-                backgroundColor: AppColors.DANGER,
-                duration: Duration(seconds: 5),
-              ),
+            AppToast.show(
+              context, 
+              title: 'Pairing Failed', 
+              message: 'Make sure your PC and Phone are on the same network or connected via USB.',
+              type: ToastType.error,
             );
           }
         }

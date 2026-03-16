@@ -38,6 +38,7 @@ class LocalApiServer {
   FCMService? _fcmService;
   DataSyncService? _dataSyncService;
   String? _localIp;
+  List<String> _localIps = [];
 
   // Server state
   bool get isRunning => _server != null;
@@ -79,29 +80,44 @@ class LocalApiServer {
         .addHandler(router.call);
     
     try {
-      _server = await shelf_io.serve(handler, InternetAddress.anyIPv4, preferredPort);
+      _server = await shelf_io.serve(handler, InternetAddress.anyIPv4, preferredPort, shared: true);
+      print('[SERVER] Listening on http://${_server!.address.address}:${_server!.port}');
     } catch (e) {
-      _server = await shelf_io.serve(handler, InternetAddress.anyIPv4, 0);
+      _server = await shelf_io.serve(handler, InternetAddress.anyIPv4, 0, shared: true);
+      print('[SERVER] Bound to random port: ${_server!.port}');
     }
     
-    await _discoverLocalIp();
+    await _discoverLocalIps();
     _generateSessionKey();
-    print('Local Server started at: $_localIp:${_server!.port}');
+    print('[SERVER] Discovered IPs: $_localIps');
+    print('[SERVER] Local Server started at: $_localIp:${_server!.port}');
   }
 
-  Future<void> _discoverLocalIp() async {
+  Future<void> _discoverLocalIps() async {
     try {
       final interfaces = await NetworkInterface.list(
         includeLoopback: false,
         type: InternetAddressType.IPv4,
       );
-      if (interfaces.isNotEmpty) {
-        _localIp = interfaces.first.addresses.first.address;
+      
+      _localIps.clear();
+      for (var interface in interfaces) {
+        for (var addr in interface.addresses) {
+          if (!_localIps.contains(addr.address)) {
+            _localIps.add(addr.address);
+          }
+        }
+      }
+
+      if (_localIps.isNotEmpty) {
+        _localIp = _localIps.first;
       } else {
         _localIp = '127.0.0.1';
+        _localIps = ['127.0.0.1'];
       }
     } catch (e) {
       _localIp = '127.0.0.1';
+      _localIps = ['127.0.0.1'];
     }
   }
   
@@ -129,6 +145,7 @@ class LocalApiServer {
     if (_server == null || _localIp == null) return '';
     return jsonEncode({
       'ip': _localIp,
+      'ips': _localIps,
       'port': _server!.port,
       'session_key': _sessionKey,
       'expiry': _sessionExpiry?.toIso8601String(),
@@ -147,6 +164,8 @@ class LocalApiServer {
     final router = Router();
     
     router.get('/ping', (Request request) {
+      final remoteIp = (request.context['shelf.io.connection_info'] as HttpConnectionInfo?)?.remoteAddress.address;
+      print('[SERVER] Incoming PING from $remoteIp');
       return Response.ok(jsonEncode({
         'status': 'ok', 
         'timestamp': DateTime.now().toIso8601String(),
@@ -178,21 +197,26 @@ class LocalApiServer {
   Middleware _authMiddleware() {
     return (Handler innerHandler) {
       return (Request request) async {
+        final remoteIp = (request.context['shelf.io.connection_info'] as HttpConnectionInfo?)?.remoteAddress.address;
+        
         if (request.url.path == 'ping' || request.url.path == 'auth/login') {
           return innerHandler(request);
         }
         
         final authHeader = request.headers['Authorization'];
         if (authHeader == null || !authHeader.startsWith('Bearer ')) {
+          print('[SERVER] Auth Failed: Missing header from $remoteIp');
           return Response(401, body: jsonEncode({'error': 'Missing auth'}));
         }
         
         final token = authHeader.substring(7);
         if (token != _sessionKey) {
+          print('[SERVER] Auth Failed: Invalid Token from $remoteIp. Expected: $_sessionKey, Got: $token');
           return Response(403, body: jsonEncode({'error': 'Invalid session'}));
         }
         
         if (_sessionExpiry != null && DateTime.now().isAfter(_sessionExpiry!)) {
+          print('[SERVER] Auth Failed: Session Expired for $remoteIp');
           return Response(403, body: jsonEncode({'error': 'Session expired'}));
         }
         
@@ -324,9 +348,11 @@ class LocalApiServer {
   Future<Response> _login(Request request) async {
     final body = await request.readAsString();
     final data = jsonDecode(body);
-    
-    // Simple admin check for local POS
     final username = data['username'];
+    final remoteIp = (request.context['shelf.io.connection_info'] as HttpConnectionInfo?)?.remoteAddress.address;
+
+    print('[SERVER] Login attempt for user: $username from IP: $remoteIp');
+    // Simple admin check for local POS
     final password = data['password'];
     
     if (username == 'admin' && (password == 'admin' || password == 'admin123')) {

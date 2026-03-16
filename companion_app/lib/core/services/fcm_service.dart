@@ -23,7 +23,7 @@ class FCMService {
     );
 
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      debugPrint('User granted permission');
+      debugPrint('FCM: User granted permission');
       
       // Get token
       String? token = await _messaging.getToken();
@@ -36,7 +36,7 @@ class FCMService {
 
     // Setup Local Notifications
     const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('@mipmap/launcher_icon');
     const InitializationSettings initializationSettings = InitializationSettings(
       android: initializationSettingsAndroid,
     );
@@ -54,13 +54,15 @@ class FCMService {
       sound: true,
     );
 
+    // Handle background messages
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
     // Handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint('FCM: Received foreground message');
       RemoteNotification? notification = message.notification;
-      AndroidNotification? android = message.notification?.android;
-
-      if (notification != null && android != null) {
+      
+      if (notification != null) {
         _localNotifications.show(
           notification.hashCode,
           notification.title,
@@ -70,13 +72,20 @@ class FCMService {
               _channel.id,
               _channel.name,
               channelDescription: _channel.description,
-              icon: android.smallIcon ?? '@mipmap/ic_launcher',
+              icon: '@mipmap/launcher_icon',
               importance: Importance.max,
               priority: Priority.high,
+              ticker: 'ticker',
             ),
           ),
         );
       }
     });
   }
+}
+
+// Global function required for background messaging
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  debugPrint("FCM: Handling a background message: ${message.messageId}");
 }
