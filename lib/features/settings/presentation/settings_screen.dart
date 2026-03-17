@@ -19,6 +19,9 @@ import '../../inventory/application/stock_provider.dart';
 import '../../transactions/application/transactions_provider.dart';
 import '../../pos/application/pos_provider.dart';
 import '../../analytics/application/analytics_provider.dart';
+import '../../auth/application/auth_provider.dart';
+import '../../auth/application/auth_service.dart';
+import '../../../core/models/auth_models.dart';
 
 class SettingsScreen extends StatefulWidget {
   static const routeName = '/settings';
@@ -30,7 +33,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  int _activeTab = 0; // 0: Store, 1: Receipt, 2: Payments, 3: Appearance, 4: Backup, 5: Companion
+  int _activeTab = 0; // 0: Store, 1: Receipt, 2: Payments, 3: Appearance, 4: Backup, 5: Companion, 6: Users
 
   @override
   Widget build(BuildContext context) {
@@ -94,6 +97,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         isSelected: _activeTab == 5,
                         onTap: () => setState(() => _activeTab = 5),
                       ),
+                      if (context.watch<AuthProvider>().currentUser?.role == UserRole.admin)
+                        _SettingsNavTile(
+                          icon: LucideIcons.users,
+                          label: 'User Management',
+                          isSelected: _activeTab == 6,
+                          onTap: () => setState(() => _activeTab = 6),
+                        ),
                     ],
                   ),
                 ),
@@ -110,6 +120,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         if (_activeTab == 3) const _AppearancePanel(),
                         if (_activeTab == 4) const _BackupRestorePanel(),
                         if (_activeTab == 5) const CompanionServerSettings(),
+                        if (_activeTab == 6) const _UserManagementPanel(),
                       ],
                     ),
                   ),
@@ -736,6 +747,258 @@ class _ThemeModeSelector extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _UserManagementPanel extends StatefulWidget {
+  const _UserManagementPanel();
+
+  @override
+  State<_UserManagementPanel> createState() => _UserManagementPanelState();
+}
+
+class _UserManagementPanelState extends State<_UserManagementPanel> {
+  List<UserAccount> _users = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsers();
+  }
+
+  Future<void> _loadUsers() async {
+    setState(() => _isLoading = true);
+    final users = await AuthService.instance.getAllUsers();
+    setState(() {
+      _users = users;
+      _isLoading = false;
+    });
+  }
+
+  void _showEditUserDialog(UserAccount user) {
+    if (user.role == UserRole.admin) {
+      AppToast.show(context, title: 'Not Allowed', message: 'Main Admin account cannot be modified here.', type: ToastType.warning);
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => _EditUserDialog(
+        user: user,
+        onSaved: () => _loadUsers(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('User Management', style: theme.textTheme.displaySmall),
+        const SizedBox(height: 8),
+        Text('Manage accounts and permissions for your staff.', style: TextStyle(color: theme.colorScheme.secondary)),
+        const SizedBox(height: 32),
+        if (_isLoading)
+          const Center(child: CircularProgressIndicator())
+        else
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _users.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 16),
+            itemBuilder: (context, index) {
+              final user = _users[index];
+              return ModernCard(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: theme.primaryColor.withOpacity(0.1),
+                      child: Icon(
+                        user.role == UserRole.admin ? LucideIcons.shield : 
+                        user.role == UserRole.pos ? LucideIcons.monitorUp : LucideIcons.package,
+                        color: theme.primaryColor,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(user.username, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          Text(user.role.toString().split('.').last.toUpperCase(), 
+                            style: TextStyle(color: theme.colorScheme.secondary, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    if (user.role != UserRole.admin)
+                      ElevatedButton.icon(
+                        onPressed: () => _showEditUserDialog(user),
+                        icon: const Icon(LucideIcons.edit3, size: 16),
+                        label: const Text('Manage Permissions'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.primaryColor.withOpacity(0.1),
+                          foregroundColor: theme.primaryColor,
+                          elevation: 0,
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+      ],
+    );
+  }
+}
+
+class _EditUserDialog extends StatefulWidget {
+  final UserAccount user;
+  final VoidCallback onSaved;
+
+  const _EditUserDialog({required this.user, required this.onSaved});
+
+  @override
+  State<_EditUserDialog> createState() => _EditUserDialogState();
+}
+
+class _EditUserDialogState extends State<_EditUserDialog> {
+  late UserPermissions _permissions;
+  final _passwordController = TextEditingController();
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _permissions = widget.user.permissions;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return AlertDialog(
+      title: Text('Manage ${widget.user.username}'),
+      content: SizedBox(
+        width: 500,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Assigned Permissions', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _PermissionToggle(
+                    label: 'POS Access',
+                    value: _permissions.canAccessPos,
+                    onChanged: (v) => setState(() => _permissions = _permissions.copyWith(canAccessPos: v)),
+                  ),
+                  _PermissionToggle(
+                    label: 'Inventory',
+                    value: _permissions.canAccessInventory,
+                    onChanged: (v) => setState(() => _permissions = _permissions.copyWith(canAccessInventory: v)),
+                  ),
+                  _PermissionToggle(
+                    label: 'Customers',
+                    value: _permissions.canAccessCustomers,
+                    onChanged: (v) => setState(() => _permissions = _permissions.copyWith(canAccessCustomers: v)),
+                  ),
+                  _PermissionToggle(
+                    label: 'Suppliers',
+                    value: _permissions.canAccessSuppliers,
+                    onChanged: (v) => setState(() => _permissions = _permissions.copyWith(canAccessSuppliers: v)),
+                  ),
+                  _PermissionToggle(
+                    label: 'Transactions',
+                    value: _permissions.canAccessTransactions,
+                    onChanged: (v) => setState(() => _permissions = _permissions.copyWith(canAccessTransactions: v)),
+                  ),
+                  _PermissionToggle(
+                    label: 'Credits',
+                    value: _permissions.canAccessCredits,
+                    onChanged: (v) => setState(() => _permissions = _permissions.copyWith(canAccessCredits: v)),
+                  ),
+                  _PermissionToggle(
+                    label: 'Dues',
+                    value: _permissions.canAccessDues,
+                    onChanged: (v) => setState(() => _permissions = _permissions.copyWith(canAccessDues: v)),
+                  ),
+                  _PermissionToggle(
+                    label: 'Analytics',
+                    value: _permissions.canAccessAnalytics,
+                    onChanged: (v) => setState(() => _permissions = _permissions.copyWith(canAccessAnalytics: v)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 16),
+              const Text('Change Password', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              CustomTextField(
+                controller: _passwordController,
+                label: 'New Password',
+                hint: 'Leave blank to keep current',
+                obscureText: true,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        ElevatedButton(
+          onPressed: _isSaving ? null : _handleSave,
+          child: _isSaving ? const CircularProgressIndicator(strokeWidth: 2) : const Text('Save Changes'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _handleSave() async {
+    setState(() => _isSaving = true);
+    
+    // Update Permissions
+    await AuthService.instance.updateUserPermissions(widget.user.username, _permissions);
+    
+    // Update Password if provided
+    if (_passwordController.text.isNotEmpty) {
+      await AuthService.instance.updateUserPassword(widget.user.username, _passwordController.text);
+    }
+
+    if (mounted) {
+      widget.onSaved();
+      Navigator.pop(context);
+      AppToast.show(context, title: 'User Updated', message: 'Settings for ${widget.user.username} saved.', type: ToastType.success);
+    }
+  }
+}
+
+class _PermissionToggle extends StatelessWidget {
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _PermissionToggle({required this.label, required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return FilterChip(
+      label: Text(label),
+      selected: value,
+      onSelected: onChanged,
+      selectedColor: Theme.of(context).primaryColor.withOpacity(0.2),
+      checkmarkColor: Theme.of(context).primaryColor,
     );
   }
 }

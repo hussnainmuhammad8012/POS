@@ -11,6 +11,7 @@ import '../../features/analytics/presentation/analytics_screen.dart';
 import '../../features/customers/presentation/credits_screen.dart';
 import '../../features/suppliers/presentation/dues_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
+import '../../features/feedback/presentation/screens/feedback_screen.dart';
 import '../../features/settings/application/settings_provider.dart';
 import '../features/notifications/application/notification_provider.dart';
 import '../features/notifications/presentation/widgets/notification_modal.dart';
@@ -18,6 +19,7 @@ import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../application/navigation_provider.dart';
 import '../application/global_search_provider.dart';
+import '../../features/auth/application/auth_provider.dart';
 
 class NavShell extends StatelessWidget {
   static const routeName = '/';
@@ -28,37 +30,44 @@ class NavShell extends StatelessWidget {
     final nav = context.watch<NavigationProvider>();
 
     return Scaffold(
-      body: Row(
-        children: [
-          _Sidebar(
-            selectedIndex: nav.selectedIndex,
-            onDestinationSelected: (index) => nav.setSelectedIndex(index),
-          ),
-          Expanded(
-            child: Column(
-              children: [
-                const _TopHeaderBar(),
-                Expanded(
-                  child: IndexedStack(
-                    index: nav.selectedIndex,
-                    children: [
-                      const DashboardScreen(),
-                      PosScreen(isVisible: nav.selectedIndex == 1),
-                      const InventoryScreen(),
-                      const CustomersScreen(),
-                      const SuppliersScreen(), // index 4
-                      const TransactionsScreen(), // index 5
-                      const CreditsScreen(), // index 6
-                      const DuesScreen(), // index 7
-                      const AnalyticsScreen(), // index 8
-                      const SettingsScreen(), // index 9
-                    ],
-                  ),
+      body: Consumer<AuthProvider>(
+        builder: (context, auth, _) {
+          return Row(
+            children: [
+              _Sidebar(
+                selectedIndex: nav.selectedIndex,
+                onDestinationSelected: (index) {
+                   nav.setSelectedIndex(index);
+                },
+              ),
+              Expanded(
+                child: Column(
+                  children: [
+                    const _TopHeaderBar(),
+                    Expanded(
+                      child: IndexedStack(
+                        index: nav.selectedIndex,
+                        children: [
+                          const DashboardScreen(),
+                          PosScreen(isVisible: nav.selectedIndex == 1),
+                          const InventoryScreen(),
+                          const CustomersScreen(),
+                          const SuppliersScreen(),
+                          const TransactionsScreen(),
+                          const CreditsScreen(),
+                          const DuesScreen(),
+                          const AnalyticsScreen(),
+                          const SettingsScreen(),
+                          const FeedbackScreen(),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -75,17 +84,22 @@ class _Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final navItems = [
-      {'icon': LucideIcons.layoutDashboard, 'label': 'Dashboard'},
-      {'icon': LucideIcons.monitorUp, 'label': 'Point of Sale'},
-      {'icon': LucideIcons.package2, 'label': 'Inventory'},
-      {'icon': LucideIcons.users, 'label': 'Customers'},
-      {'icon': LucideIcons.truck, 'label': 'Suppliers'},
-      {'icon': LucideIcons.receipt, 'label': 'Transactions'},
-      {'icon': LucideIcons.landmark, 'label': 'Credits'},
-      {'icon': LucideIcons.wallet, 'label': 'Dues'},
-      {'icon': LucideIcons.lineChart, 'label': 'Analytics'},
+    final auth = context.watch<AuthProvider>();
+    
+    final allNavItems = [
+      {'icon': LucideIcons.layoutDashboard, 'label': 'Dashboard', 'index': 0, 'visible': true},
+      {'icon': LucideIcons.monitorUp, 'label': 'Point of Sale', 'index': 1, 'visible': auth.hasPermission((p) => p.canAccessPos)},
+      {'icon': LucideIcons.package2, 'label': 'Inventory', 'index': 2, 'visible': auth.hasPermission((p) => p.canAccessInventory)},
+      {'icon': LucideIcons.users, 'label': 'Customers', 'index': 3, 'visible': auth.hasPermission((p) => p.canAccessCustomers)},
+      {'icon': LucideIcons.truck, 'label': 'Suppliers', 'index': 4, 'visible': auth.hasPermission((p) => p.canAccessSuppliers)},
+      {'icon': LucideIcons.receipt, 'label': 'Transactions', 'index': 5, 'visible': auth.hasPermission((p) => p.canAccessTransactions)},
+      {'icon': LucideIcons.landmark, 'label': 'Credits', 'index': 6, 'visible': auth.hasPermission((p) => p.canAccessCredits)},
+      {'icon': LucideIcons.wallet, 'label': 'Dues', 'index': 7, 'visible': auth.hasPermission((p) => p.canAccessDues)},
+      {'icon': LucideIcons.lineChart, 'label': 'Analytics', 'index': 8, 'visible': auth.hasPermission((p) => p.canAccessAnalytics)},
+      {'icon': LucideIcons.messageSquare, 'label': 'Feedback', 'index': 10, 'visible': true},
     ];
+
+    final navItems = allNavItems.where((item) => item['visible'] == true).toList();
 
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -147,24 +161,52 @@ class _Sidebar extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               children: [
-                for (int i = 0; i < navItems.length; i++)
+                for (var item in navItems)
                   _NavItem(
-                    icon: navItems[i]['icon'] as IconData,
-                    label: navItems[i]['label'] as String,
-                    isActive: selectedIndex == i,
-                    onTap: () => onDestinationSelected(i),
+                    icon: item['icon'] as IconData,
+                    label: item['label'] as String,
+                    isActive: selectedIndex == (item['index'] as int),
+                    onTap: () => onDestinationSelected(item['index'] as int),
                   ),
               ],
             ),
           ),
           // Bottom Settings Item
+          if (auth.hasPermission((p) => p.canAccessSettings))
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+              child: _NavItem(
+                icon: LucideIcons.settings,
+                label: 'Settings',
+                isActive: selectedIndex == 9,
+                onTap: () => onDestinationSelected(9),
+              ),
+            ),
+          const Divider(height: 1, indent: 16, endIndent: 16),
           Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: _NavItem(
-              icon: LucideIcons.settings,
-              label: 'Settings',
-              isActive: selectedIndex == 9,
-              onTap: () => onDestinationSelected(9),
+            padding: const EdgeInsets.symmetric(vertical: 12.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Developed by',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: (isDark || isStarAdmin) ? Colors.white54 : AppColors.LIGHT_TEXT_TERTIARY,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'RaiRoyalsCode',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: (isDark || isStarAdmin) ? Colors.white70 : AppColors.LIGHT_TEXT_SECONDARY,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -398,6 +440,7 @@ class _TopHeaderBarState extends State<_TopHeaderBar> {
     final isDark = theme.brightness == Brightness.dark;
     final surfaceColor = isDark ? AppColors.DARK_SURFACE : AppColors.LIGHT_SURFACE;
     final borderColor = isDark ? AppColors.DARK_BORDER_PROMINENT : AppColors.LIGHT_BORDER_PROMINENT;
+    final auth = context.watch<AuthProvider>();
 
     return Container(
       height: 64,
@@ -533,51 +576,71 @@ class _TopHeaderBarState extends State<_TopHeaderBar> {
                 color: borderColor,
               ),
               const SizedBox(width: 16),
-              Row(
-                children: [
-                   CircleAvatar(
-                    radius: 16,
-                    backgroundColor: theme.primaryColor.withAlpha(40),
-                    child: Text(
-                      'A',
-                      style: TextStyle(
-                        color: theme.primaryColor,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
+              PopupMenuButton<String>(
+                offset: const Offset(0, 48),
+                onSelected: (value) {
+                  if (value == 'logout') {
+                    context.read<AuthProvider>().logout();
+                  }
+                },
+                itemBuilder: (context) => [
+                   PopupMenuItem(
+                    value: 'logout',
+                    child: Row(
+                      children: [
+                        const Icon(LucideIcons.logOut, size: 16, color: Colors.red),
+                        const SizedBox(width: 12),
+                        const Text('Logout', style: TextStyle(color: Colors.red)),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Admin User',
+                ],
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: theme.primaryColor.withAlpha(40),
+                      child: Text(
+                        auth.currentUser?.username.substring(0, 1).toUpperCase() ?? '?',
                         style: TextStyle(
-                          color: isDark ? AppColors.DARK_TEXT_PRIMARY : AppColors.LIGHT_TEXT_PRIMARY,
+                          color: theme.primaryColor,
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
-                          height: 1.2,
                         ),
                       ),
-                      Text(
-                        'Store Manager',
-                        style: TextStyle(
-                          color: isDark ? AppColors.DARK_TEXT_SECONDARY : AppColors.LIGHT_TEXT_SECONDARY,
-                          fontSize: 12,
-                          height: 1.2,
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          auth.currentUser?.username ?? 'Guest',
+                          style: TextStyle(
+                            color: isDark ? AppColors.DARK_TEXT_PRIMARY : AppColors.LIGHT_TEXT_PRIMARY,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            height: 1.2,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    LucideIcons.chevronDown, 
-                    size: 16, 
-                    color: isDark ? AppColors.DARK_TEXT_TERTIARY : AppColors.LIGHT_TEXT_TERTIARY,
-                  ),
-                ],
+                        Text(
+                          auth.currentUser?.role.toString().split('.').last ?? '',
+                          style: TextStyle(
+                            color: isDark ? AppColors.DARK_TEXT_SECONDARY : AppColors.LIGHT_TEXT_SECONDARY,
+                            fontSize: 12,
+                            height: 1.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      LucideIcons.chevronDown, 
+                      size: 16, 
+                      color: isDark ? AppColors.DARK_TEXT_TERTIARY : AppColors.LIGHT_TEXT_TERTIARY,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

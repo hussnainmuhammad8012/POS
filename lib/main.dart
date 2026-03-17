@@ -34,6 +34,11 @@ import 'package:tray_manager/tray_manager.dart';
 
 import 'core/repositories/supplier_repository.dart';
 import 'features/suppliers/application/suppliers_provider.dart';
+import 'features/auth/application/auth_provider.dart';
+import 'features/auth/application/auth_service.dart';
+import 'features/auth/presentation/screens/login_screen.dart';
+import 'features/auth/presentation/screens/license_screen.dart';
+import 'core/widgets/block_screen.dart';
 
 // ... other imports ...
 
@@ -127,6 +132,7 @@ class UtilityStorePosApp extends StatelessWidget {
             customerRepository: customerRepo,
           ),
         ),
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
       ],
       child: _AppBootstrapper(
         productRepo: productRepo,
@@ -166,6 +172,10 @@ class _AppBootstrapperState extends State<_AppBootstrapper> with TrayListener {
 
   Future<void> _initLocalServerAndFCM() async {
     final settings = context.read<SettingsProvider>();
+    final auth = context.read<AuthProvider>();
+    
+    // Check license/trial status from remote server (placeholder)
+    auth.checkLicense();
     
     final fcmService = FCMService(
       productRepository: widget.productRepo,
@@ -185,6 +195,7 @@ class _AppBootstrapperState extends State<_AppBootstrapper> with TrayListener {
       settingsProvider: settings,
       fcmService: fcmService,
       dataSyncService: context.read<DataSyncService>(),
+      authService: AuthService(),
     );
 
     if (settings.isServerEnabled) {
@@ -265,7 +276,35 @@ class _AppBootstrapperState extends State<_AppBootstrapper> with TrayListener {
               : AppTheme.starAdminTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeProvider.themeMode,
-          home: NavShell(),
+          home: Consumer<AuthProvider>(
+            builder: (context, auth, _) {
+              if (auth.needsActivation) {
+                return const LicenseActivationScreen();
+              }
+              
+              if (auth.isBlocked) {
+                return const BlockScreen(
+                  title: 'Service Blocked',
+                  message: 'This service is currently blocked. Please contact the owner for more information.',
+                  contactInfo: '03258012402',
+                );
+              }
+              
+              if (auth.isTrialExpired) {
+                return const BlockScreen(
+                  title: 'Trial Period Expired',
+                  message: 'Your trial period has ended. Please upgrade to a full account to continue.',
+                  contactInfo: '03258012402',
+                );
+              }
+
+              if (!auth.isAuthenticated) {
+                return const LoginScreen();
+              }
+              
+              return const NavShell();
+            },
+          ),
         );
       },
     );

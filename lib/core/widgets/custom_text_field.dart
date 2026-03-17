@@ -16,6 +16,8 @@ class CustomTextField extends StatefulWidget {
   final FocusNode? focusNode;
   final String? Function(String?)? validator;
   final int? maxLines;
+  final IconData? suffixIcon;
+  final VoidCallback? onSuffixTap;
 
   const CustomTextField({
     super.key,
@@ -32,6 +34,8 @@ class CustomTextField extends StatefulWidget {
     this.focusNode,
     this.validator,
     this.maxLines = 1,
+    this.suffixIcon,
+    this.onSuffixTap,
   });
 
   @override
@@ -104,6 +108,12 @@ class _CustomTextFieldState extends State<CustomTextField> {
             decoration: InputDecoration(
               hintText: widget.hint,
               prefixIcon: widget.prefixIcon != null ? Icon(widget.prefixIcon, size: 18) : null,
+              suffixIcon: widget.suffixIcon != null 
+                ? IconButton(
+                    icon: Icon(widget.suffixIcon, size: 18),
+                    onPressed: widget.onSuffixTap,
+                  ) 
+                : null,
             ),
           ),
         ),

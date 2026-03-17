@@ -12,6 +12,7 @@ class ModernCard extends StatefulWidget {
   final VoidCallback? onTap;
   final Color? borderColor;
   final Color? backgroundColor;
+  final double? width;
 
   const ModernCard({
     super.key,
@@ -24,6 +25,7 @@ class ModernCard extends StatefulWidget {
     this.onTap,
     this.borderColor,
     this.backgroundColor,
+    this.width,
   });
 
   @override
@@ -46,6 +48,7 @@ class _ModernCardState extends State<ModernCard> {
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
         margin: widget.margin,
+        width: widget.width,
         transform: Matrix4.identity()..scale(_isHovered ? 1.02 : 1.0),
         transformAlignment: Alignment.center,
         decoration: BoxDecoration(

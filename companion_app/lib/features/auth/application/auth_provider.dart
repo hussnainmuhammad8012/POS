@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import '../../../core/models/auth_models.dart';
 
 enum AppMode { selection, inventory, admin }
 
@@ -12,6 +13,8 @@ class AuthProvider extends ChangeNotifier {
   bool _isLoggedIn = false;
   AppMode _currentMode = AppMode.selection;
   String? _shopName;
+  String? _role;
+  UserPermissions? _permissions;
 
   String? get serverIp => _serverIp;
   String? get accessToken => _accessToken;
@@ -19,6 +22,13 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoggedIn => _isLoggedIn;
   AppMode get currentMode => _currentMode;
   String? get shopName => _shopName;
+  String? get role => _role;
+  UserPermissions? get permissions => _permissions;
+
+  // Specific Permission Getters
+  bool get canAccessInventory => _role == 'admin' || (_permissions?.canAccessInventory ?? false);
+  bool get canAccessAnalytics => _role == 'admin' || (_permissions?.canAccessAnalytics ?? false);
+  bool get canAccessSuppliers => _role == 'admin' || (_permissions?.canAccessSuppliers ?? false);
 
   AuthProvider() {
     _loadSettings();
@@ -149,7 +159,12 @@ class AuthProvider extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
         _isLoggedIn = true;
+        _role = responseData['role'];
+        if (responseData['permissions'] != null) {
+          _permissions = UserPermissions.fromMap(responseData['permissions']);
+        }
         notifyListeners();
         return true;
       } else if (response.statusCode == 401 || response.statusCode == 403) {

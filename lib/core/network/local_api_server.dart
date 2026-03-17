@@ -15,6 +15,7 @@ import '../../features/settings/application/settings_provider.dart';
 import '../repositories/supplier_repository.dart';
 import '../services/fcm_service.dart';
 import '../services/data_sync_service.dart';
+import '../../features/auth/application/auth_service.dart';
 
 /// Local HTTP server for Companion App
 /// Runs on background isolate (handled via app initialization)
@@ -37,6 +38,7 @@ class LocalApiServer {
   SettingsProvider? _settingsProvider;
   FCMService? _fcmService;
   DataSyncService? _dataSyncService;
+  AuthService? _authService;
   String? _localIp;
   List<String> _localIps = [];
 
@@ -56,6 +58,7 @@ class LocalApiServer {
     required SettingsProvider settingsProvider,
     required FCMService fcmService,
     required DataSyncService dataSyncService,
+    AuthService? authService,
   }) {
     _productRepository = productRepository;
     _categoryRepository = categoryRepository;
@@ -66,6 +69,7 @@ class LocalApiServer {
     _settingsProvider = settingsProvider;
     _fcmService = fcmService;
     _dataSyncService = dataSyncService;
+    _authService = authService ?? AuthService();
   }
 
   /// Start server on available port (default 8080)
@@ -352,24 +356,29 @@ class LocalApiServer {
     final body = await request.readAsString();
     final data = jsonDecode(body);
     final username = data['username'];
+    final password = data['password'];
     final remoteIp = (request.context['shelf.io.connection_info'] as HttpConnectionInfo?)?.remoteAddress.address;
 
     print('[SERVER] Login attempt for user: $username from IP: $remoteIp');
-    // Simple admin check for local POS
-    final password = data['password'];
     
-    if (username == 'admin' && (password == 'admin' || password == 'admin123')) {
-      // Save FCM Token if provided (for Admin Dashboard mode)
+    if (_authService == null) return Response.internalServerError();
+
+    final user = await _authService!.login(username, password);
+    
+    if (user != null) {
+      // Save FCM Token if provided
       final fcmToken = data['fcmToken'];
       if (fcmToken != null && _settingsProvider != null) {
         _settingsProvider!.setAdminFcmToken(fcmToken);
-        print('LocalServer: Registered Admin FCM Token: $fcmToken');
+        print('LocalServer: Registered FCM Token for $username: $fcmToken');
       }
 
       return Response.ok(jsonEncode({
         'status': 'success',
         'message': 'Logged in successfully',
-        'token': _sessionKey, // Return same key for simplicity
+        'token': _sessionKey,
+        'role': user.role.toString().split('.').last,
+        'permissions': user.permissions.toMap(),
       }));
     }
     

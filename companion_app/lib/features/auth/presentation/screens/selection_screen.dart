@@ -35,25 +35,43 @@ class SelectionScreen extends StatelessWidget {
               const SizedBox(height: 60),
 
               // Selection Buttons
-              _buildSelectionCard(
-                context,
-                title: 'Manage Inventory',
-                subtitle: 'Scan products & add stock',
-                icon: LucideIcons.package,
-                color: AppColors.STAR_PRIMARY,
-                onTap: () {
-                  context.read<AuthProvider>().setAppMode(AppMode.inventory);
-                },
-              ),
-              const SizedBox(height: 20),
-              _buildSelectionCard(
-                context,
-                title: 'Admin Dashboard',
-                subtitle: 'Live sales & store analytics',
-                icon: LucideIcons.layoutDashboard,
-                color: AppColors.STAR_TEAL,
-                onTap: () {
-                  context.read<AuthProvider>().setAppMode(AppMode.admin);
+              Consumer<AuthProvider>(
+                builder: (context, auth, _) {
+                  return Column(
+                    children: [
+                      if (auth.canAccessInventory)
+                        _buildSelectionCard(
+                          context,
+                          title: 'Manage Inventory',
+                          subtitle: 'Scan products & add stock',
+                          icon: LucideIcons.package,
+                          color: AppColors.STAR_PRIMARY,
+                          onTap: () {
+                            context.read<AuthProvider>().setAppMode(AppMode.inventory);
+                          },
+                        ),
+                      if (auth.canAccessInventory) const SizedBox(height: 20),
+                      if (auth.canAccessAnalytics)
+                        _buildSelectionCard(
+                          context,
+                          title: 'Admin Dashboard',
+                          subtitle: 'Live sales & store analytics',
+                          icon: LucideIcons.layoutDashboard,
+                          color: AppColors.STAR_TEAL,
+                          onTap: () {
+                            context.read<AuthProvider>().setAppMode(AppMode.admin);
+                          },
+                        ),
+                      if (!auth.canAccessInventory && !auth.canAccessAnalytics)
+                        const Center(
+                          child: Text(
+                            'No modules assigned to your account.\nPlease contact Admin.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: AppColors.DANGER),
+                          ),
+                        ),
+                    ],
+                  );
                 },
               ),
             ],
