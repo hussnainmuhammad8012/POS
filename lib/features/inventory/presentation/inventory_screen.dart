@@ -33,32 +33,30 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          GlassHeader(
-            title: 'Inventory',
-            subtitle: 'Manage stock and product catalog',
-            actions: [
-              OutlinedButton.icon(
-                onPressed: () {},
-                icon: const Icon(LucideIcons.download),
-                label: const Text('Export'),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed: () => _showAddDialog(context),
-                icon: const Icon(LucideIcons.plus),
-                label: const Text('Add New'),
-              ),
-            ],
-          ),
-          const Expanded(
-            child: _InventoryTabs(),
-          ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GlassHeader(
+          title: 'Inventory',
+          subtitle: 'Manage stock and product catalog',
+          actions: [
+            OutlinedButton.icon(
+              onPressed: () {},
+              icon: const Icon(LucideIcons.download),
+              label: const Text('Export'),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton.icon(
+              onPressed: () => _showAddDialog(context),
+              icon: const Icon(LucideIcons.plus),
+              label: const Text('Add New'),
+            ),
+          ],
+        ),
+        const Expanded(
+          child: _InventoryTabs(),
+        ),
+      ],
     );
   }
 

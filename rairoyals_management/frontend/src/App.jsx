@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Sidebar from './components/Sidebar'
@@ -8,7 +8,19 @@ import Feedback from './pages/Feedback'
 import Login from './pages/Login'
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
+
+  useEffect(() => {
+    // Check if token still exists (could also verify with backend)
+    const token = localStorage.getItem('token');
+    if (!token && isAuthenticated) {
+      setIsAuthenticated(false);
+    }
+  }, [isAuthenticated]);
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+  };
 
   if (!isAuthenticated) {
     return <Login onLogin={() => setIsAuthenticated(true)} />;
@@ -17,7 +29,7 @@ function App() {
   return (
     <Router>
       <div className="app-container">
-        <Sidebar />
+        <Sidebar onLogout={handleLogout} />
         <div className="main-content">
           <Navbar />
           <div className="page-content">
@@ -43,9 +55,8 @@ function App() {
         }
         .page-content {
           padding: 2rem;
-          max-width: 1400px;
           width: 100%;
-          margin: 0 auto;
+          margin: 0;
         }
       `}</style>
     </Router>

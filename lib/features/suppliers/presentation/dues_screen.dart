@@ -40,14 +40,13 @@ class _DuesScreenState extends State<DuesScreen> {
     final debtors = provider.filteredSuppliers.where((s) => s.currentDue > 0).toList();
     final totalDues = debtors.fold(0.0, (sum, s) => sum + s.currentDue);
 
-    return Scaffold(
-      body: Column(
-        children: [
-          const GlassHeader(
-            title: 'Dues Management',
-            subtitle: 'Track outstanding balances and payments to suppliers',
-          ),
-          Expanded(
+    return Column(
+      children: [
+        const GlassHeader(
+          title: 'Dues Management',
+          subtitle: 'Track outstanding balances and payments to suppliers',
+        ),
+        Expanded(
             child: Row(
               children: [
                 // Left Panel - Debtors List with Summary
@@ -182,8 +181,7 @@ class _DuesScreenState extends State<DuesScreen> {
             ),
           ),
         ],
-      ),
-    );
+      );
   }
 }
 

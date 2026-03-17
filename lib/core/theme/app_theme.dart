@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class AppColors {
   // ========== LIGHT MODE ==========
   static const Color LIGHT_BACKGROUND = Color(0xFFFFFFFF);
-  static const Color LIGHT_SIDEBAR = Color(0xFFFFFFFF);
+  static const Color LIGHT_SIDEBAR = Color(0xFFF8FAFC);
   static const Color LIGHT_SURFACE = Color(0xFFF8FAFC);
   static const Color LIGHT_CARD = Color(0xFFFFFFFF);
   static const Color LIGHT_PANEL = Color(0xFFF9FAFB);

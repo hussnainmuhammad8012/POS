@@ -19,34 +19,32 @@ class TransactionsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
-        children: [
-          const GlassHeader(
-            title: 'Transactions',
-            subtitle: 'View and filter your store sales history',
+    return Column(
+      children: [
+        const GlassHeader(
+          title: 'Transactions',
+          subtitle: 'View and filter your store sales history',
+        ),
+        Expanded(
+          child: Consumer<TransactionsProvider>(
+            builder: (context, provider, child) {
+              return ListView(
+                padding: const EdgeInsets.all(24),
+                children: [
+                  _buildFilters(context, provider),
+                  const SizedBox(height: 24),
+                  if (provider.isLoading)
+                    const Center(child: CircularProgressIndicator())
+                  else if (provider.transactions.isEmpty)
+                    _buildEmptyState(context)
+                  else
+                    _buildTransactionsTable(context, provider),
+                ],
+              );
+            },
           ),
-          Expanded(
-            child: Consumer<TransactionsProvider>(
-              builder: (context, provider, child) {
-                return ListView(
-                  padding: const EdgeInsets.all(24),
-                  children: [
-                    _buildFilters(context, provider),
-                    const SizedBox(height: 24),
-                    if (provider.isLoading)
-                      const Center(child: CircularProgressIndicator())
-                    else if (provider.transactions.isEmpty)
-                      _buildEmptyState(context)
-                    else
-                      _buildTransactionsTable(context, provider),
-                  ],
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

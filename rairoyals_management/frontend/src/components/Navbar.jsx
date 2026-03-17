@@ -2,6 +2,8 @@ import React from 'react'
 import { Bell, Search, User } from 'lucide-react'
 
 const Navbar = () => {
+  const admin = JSON.parse(localStorage.getItem('admin') || '{"username": "Admin User", "role": "Super Admin"}');
+
   return (
     <nav className="navbar glass">
       <div className="search-field">
@@ -16,8 +18,8 @@ const Navbar = () => {
         </button>
         <div className="user-profile">
           <div className="user-info">
-            <strong>Admin User</strong>
-            <span>Super Admin</span>
+            <strong>{admin.username}</strong>
+            <span>{admin.role.charAt(0).toUpperCase() + admin.role.slice(1)}</span>
           </div>
           <div className="avatar">
             <User size={20} />
@@ -25,14 +27,14 @@ const Navbar = () => {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .navbar {
           height: 80px;
           display: flex;
           align-items: center;
           justify-content: space-between;
           padding: 0 2rem;
-          margin: 1.5rem 2rem 0;
+          margin: 1.5rem 0 0; 
           border-radius: 20px;
           position: sticky;
           top: 1.5rem;

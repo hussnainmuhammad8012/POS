@@ -17,16 +17,19 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+const auth = require('../middleware/authMiddleware');
+
 // Public Routes (Desktop App API)
 router.post('/verify-license', clientController.verifyLicense);
 router.post('/submit-feedback', upload.array('attachments'), feedbackController.submitFeedback);
 
-// Admin Routes (Management Dashboard)
+// Admin Routes (Management Dashboard) - Protected by JWT
 router.post('/admin/login', authController.login);
-router.get('/clients', clientController.getClients);
-router.post('/clients', clientController.createClient);
-router.put('/clients/:id', clientController.updateClientStatus);
-router.get('/feedback', feedbackController.getAllFeedback);
-router.put('/feedback/:id', feedbackController.updateFeedbackStatus);
+router.get('/admin/stats', auth, clientController.getDashboardStats);
+router.get('/clients', auth, clientController.getClients);
+router.post('/clients', auth, clientController.createClient);
+router.put('/clients/:id', auth, clientController.updateClientStatus);
+router.get('/feedback', auth, feedbackController.getAllFeedback);
+router.put('/feedback/:id', auth, feedbackController.updateFeedbackStatus);
 
 module.exports = router;

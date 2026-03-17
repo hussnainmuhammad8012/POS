@@ -41,14 +41,13 @@ class _CreditsScreenState extends State<CreditsScreen> {
     final filteredDebtors = provider.filteredDebtors;
     final totalCredit = provider.totalOutstandingCredit;
 
-    return Scaffold(
-      body: Column(
-        children: [
-          const GlassHeader(
-            title: 'Credit Management',
-            subtitle: 'Track outstanding balances and customer payments',
-          ),
-          Expanded(
+    return Column(
+      children: [
+        const GlassHeader(
+          title: 'Credit Management',
+          subtitle: 'Track outstanding balances and customer payments',
+        ),
+        Expanded(
             child: Row(
               children: [
                 // Left Panel - Debtors List with Filters & Summary
@@ -207,8 +206,7 @@ class _CreditsScreenState extends State<CreditsScreen> {
             ),
           ),
         ],
-      ),
-    );
+      );
   }
 }
 

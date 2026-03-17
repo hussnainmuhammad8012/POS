@@ -20,6 +20,15 @@ const Feedback = () => {
       setLoading(false);
     }
   };
+  const markProcessed = async (id) => {
+    try {
+      await api.put(`/feedback/${id}`, { isProcessed: true });
+      fetchFeedback();
+    } catch (err) {
+      console.error('Error updating feedback status:', err);
+    }
+  };
+
 
   const getSentimentIcon = (type) => {
     switch(type) {
@@ -58,13 +67,15 @@ const Feedback = () => {
 
               <div className="card-footer">
                 {item.attachments && item.attachments.length > 0 && (
-                  <a href={`http://localhost:5000/${item.attachments[0]}`} target="_blank" rel="noopener noreferrer" className="view-attachments-btn">
+                  <a href={`http://localhost:5000${item.attachments[0].fileUrl}`} target="_blank" rel="noopener noreferrer" className="view-attachments-btn">
                     <ImageIcon size={16} />
                     <span>View Attachment</span>
                   </a>
                 )}
                 {!item.isProcessed && (
-                  <button className="mark-processed-btn">Mark as Processed</button>
+                  <button className="mark-processed-btn" onClick={() => markProcessed(item._id)}>
+                    Mark as Processed
+                  </button>
                 )}
               </div>
             </div>

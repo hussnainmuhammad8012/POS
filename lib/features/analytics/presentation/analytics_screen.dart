@@ -30,106 +30,104 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final settings = context.watch<SettingsProvider>();
     final kpi = provider.kpi;
 
-    return Scaffold(
-      body: provider.isLoading && provider.revenueTrend.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                GlassHeader(
-                  title: 'Analytics',
-                  subtitle: 'Deep dive into your store performance',
-                  actions: [
-                    ElevatedButton.icon(
-                      onPressed: () => _showExportDialog(context, provider, settings),
-                      icon: const Icon(LucideIcons.download),
-                      label: const Text('Export Report'),
-                    ),
-                  ],
-                ),
-                Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: provider.refreshData,
-                    child: ListView(
-                      padding: const EdgeInsets.all(24.0),
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: KpiCard(
-                                title: 'Total Revenue',
-                                value: _currencyFormat.format(kpi.totalRevenue),
-                                icon: LucideIcons.indianRupee,
-                                accentColor: AppColors.primary,
-                              ),
+    return provider.isLoading && provider.revenueTrend.isEmpty
+        ? const Center(child: CircularProgressIndicator())
+        : Column(
+            children: [
+              GlassHeader(
+                title: 'Analytics',
+                subtitle: 'Deep dive into your store performance',
+                actions: [
+                  ElevatedButton.icon(
+                    onPressed: () => _showExportDialog(context, provider, settings),
+                    icon: const Icon(LucideIcons.download),
+                    label: const Text('Export Report'),
+                  ),
+                ],
+              ),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: provider.refreshData,
+                  child: ListView(
+                    padding: const EdgeInsets.all(24.0),
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: KpiCard(
+                              title: 'Total Revenue',
+                              value: _currencyFormat.format(kpi.totalRevenue),
+                              icon: LucideIcons.indianRupee,
+                              accentColor: AppColors.primary,
                             ),
-                            const SizedBox(width: 24),
-                            Expanded(
-                              child: KpiCard(
-                                title: 'Net Profit',
-                                value: _currencyFormat.format(kpi.netProfit),
-                                icon: LucideIcons.trendingUp,
-                                accentColor: AppColors.SUCCESS,
-                              ),
+                          ),
+                          const SizedBox(width: 24),
+                          Expanded(
+                            child: KpiCard(
+                              title: 'Net Profit',
+                              value: _currencyFormat.format(kpi.netProfit),
+                              icon: LucideIcons.trendingUp,
+                              accentColor: AppColors.SUCCESS,
                             ),
-                            const SizedBox(width: 24),
-                            Expanded(
-                              child: KpiCard(
-                                title: 'Total Cost',
-                                value: _currencyFormat.format(kpi.totalCost),
-                                icon: LucideIcons.shoppingBag,
-                                accentColor: Colors.orange,
-                              ),
+                          ),
+                          const SizedBox(width: 24),
+                          Expanded(
+                            child: KpiCard(
+                              title: 'Total Cost',
+                              value: _currencyFormat.format(kpi.totalCost),
+                              icon: LucideIcons.shoppingBag,
+                              accentColor: Colors.orange,
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: KpiCard(
-                                title: 'Customer Credits',
-                                value: _currencyFormat.format(kpi.totalCreditToCollect),
-                                icon: LucideIcons.users,
-                                accentColor: AppColors.INFO,
-                              ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: KpiCard(
+                              title: 'Customer Credits',
+                              value: _currencyFormat.format(kpi.totalCreditToCollect),
+                              icon: LucideIcons.users,
+                              accentColor: AppColors.INFO,
                             ),
-                            const SizedBox(width: 24),
-                            Expanded(
-                              child: KpiCard(
-                                title: 'Supplier Dues',
-                                value: _currencyFormat.format(kpi.totalSupplierDues),
-                                icon: LucideIcons.wallet,
-                                accentColor: AppColors.WARNING,
-                              ),
+                          ),
+                          const SizedBox(width: 24),
+                          Expanded(
+                            child: KpiCard(
+                              title: 'Supplier Dues',
+                              value: _currencyFormat.format(kpi.totalSupplierDues),
+                              icon: LucideIcons.wallet,
+                              accentColor: AppColors.WARNING,
                             ),
-                            const SizedBox(width: 24),
-                            const Expanded(child: SizedBox()), // empty slot
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              flex: 2,
-                              child: _RevenueChartCard(trend: provider.revenueTrend),
-                            ),
-                            const SizedBox(width: 24),
-                            Expanded(
-                              flex: 1,
-                              child: _TopCategoriesCard(categories: provider.salesByCategory),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        _TopProductsTableCard(products: provider.topProducts),
-                      ],
-                    ),
+                          ),
+                          const SizedBox(width: 24),
+                          const Expanded(child: SizedBox()), // empty slot
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: _RevenueChartCard(trend: provider.revenueTrend),
+                          ),
+                          const SizedBox(width: 24),
+                          Expanded(
+                            flex: 1,
+                            child: _TopCategoriesCard(categories: provider.salesByCategory),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      _TopProductsTableCard(products: provider.topProducts),
+                    ],
                   ),
                 ),
-              ],
-            ),
-    );
+              ),
+            ],
+          );
   }
 
   void _showExportDialog(BuildContext context, AnalyticsProvider provider, SettingsProvider settings) {

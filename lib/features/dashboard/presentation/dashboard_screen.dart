@@ -11,85 +11,102 @@ import '../../../core/widgets/glass_header.dart';
 import '../../analytics/application/analytics_provider.dart';
 import '../../transactions/application/transactions_provider.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   static const routeName = '/dashboard';
 
   const DashboardScreen({super.key});
 
   @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Trigger data refresh when dashboard is first loaded
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<AnalyticsProvider>().refreshData();
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final analytics = context.watch<AnalyticsProvider>();
     final kpi = analytics.kpi;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const GlassHeader(
-            title: 'Overview',
-            subtitle: 'Real-time store metrics and performance',
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const GlassHeader(
+          title: 'Overview',
+          subtitle: 'Real-time store metrics and performance',
+        ),
+        if (analytics.isLoading)
+          const LinearProgressIndicator(minHeight: 2),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.all(24.0),
+            children: [
+              _buildKpiRow(context, kpi),
+              const SizedBox(height: 24),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 4,
+                    child: _SalesTrendCard(analytics: analytics),
+                  ),
+                  const SizedBox(width: 24),
+                  Expanded(
+                    flex: 3,
+                    child: _SalesByCategoryTodayCard(analytics: analytics),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _ProductRankingCard(
+                      title: 'Top 5 Performing Products',
+                      items: analytics.topProducts,
+                      isTop: true,
+                    ),
+                  ),
+                  const SizedBox(width: 24),
+                  Expanded(
+                    child: _ProductRankingCard(
+                      title: 'Least Performing Products',
+                      items: analytics.leastProducts,
+                      isTop: false,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Expanded(
+                    flex: 2,
+                    child: _RecentTransactionsCard(),
+                  ),
+                  const SizedBox(width: 24),
+                  Expanded(
+                    flex: 1,
+                    child: _TopSuppliersCard(analytics: analytics),
+                  ),
+                ],
+              ),
+            ],
           ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(24.0),
-              children: [
-                _buildKpiRow(context, kpi),
-                const SizedBox(height: 24),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      flex: 4,
-                      child: _SalesTrendCard(analytics: analytics),
-                    ),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      flex: 3,
-                      child: _SalesByCategoryTodayCard(analytics: analytics),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: _ProductRankingCard(
-                        title: 'Top 5 Performing Products',
-                        items: analytics.topProducts,
-                        isTop: true,
-                      ),
-                    ),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      child: _ProductRankingCard(
-                        title: 'Least Performing Products',
-                        items: analytics.leastProducts,
-                        isTop: false,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Expanded(
-                      flex: 2,
-                      child: _RecentTransactionsCard(),
-                    ),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      flex: 1,
-                      child: _TopSuppliersCard(analytics: analytics),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

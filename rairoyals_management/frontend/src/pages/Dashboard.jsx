@@ -1,7 +1,52 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Users, CreditCard, ShieldAlert, MessageSquare } from 'lucide-react'
+import api from '../api'
 
 const Dashboard = () => {
+  const [stats, setStats] = useState({
+    totalClients: 0,
+    activeTrials: 0,
+    blockedClients: 0,
+    newFeedback: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  const [recentClients, setRecentClients] = useState([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [statsRes, clientsRes] = await Promise.all([
+          api.get('/admin/stats'),
+          api.get('/clients')
+        ]);
+        setStats(statsRes.data);
+        // Sort clients by creation date descending and take top 5
+        const sorted = clientsRes.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
+        setRecentClients(sorted);
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <p>Initializing Management Hub...</p>
+        <style>{`
+          .loading-container { height: 80vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; color: var(--text-secondary); }
+          .spinner { width: 40px; height: 40px; border: 3px solid rgba(99, 102, 241, 0.1); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+          @keyframes spin { to { transform: rotate(360deg); } }
+        `}</style>
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard-page animate-fade-in">
       <header>
@@ -13,39 +58,46 @@ const Dashboard = () => {
         <StatCard 
           icon={<Users color="#6366f1" />} 
           label="Total Clients" 
-          value="124" 
-          trend="+12% this month" 
+          value={stats.totalClients} 
+          trend="Overall registrations" 
         />
         <StatCard 
           icon={<CreditCard color="#22c55e" />} 
           label="Active Trials" 
-          value="45" 
-          trend="+5 new today" 
+          value={stats.activeTrials} 
+          trend="Current evaluations" 
         />
         <StatCard 
           icon={<ShieldAlert color="#ef4444" />} 
           label="Blocked Accounts" 
-          value="3" 
-          trend="No change" 
+          value={stats.blockedClients} 
+          trend="Access restricted" 
         />
         <StatCard 
           icon={<MessageSquare color="#f59e0b" />} 
           label="Pending Feedback" 
-          value="8" 
-          trend="2 urgent" 
+          value={stats.newFeedback} 
+          trend="Waiting processing" 
         />
       </div>
 
       <div className="recent-activity glass">
-        <h3>Recent Activity</h3>
+        <h3>Recent Registrations</h3>
         <div className="activity-list">
-          <ActivityItem label="New client registered" time="2 hours ago" client="Al-Madina Store" />
-          <ActivityItem label="Trial expired" time="5 hours ago" client="Sunny Electronics" />
-          <ActivityItem label="Feedback received" time="yesterday" client="General Bakers" />
+          {recentClients.length > 0 ? recentClients.map(client => (
+            <ActivityItem 
+              key={client._id}
+              label="New client registered" 
+              time={new Date(client.createdAt).toLocaleDateString()} 
+              client={`${client.storeName} (${client.username})`} 
+            />
+          )) : (
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>No recent activity found.</p>
+          )}
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .dashboard-page h1 {
           font-size: 2rem;
           margin-bottom: 0.5rem;
@@ -88,7 +140,7 @@ const StatCard = ({ icon, label, value, trend }) => (
       <h2>{value}</h2>
       <span>{label}</span>
     </div>
-    <style jsx>{`
+    <style>{`
       .stat-card {
         padding: 1.5rem;
         border-radius: 20px;
@@ -136,7 +188,7 @@ const ActivityItem = ({ label, time, client }) => (
       <span>{client}</span>
     </div>
     <span className="time">{time}</span>
-    <style jsx>{`
+    <style>{`
       .activity-item {
         display: flex;
         align-items: center;

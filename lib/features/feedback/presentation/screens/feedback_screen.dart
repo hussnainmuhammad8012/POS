@@ -98,148 +98,180 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Share Your Feedback',
-            style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Help us improve the POS system. Your feedback goes directly to our development team.',
-            style: TextStyle(color: isDark ? AppColors.DARK_TEXT_SECONDARY : AppColors.LIGHT_TEXT_SECONDARY),
-          ),
-          const SizedBox(height: 24),
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: ModernCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('What kind of feedback do you have?', style: TextStyle(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 16),
-                        Row(
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Text(
+              'Share Your Feedback',
+              style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Help us improve the POS system. Your feedback goes directly to our development team.',
+              style: TextStyle(color: isDark ? AppColors.DARK_TEXT_SECONDARY : AppColors.LIGHT_TEXT_SECONDARY),
+            ),
+            const SizedBox(height: 24),
+
+            // Body Row - use Expanded here since we're inside a Column with a bounded parent (Scaffold)
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Left: Feedback Form
+                  Expanded(
+                    flex: 2,
+                    child: Card(
+                      clipBehavior: Clip.antiAlias,
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _TypeButton(
-                              label: 'Positive',
-                              icon: LucideIcons.smile,
-                              color: Colors.green,
-                              isSelected: _selectedType == FeedbackType.positive,
-                              onTap: () => setState(() => _selectedType = FeedbackType.positive),
+                            const Text('What kind of feedback do you have?', style: TextStyle(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                _TypeButton(
+                                  label: 'Positive',
+                                  icon: LucideIcons.smile,
+                                  color: Colors.green,
+                                  isSelected: _selectedType == FeedbackType.positive,
+                                  onTap: () => setState(() => _selectedType = FeedbackType.positive),
+                                ),
+                                const SizedBox(width: 12),
+                                _TypeButton(
+                                  label: 'Neutral',
+                                  icon: LucideIcons.meh,
+                                  color: Colors.amber,
+                                  isSelected: _selectedType == FeedbackType.neutral,
+                                  onTap: () => setState(() => _selectedType = FeedbackType.neutral),
+                                ),
+                                const SizedBox(width: 12),
+                                _TypeButton(
+                                  label: 'Negative',
+                                  icon: LucideIcons.frown,
+                                  color: Colors.red,
+                                  isSelected: _selectedType == FeedbackType.negative,
+                                  onTap: () => setState(() => _selectedType = FeedbackType.negative),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 12),
-                            _TypeButton(
-                              label: 'Neutral',
-                              icon: LucideIcons.meh,
-                              color: Colors.amber,
-                              isSelected: _selectedType == FeedbackType.neutral,
-                              onTap: () => setState(() => _selectedType = FeedbackType.neutral),
+                            const SizedBox(height: 24),
+                            const Text('Details', style: TextStyle(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 12),
+                            // Use Expanded here — this Column is inside a Card which has bounded height (CrossAxisAlignment.stretch)
+                            Expanded(
+                              child: CustomTextField(
+                                controller: _textController,
+                                hint: 'Tell us more about your experience or the issue you are facing...',
+                                maxLines: null,
+                              ),
                             ),
-                            const SizedBox(width: 12),
-                            _TypeButton(
-                              label: 'Negative',
-                              icon: LucideIcons.frown,
-                              color: Colors.red,
-                              isSelected: _selectedType == FeedbackType.negative,
-                              onTap: () => setState(() => _selectedType = FeedbackType.negative),
+                            const SizedBox(height: 24),
+                            Row(
+                              children: [
+                                ElevatedButton.icon(
+                                  onPressed: _pickFiles,
+                                  icon: const Icon(LucideIcons.paperclip, size: 18),
+                                  label: const Text('Attach Files'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: theme.primaryColor.withOpacity(0.1),
+                                    foregroundColor: theme.primaryColor,
+                                    overlayColor: theme.primaryColor.withOpacity(0.15),
+                                    elevation: 0,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                ElevatedButton.icon(
+                                  onPressed: _captureScreenshot,
+                                  icon: const Icon(LucideIcons.camera, size: 18),
+                                  label: const Text('Screenshot'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: theme.primaryColor.withOpacity(0.1),
+                                    foregroundColor: theme.primaryColor,
+                                    overlayColor: theme.primaryColor.withOpacity(0.15),
+                                    elevation: 0,
+                                  ),
+                                ),
+                                const Spacer(),
+                                SizedBox(
+                                  width: 150,
+                                  height: 48,
+                                  child: ElevatedButton(
+                                    onPressed: _isSubmitting ? null : _submitFeedback,
+                                    child: _isSubmitting
+                                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                        : const Text('Send Feedback'),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                        const SizedBox(height: 24),
-                        const Text('Details', style: TextStyle(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 12),
-                        Expanded(
-                          child: CustomTextField(
-                            controller: _textController,
-                            hint: 'Tell us more about your experience or the issue you are facing...',
-                            maxLines: 15,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Row(
-                          children: [
-                            ElevatedButton.icon(
-                              onPressed: _pickFiles,
-                              icon: const Icon(LucideIcons.paperclip, size: 18),
-                              label: const Text('Attach Files / Audio'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: theme.primaryColor.withOpacity(0.1),
-                                foregroundColor: theme.primaryColor,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            ElevatedButton.icon(
-                              onPressed: _captureScreenshot,
-                              icon: const Icon(LucideIcons.camera, size: 18),
-                              label: const Text('Capture Screenshot'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: theme.primaryColor.withOpacity(0.1),
-                                foregroundColor: theme.primaryColor,
-                              ),
-                            ),
-                            const Spacer(),
-                            SizedBox(
-                              width: 150,
-                              height: 48,
-                              child: ElevatedButton(
-                                onPressed: _isSubmitting ? null : _submitFeedback,
-                                child: _isSubmitting 
-                                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                                  : const Text('Send Feedback'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 24),
-                // Attachments List
-                Expanded(
-                  flex: 1,
-                  child: ModernCard(
-                    title: 'Attachments (${_attachments.length})',
-                    child: _attachments.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(LucideIcons.fileQuestion, size: 48, color: Colors.grey.withOpacity(0.3)),
-                              const SizedBox(height: 12),
-                              const Text('No files attached', style: TextStyle(color: Colors.grey)),
-                            ],
-                          ),
-                        )
-                      : ListView.separated(
-                          itemCount: _attachments.length,
-                          separatorBuilder: (_, __) => const Divider(),
-                          itemBuilder: (context, index) {
-                            final file = _attachments[index];
-                            return ListTile(
-                              leading: const Icon(LucideIcons.file),
-                              title: Text(file.path.split(Platform.pathSeparator).last, 
-                                maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
-                              trailing: IconButton(
-                                icon: const Icon(LucideIcons.x, size: 18, color: Colors.red),
-                                onPressed: () => _removeAttachment(index),
-                              ),
-                            );
-                          },
+                  const SizedBox(width: 24),
+                  // Right: Attachments
+                  Expanded(
+                    flex: 1,
+                    child: Card(
+                      clipBehavior: Clip.antiAlias,
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Attachments (${_attachments.length})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            const SizedBox(height: 16),
+                            Expanded(
+                              child: _attachments.isEmpty
+                                  ? Center(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(LucideIcons.fileQuestion, size: 48, color: Colors.grey.withOpacity(0.3)),
+                                          const SizedBox(height: 12),
+                                          const Text('No files attached', style: TextStyle(color: Colors.grey)),
+                                        ],
+                                      ),
+                                    )
+                                  : ListView.separated(
+                                      itemCount: _attachments.length,
+                                      separatorBuilder: (_, __) => const Divider(),
+                                      itemBuilder: (context, index) {
+                                        final file = _attachments[index];
+                                        return ListTile(
+                                          leading: const Icon(LucideIcons.file),
+                                          title: Text(
+                                            file.path.split(Platform.pathSeparator).last,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(fontSize: 13),
+                                          ),
+                                          trailing: IconButton(
+                                            icon: const Icon(LucideIcons.x, size: 18, color: Colors.red),
+                                            onPressed: () => _removeAttachment(index),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                            ),
+                          ],
                         ),
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

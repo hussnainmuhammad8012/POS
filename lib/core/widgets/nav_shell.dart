@@ -28,46 +28,50 @@ class NavShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final nav = context.watch<NavigationProvider>();
+    final theme = Theme.of(context);
 
     return Scaffold(
-      body: Consumer<AuthProvider>(
-        builder: (context, auth, _) {
-          return Row(
-            children: [
-              _Sidebar(
-                selectedIndex: nav.selectedIndex,
-                onDestinationSelected: (index) {
-                   nav.setSelectedIndex(index);
-                },
-              ),
-              Expanded(
-                child: Column(
-                  children: [
-                    const _TopHeaderBar(),
-                    Expanded(
-                      child: IndexedStack(
-                        index: nav.selectedIndex,
-                        children: [
-                          const DashboardScreen(),
-                          PosScreen(isVisible: nav.selectedIndex == 1),
-                          const InventoryScreen(),
-                          const CustomersScreen(),
-                          const SuppliersScreen(),
-                          const TransactionsScreen(),
-                          const CreditsScreen(),
-                          const DuesScreen(),
-                          const AnalyticsScreen(),
-                          const SettingsScreen(),
-                          const FeedbackScreen(),
-                        ],
-                      ),
-                    ),
-                  ],
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 1. Fixed-width Sidebar
+          SizedBox(
+            width: 240,
+            child: _Sidebar(
+              selectedIndex: nav.selectedIndex,
+              onDestinationSelected: (index) => nav.setSelectedIndex(index),
+            ),
+          ),
+          
+          // 2. Main Content
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const _TopHeaderBar(),
+                Expanded(
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Offstage(offstage: nav.selectedIndex != 0, child: const DashboardScreen()),
+                      Offstage(offstage: nav.selectedIndex != 1, child: PosScreen(isVisible: nav.selectedIndex == 1)),
+                      Offstage(offstage: nav.selectedIndex != 2, child: const InventoryScreen()),
+                      Offstage(offstage: nav.selectedIndex != 3, child: const CustomersScreen()),
+                      Offstage(offstage: nav.selectedIndex != 4, child: const SuppliersScreen()),
+                      Offstage(offstage: nav.selectedIndex != 5, child: const TransactionsScreen()),
+                      Offstage(offstage: nav.selectedIndex != 6, child: const CreditsScreen()),
+                      Offstage(offstage: nav.selectedIndex != 7, child: const DuesScreen()),
+                      Offstage(offstage: nav.selectedIndex != 8, child: const AnalyticsScreen()),
+                      Offstage(offstage: nav.selectedIndex != 9, child: const SettingsScreen()),
+                      Offstage(offstage: nav.selectedIndex != 10, child: const FeedbackScreen()),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          );
-        },
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -85,7 +89,11 @@ class _Sidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    
+    final settings = context.watch<SettingsProvider>();
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final isStarAdmin = theme.primaryColor == AppColors.STAR_PRIMARY;
+
     final allNavItems = [
       {'icon': LucideIcons.layoutDashboard, 'label': 'Dashboard', 'index': 0, 'visible': true},
       {'icon': LucideIcons.monitorUp, 'label': 'Point of Sale', 'index': 1, 'visible': auth.hasPermission((p) => p.canAccessPos)},
@@ -101,30 +109,17 @@ class _Sidebar extends StatelessWidget {
 
     final navItems = allNavItems.where((item) => item['visible'] == true).toList();
 
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final isStarAdmin = theme.primaryColor == AppColors.STAR_PRIMARY;
-
     final sidebarColor = isDark 
         ? AppColors.DARK_SIDEBAR 
         : (isStarAdmin ? AppColors.STAR_SIDEBAR : AppColors.LIGHT_SIDEBAR);
 
-    return Container(
-      width: 240,
-      decoration: BoxDecoration(
-        color: sidebarColor,
-        border: Border(
-          right: BorderSide(
-            color: isDark ? Colors.transparent : (isStarAdmin ? Colors.transparent : AppColors.LIGHT_BORDER_PROMINENT),
-            width: 1,
-          ),
-        ),
-      ),
+    return Material(
+      color: sidebarColor,
       child: Column(
         children: [
           // Logo Area
           Container(
-            height: 64, // Matches top header
+            height: 100,
             padding: const EdgeInsets.symmetric(horizontal: 24),
             alignment: Alignment.centerLeft,
             child: Row(
@@ -132,49 +127,69 @@ class _Sidebar extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: (isDark ? AppColors.PRIMARY_ACCENT_DARK : theme.primaryColor).withAlpha(40),
-                    borderRadius: BorderRadius.circular(8),
+                    color: theme.primaryColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     LucideIcons.store, 
-                    color: isDark ? AppColors.PRIMARY_ACCENT_DARK : theme.primaryColor, 
-                    size: 24,
+                    color: isDark ? AppColors.PRIMARY_ACCENT_DARK : theme.primaryColor,
+                    size: 28,
                   ),
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  context.watch<SettingsProvider>().storeName,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    overflow: TextOverflow.ellipsis,
-                    color: (isDark || isStarAdmin) ? Colors.white : AppColors.LIGHT_TEXT_PRIMARY,
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        settings.storeName.isEmpty ? "Hunain Mart" : settings.storeName,
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          overflow: TextOverflow.ellipsis,
+                          color: (isDark || isStarAdmin) ? Colors.white : AppColors.LIGHT_TEXT_PRIMARY,
+                        ),
+                      ),
+                      Text(
+                        "Point of Sale",
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: (isDark || isStarAdmin) ? Colors.white54 : AppColors.LIGHT_TEXT_TERTIARY,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          
           // Navigation Items
           Expanded(
-            child: ListView(
+            child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              children: [
-                for (var item in navItems)
-                  _NavItem(
-                    icon: item['icon'] as IconData,
-                    label: item['label'] as String,
-                    isActive: selectedIndex == (item['index'] as int),
-                    onTap: () => onDestinationSelected(item['index'] as int),
-                  ),
-              ],
+              itemCount: navItems.length,
+              itemBuilder: (context, index) {
+                final item = navItems[index];
+                return _NavItem(
+                  icon: item['icon'] as IconData,
+                  label: item['label'] as String,
+                  isActive: selectedIndex == (item['index'] as int),
+                  onTap: () => onDestinationSelected(item['index'] as int),
+                );
+              },
             ),
           ),
-          // Bottom Settings Item
+          
+          // Settings
           if (auth.hasPermission((p) => p.canAccessSettings))
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: _NavItem(
                 icon: LucideIcons.settings,
                 label: 'Settings',
@@ -182,33 +197,25 @@ class _Sidebar extends StatelessWidget {
                 onTap: () => onDestinationSelected(9),
               ),
             ),
-          const Divider(height: 1, indent: 16, endIndent: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Developed by',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: (isDark || isStarAdmin) ? Colors.white54 : AppColors.LIGHT_TEXT_TERTIARY,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'RaiRoyalsCode',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: (isDark || isStarAdmin) ? Colors.white70 : AppColors.LIGHT_TEXT_SECONDARY,
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-              ],
+          
+          const Divider(height: 1, indent: 24, endIndent: 24),
+          const SizedBox(height: 16),
+          Text(
+            'Developed by',
+            style: TextStyle(
+              fontSize: 10,
+              color: (isDark || isStarAdmin) ? Colors.white38 : AppColors.LIGHT_TEXT_TERTIARY,
             ),
           ),
+          Text(
+            'RaiRoyalsCode',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: (isDark || isStarAdmin) ? Colors.white70 : AppColors.LIGHT_TEXT_SECONDARY,
+            ),
+          ),
+          const SizedBox(height: 24),
         ],
       ),
     );
@@ -242,8 +249,6 @@ class _NavItemState extends State<_NavItem> {
     final isStarAdmin = theme.primaryColor == AppColors.STAR_PRIMARY;
     final primaryColor = isDark ? AppColors.PRIMARY_ACCENT_DARK : theme.primaryColor;
     
-    // Sidebar text/icon color
-    // In StarAdmin, icons/text should be light/white because the sidebar is dark
     final color;
     if (widget.isActive) {
       color = (isDark || isStarAdmin) ? Colors.white : AppColors.LIGHT_ACTIVE;
@@ -251,7 +256,6 @@ class _NavItemState extends State<_NavItem> {
       color = (isDark || isStarAdmin) ? AppColors.STAR_TEXT_SECONDARY : AppColors.LIGHT_TEXT_SECONDARY;
     }
     
-    // Consistent background color for hover and active
     final Color? bgColor;
     if (widget.isActive) {
       if (isStarAdmin) {
@@ -259,50 +263,47 @@ class _NavItemState extends State<_NavItem> {
       } else {
         bgColor = isDark ? AppColors.DARK_HOVER : AppColors.LIGHT_PRIMARY_SOFT;
       }
-    } else if (_isHovered) {
-      bgColor = (isDark || isStarAdmin) ? Colors.white.withAlpha(15) : AppColors.LIGHT_PRIMARY_SOFT.withAlpha(15);
     } else {
       bgColor = Colors.transparent;
     }
     
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeInOut,
-          margin: const EdgeInsets.only(bottom: 6, left: 8, right: 8),
-          height: 44,
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(8),
-            border: (widget.isActive && !isStarAdmin)
-                ? Border(left: BorderSide(color: primaryColor, width: 3))
-                : const Border(left: BorderSide(color: Colors.transparent, width: 3)),
-          ),
-          child: Row(
-            children: [
-              const SizedBox(width: 12),
-              Icon(
-                widget.icon, 
-                color: color, 
-                size: 20,
-              ),
-              const SizedBox(width: 16),
-              Text(
-                widget.label,
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 14,
-                  fontWeight: widget.isActive ? FontWeight.w600 : FontWeight.w500,
-                  color: color,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6, left: 8, right: 8),
+      child: Material(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: widget.onTap,
+          hoverColor: (isDark || isStarAdmin) ? Colors.white.withAlpha(15) : AppColors.LIGHT_PRIMARY_SOFT.withAlpha(15),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            height: 44,
+            decoration: BoxDecoration(
+              border: (widget.isActive && !isStarAdmin)
+                  ? Border(left: BorderSide(color: primaryColor, width: 3))
+                  : const Border(left: BorderSide(color: Colors.transparent, width: 3)),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  widget.icon, 
+                  color: color, 
+                  size: 20,
                 ),
-              ),
-            ],
+                const SizedBox(width: 16),
+                Text(
+                  widget.label,
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14,
+                    fontWeight: widget.isActive ? FontWeight.w600 : FontWeight.w500,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -442,209 +443,212 @@ class _TopHeaderBarState extends State<_TopHeaderBar> {
     final borderColor = isDark ? AppColors.DARK_BORDER_PROMINENT : AppColors.LIGHT_BORDER_PROMINENT;
     final auth = context.watch<AuthProvider>();
 
-    return Container(
-      height: 64,
-      decoration: BoxDecoration(
-        color: surfaceColor,
-        border: Border(
-          bottom: BorderSide(
-            color: borderColor,
-            width: 1,
-          ),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Search Field
-          CompositedTransformTarget(
-            link: _layerLink,
-            child: Container(
-              width: 400,
-              height: 40,
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.DARK_BACKGROUND : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: borderColor,
-                ),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Icon(LucideIcons.search, size: 18, color: isDark ? AppColors.DARK_TEXT_TERTIARY : AppColors.LIGHT_TEXT_TERTIARY),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      focusNode: _searchFocusNode,
-                      onChanged: (value) {
-                        context.read<GlobalSearchProvider>().search(value);
-                        if (value.length >= 2) {
-                          _showOverlay();
-                        } else {
-                          _hideOverlay();
-                        }
-                      },
-                      onTap: () {
-                        if (_searchController.text.length >= 2) {
-                          _showOverlay();
-                        }
-                      },
-                      decoration: InputDecoration(
-                        hintText: 'Search products, customers...',
-                        hintStyle: TextStyle(
-                          color: isDark ? AppColors.DARK_TEXT_TERTIARY : AppColors.LIGHT_TEXT_TERTIARY,
-                          fontSize: 14,
-                        ),
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        errorBorder: InputBorder.none,
-                        contentPadding: EdgeInsets.zero,
-                        isDense: true,
-                        fillColor: Colors.transparent,
-                      ),
-                      style: TextStyle(
-                        color: isDark ? AppColors.DARK_TEXT_PRIMARY : AppColors.LIGHT_TEXT_PRIMARY,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                  if (_searchController.text.isNotEmpty)
-                    IconButton(
-                      icon: const Icon(LucideIcons.x, size: 16),
-                      onPressed: () {
-                        _searchController.clear();
-                        context.read<GlobalSearchProvider>().clearSearch();
-                        _hideOverlay();
-                        setState(() {});
-                      },
-                      visualDensity: VisualDensity.compact,
-                      padding: EdgeInsets.zero,
-                    ),
-                ],
-              ),
+    return Material(
+      color: surfaceColor,
+      elevation: 2,
+      child: Container(
+        height: 64,
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: borderColor,
+              width: 1,
             ),
           ),
-          
-          // User Profile & Actions
-          Row(
-            children: [
-              Consumer<NotificationProvider>(
-                builder: (context, notifications, _) {
-                  return Stack(
-                    children: [
-                      IconButton(
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => const NotificationModal(),
-                          );
-                        },
-                        icon: const Icon(LucideIcons.bell),
-                        color: isDark ? AppColors.DARK_TEXT_SECONDARY : AppColors.LIGHT_TEXT_SECONDARY,
-                        iconSize: 20,
-                      ),
-                      if (notifications.unreadCount > 0)
-                        Positioned(
-                          right: 8,
-                          top: 8,
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.error,
-                              shape: BoxShape.circle,
-                            ),
-                            constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                            child: Text(
-                              '${notifications.unreadCount}',
-                              style: const TextStyle(color: Colors.white, fontSize: 10),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(width: 16),
-              Container(
-                height: 32,
-                width: 1,
-                color: borderColor,
-              ),
-              const SizedBox(width: 16),
-              PopupMenuButton<String>(
-                offset: const Offset(0, 48),
-                onSelected: (value) {
-                  if (value == 'logout') {
-                    context.read<AuthProvider>().logout();
-                  }
-                },
-                itemBuilder: (context) => [
-                   PopupMenuItem(
-                    value: 'logout',
-                    child: Row(
-                      children: [
-                        const Icon(LucideIcons.logOut, size: 16, color: Colors.red),
-                        const SizedBox(width: 12),
-                        const Text('Logout', style: TextStyle(color: Colors.red)),
-                      ],
-                    ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Search Field
+            CompositedTransformTarget(
+              link: _layerLink,
+              child: Container(
+                width: 400,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.DARK_BACKGROUND : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: borderColor,
                   ),
-                ],
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      radius: 16,
-                      backgroundColor: theme.primaryColor.withAlpha(40),
-                      child: Text(
-                        auth.currentUser?.username.substring(0, 1).toUpperCase() ?? '?',
+                    Icon(LucideIcons.search, size: 18, color: isDark ? AppColors.DARK_TEXT_TERTIARY : AppColors.LIGHT_TEXT_TERTIARY),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        focusNode: _searchFocusNode,
+                        onChanged: (value) {
+                          context.read<GlobalSearchProvider>().search(value);
+                          if (value.length >= 2) {
+                            _showOverlay();
+                          } else {
+                            _hideOverlay();
+                          }
+                        },
+                        onTap: () {
+                          if (_searchController.text.length >= 2) {
+                            _showOverlay();
+                          }
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'Search products, customers...',
+                          hintStyle: TextStyle(
+                            color: isDark ? AppColors.DARK_TEXT_TERTIARY : AppColors.LIGHT_TEXT_TERTIARY,
+                            fontSize: 14,
+                          ),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          errorBorder: InputBorder.none,
+                          contentPadding: EdgeInsets.zero,
+                          isDense: true,
+                          fillColor: Colors.transparent,
+                        ),
                         style: TextStyle(
-                          color: theme.primaryColor,
-                          fontWeight: FontWeight.w600,
+                          color: isDark ? AppColors.DARK_TEXT_PRIMARY : AppColors.LIGHT_TEXT_PRIMARY,
                           fontSize: 14,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          auth.currentUser?.username ?? 'Guest',
-                          style: TextStyle(
-                            color: isDark ? AppColors.DARK_TEXT_PRIMARY : AppColors.LIGHT_TEXT_PRIMARY,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                            height: 1.2,
-                          ),
-                        ),
-                        Text(
-                          auth.currentUser?.role.toString().split('.').last ?? '',
-                          style: TextStyle(
-                            color: isDark ? AppColors.DARK_TEXT_SECONDARY : AppColors.LIGHT_TEXT_SECONDARY,
-                            fontSize: 12,
-                            height: 1.2,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      LucideIcons.chevronDown, 
-                      size: 16, 
-                      color: isDark ? AppColors.DARK_TEXT_TERTIARY : AppColors.LIGHT_TEXT_TERTIARY,
-                    ),
+                    if (_searchController.text.isNotEmpty)
+                      IconButton(
+                        icon: const Icon(LucideIcons.x, size: 16),
+                        onPressed: () {
+                          _searchController.clear();
+                          context.read<GlobalSearchProvider>().clearSearch();
+                          _hideOverlay();
+                          setState(() {});
+                        },
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                      ),
                   ],
                 ),
               ),
-            ],
-          ),
-        ],
+            ),
+            
+            // User Profile & Actions
+            Row(
+              children: [
+                Consumer<NotificationProvider>(
+                  builder: (context, notifications, _) {
+                    return Stack(
+                      children: [
+                        IconButton(
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => const NotificationModal(),
+                            );
+                          },
+                          icon: const Icon(LucideIcons.bell),
+                          color: isDark ? AppColors.DARK_TEXT_SECONDARY : AppColors.LIGHT_TEXT_SECONDARY,
+                          iconSize: 20,
+                        ),
+                        if (notifications.unreadCount > 0)
+                          Positioned(
+                            right: 8,
+                            top: 8,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.error,
+                                shape: BoxShape.circle,
+                              ),
+                              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                              child: Text(
+                                '${notifications.unreadCount}',
+                                style: const TextStyle(color: Colors.white, fontSize: 10),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(width: 16),
+                Container(
+                  height: 32,
+                  width: 1,
+                  color: borderColor,
+                ),
+                const SizedBox(width: 16),
+                PopupMenuButton<String>(
+                  offset: const Offset(0, 48),
+                  onSelected: (value) {
+                    if (value == 'logout') {
+                      context.read<AuthProvider>().logout();
+                    }
+                  },
+                  itemBuilder: (context) => [
+                     PopupMenuItem(
+                      value: 'logout',
+                      child: Row(
+                        children: [
+                          const Icon(LucideIcons.logOut, size: 16, color: Colors.red),
+                          const SizedBox(width: 12),
+                          const Text('Logout', style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
+                    ),
+                  ],
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundColor: theme.primaryColor.withAlpha(40),
+                        child: Text(
+                          auth.currentUser?.username.substring(0, 1).toUpperCase() ?? '?',
+                          style: TextStyle(
+                            color: theme.primaryColor,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            auth.currentUser?.username ?? 'Guest',
+                            style: TextStyle(
+                              color: isDark ? AppColors.DARK_TEXT_PRIMARY : AppColors.LIGHT_TEXT_PRIMARY,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              height: 1.2,
+                            ),
+                          ),
+                          Text(
+                            auth.currentUser?.role.toString().split('.').last ?? '',
+                            style: TextStyle(
+                              color: isDark ? AppColors.DARK_TEXT_SECONDARY : AppColors.LIGHT_TEXT_SECONDARY,
+                              fontSize: 12,
+                              height: 1.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        LucideIcons.chevronDown, 
+                        size: 16, 
+                        color: isDark ? AppColors.DARK_TEXT_TERTIARY : AppColors.LIGHT_TEXT_TERTIARY,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

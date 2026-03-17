@@ -6,12 +6,12 @@ class AnalyticsRepository {
 
   Future<double> getTodayCreditSales() async {
     final now = DateTime.now();
-    final startOfDay = DateTime(now.year, now.month, now.day).toIso8601String();
+    final startOfDay = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}%";
     
     final result = await _db.rawQuery('''
       SELECT SUM(credit_amount) as total
       FROM transactions
-      WHERE created_at >= ?
+      WHERE created_at LIKE ?
     ''', [startOfDay]);
     
     return (result.first['total'] as num?)?.toDouble() ?? 0.0;
@@ -87,7 +87,7 @@ class AnalyticsRepository {
 
   Future<List<Map<String, dynamic>>> getTodaySalesByCategory() async {
     final now = DateTime.now();
-    final startOfDay = DateTime(now.year, now.month, now.day).toIso8601String();
+    final startOfDay = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}%";
 
     final result = await _db.rawQuery('''
       SELECT c.name as label, SUM(ti.subtotal) as value
@@ -96,7 +96,7 @@ class AnalyticsRepository {
       JOIN product_variants pv ON ti.product_variant_id = pv.id
       JOIN products p ON pv.product_id = p.id
       JOIN categories c ON p.category_id = c.id
-      WHERE t.created_at >= ?
+      WHERE t.created_at LIKE ?
       GROUP BY c.id
       ORDER BY value DESC
     ''', [startOfDay]);
@@ -223,18 +223,18 @@ class AnalyticsRepository {
 
   Future<Map<String, double>> getTodaySupplyStats() async {
     final now = DateTime.now();
-    final startOfDay = DateTime(now.year, now.month, now.day).toIso8601String();
+    final startOfDay = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}%";
 
     final purchaseResult = await _db.rawQuery('''
       SELECT SUM(amount) as total
       FROM supplier_ledgers
-      WHERE type = 'PURCHASE' AND created_at >= ?
+      WHERE type = 'PURCHASE' AND created_at LIKE ?
     ''', [startOfDay]);
 
     final paymentResult = await _db.rawQuery('''
       SELECT SUM(amount) as total
       FROM supplier_ledgers
-      WHERE type = 'PAYMENT' AND created_at >= ?
+      WHERE type = 'PAYMENT' AND created_at LIKE ?
     ''', [startOfDay]);
 
     final totalReceived = (purchaseResult.first['total'] as num?)?.toDouble() ?? 0.0;

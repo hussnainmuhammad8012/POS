@@ -39,14 +39,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
 
-    return Scaffold(
-      body: Column(
-        children: [
-          GlassHeader(
-            title: 'Settings',
-            subtitle: 'Configure your point of sale preferences',
-          ),
-          Expanded(
+    return Column(
+      children: [
+        GlassHeader(
+          title: 'Settings',
+          subtitle: 'Configure your point of sale preferences',
+        ),
+        Expanded(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -129,8 +128,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ],
-      ),
-    );
+      );
   }
 }
 

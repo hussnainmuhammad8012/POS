@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { Search, MoreVertical, Shield, ShieldOff, Calendar, Mail } from 'lucide-react'
 import api from '../api'
+import ClientModal from '../components/ClientModal'
 
 const Clients = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     fetchClients();
@@ -32,34 +34,43 @@ const Clients = () => {
   };
 
   return (
-    <div className="clients-page animate-fade-in">
-      <header className="page-header">
-        <div>
-          <h1>Client Management</h1>
-          <p>Manage licenses, trials, and access control.</p>
-        </div>
-        <button className="add-client-btn">+ New Client</button>
-      </header>
+    <div className="clients-page">
+      <div className="animate-fade-in">
+        <header className="page-header">
+          <div>
+            <h1>Client Management</h1>
+            <p>Manage licenses, trials, and access control.</p>
+          </div>
+          <button className="add-client-btn" onClick={() => setShowModal(true)}>+ New Client</button>
+        </header>
 
-      <div className="table-actions glass">
-        <div className="search-bar">
-          <Search size={18} />
-          <input 
-            type="text" 
-            placeholder="Search by name, email or store..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="filters">
-          <select>
-            <option>All Status</option>
-            <option>Active</option>
-            <option>Trial</option>
-            <option>Expired</option>
-          </select>
+        <div className="table-actions glass">
+          <div className="search-bar">
+            <Search size={18} />
+            <input 
+              type="text" 
+              placeholder="Search by name, email or store..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="filters">
+            <select>
+              <option>All Status</option>
+              <option>Active</option>
+              <option>Trial</option>
+              <option>Expired</option>
+            </select>
+          </div>
         </div>
       </div>
+
+      {showModal && (
+        <ClientModal 
+          onClose={() => setShowModal(false)} 
+          onSuccess={fetchClients} 
+        />
+      )}
 
       <div className="clients-table-container glass">
         <table className="clients-table">

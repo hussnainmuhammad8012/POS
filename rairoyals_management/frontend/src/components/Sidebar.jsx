@@ -2,7 +2,13 @@ import React from 'react'
 import { NavLink } from 'react-router-dom'
 import { LayoutDashboard, Users, MessageSquare, ShieldCheck, LogOut } from 'lucide-react'
 
-const Sidebar = () => {
+const Sidebar = ({ onLogout }) => {
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('admin');
+    onLogout();
+  };
+
   return (
     <aside className="sidebar glass">
       <div className="brand">
@@ -17,13 +23,13 @@ const Sidebar = () => {
       </nav>
 
       <div className="sidebar-footer">
-        <button className="logout-btn">
+        <button className="logout-btn" onClick={handleLogout}>
           <LogOut size={18} />
           <span>Logout</span>
         </button>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .sidebar {
           width: 260px;
           height: 100vh;
@@ -88,7 +94,7 @@ const SidebarLink = ({ to, icon, label }) => {
     >
       {icon}
       <span>{label}</span>
-      <style jsx>{`
+      <style>{`
         .nav-link {
           display: flex;
           align-items: center;

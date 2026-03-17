@@ -1,4 +1,5 @@
 const Client = require('../models/Client');
+const Feedback = require('../models/Feedback');
 
 const getClients = async (req, res) => {
   try {
@@ -100,4 +101,27 @@ const verifyLicense = async (req, res) => {
   }
 };
 
-module.exports = { getClients, createClient, updateClientStatus, verifyLicense };
+const getDashboardStats = async (req, res) => {
+  try {
+    const totalClients = await Client.countDocuments();
+    const activeTrials = await Client.countDocuments({ status: 'trial', isRemoteBlocked: false });
+    const blockedClients = await Client.countDocuments({ isRemoteBlocked: true });
+    
+    // Count feedback from another model if exists or just placeholder for now
+    // Actually, I should check feedbackController
+    const totalFeedback = await Feedback.countDocuments();
+    const newFeedback = await Feedback.countDocuments({ isProcessed: false });
+
+    res.json({
+      totalClients,
+      activeTrials,
+      blockedClients,
+      totalFeedback,
+      newFeedback
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching stats', error: err.message });
+  }
+};
+
+module.exports = { getClients, createClient, updateClientStatus, verifyLicense, getDashboardStats };

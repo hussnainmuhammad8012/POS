@@ -70,200 +70,198 @@ class _PosScreenState extends State<PosScreen> {
   Widget build(BuildContext context) {
     final pos = context.watch<PosProvider>();
 
-    return Scaffold(
-      body: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Left Side - Products/Scanning Panel
-          Expanded(
-            flex: 5,
-            child: Column(
-              children: [
-                GlassHeader(
-                  title: 'Point of Sale',
-                  subtitle: 'Quick checkout & product scanning',
-                  actions: [
-                    // Wholesale Toggle
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Left Side - Products/Scanning Panel
+        Expanded(
+          flex: 5,
+          child: Column(
+            children: [
+              GlassHeader(
+                title: 'Point of Sale',
+                subtitle: 'Quick checkout & product scanning',
+                actions: [
+                  // Wholesale Toggle
+                  Row(
+                    children: [
+                      Text('Wholesale', style: Theme.of(context).textTheme.bodySmall),
+                      Switch(
+                        value: pos.isWholesale,
+                        onChanged: (v) => pos.setWholesaleMode(v),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Column(
+                    children: [
+                      ModernCard(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            SizedBox(
+                              width: 80,
+                              child: CustomTextField(
+                                label: 'Qty',
+                                initialValue: pos.bulkQuantity.toString(),
+                                keyboardType: TextInputType.number,
+                                onChanged: (v) {
+                                  final parsed = int.tryParse(v) ?? 1;
+                                  pos.setBulkQuantity(parsed);
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: CustomTextField(
+                                controller: _barcodeController,
+                                focusNode: _barcodeFocusNode,
+                                label: 'Scan Barcode',
+                                hint: 'Enter barcode...',
+                                prefixIcon: LucideIcons.scanLine,
+                                autofocus: true,
+                                onSubmitted: (barcode) async {
+                                  if (barcode.isEmpty) return;
+                                  
+                                  final success = await pos.handleBarcode(
+                                    barcode, 
+                                    context.read<ProductRepository>(),
+                                  );
+
+                                  if (!success && mounted) {
+                                    AppToast.show(
+                                      context,
+                                      title: 'Scan Error',
+                                      message: pos.error ?? 'Product not found',
+                                      type: ToastType.error,
+                                    );
+                                  }
+                                  
+                                  _barcodeController.clear();
+                                  _barcodeFocusNode.requestFocus();
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Robust Cart Header
+                      if (pos.cartItems.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                          child: Row(
+                            children: [
+                              const SizedBox(width: 48), // Icon space
+                              const SizedBox(width: 20),
+                              Expanded(flex: 4, child: Text('PRODUCT', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.bold))),
+                              Expanded(flex: 2, child: Text('PRICE', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.bold))),
+                              Expanded(flex: 3, child: Center(child: Text('QUANTITY', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.bold)))),
+                              Expanded(flex: 2, child: Align(alignment: Alignment.centerRight, child: Text('TOTAL', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.bold)))),
+                              const SizedBox(width: 48), // Action space
+                            ],
+                          ),
+                        ),
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardTheme.color,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Theme.of(context).dividerTheme.color?.withOpacity(0.5) ?? Colors.grey.withOpacity(0.1),
+                              width: 1,
+                            ),
+                          ),
+                          child: pos.cartItems.isEmpty
+                              ? const _EmptyCartState()
+                              : ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: ListView.separated(
+                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                    itemCount: pos.cartItems.length,
+                                    separatorBuilder: (_, __) => Divider(height: 1, color: Theme.of(context).dividerTheme.color?.withOpacity(0.5)),
+                                    itemBuilder: (context, index) {
+                                      final item = pos.cartItems[index];
+                                      return _ModernCartRow(item: item);
+                                    },
+                                  ),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Right Side - The Cart Sidebar
+        Container(
+          width: 340,
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardTheme.color,
+            border: Border(
+              left: BorderSide(color: Theme.of(context).dividerTheme.color ?? Colors.grey.shade300),
+            ),
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Checkout Details', style: Theme.of(context).textTheme.titleLarge),
+                        Icon(LucideIcons.shoppingCart, color: Theme.of(context).primaryColor, size: 24),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    Text('Customer', style: Theme.of(context).textTheme.labelLarge),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
-                        Text('Wholesale', style: Theme.of(context).textTheme.bodySmall),
-                        Switch(
-                          value: pos.isWholesale,
-                          onChanged: (v) => pos.setWholesaleMode(v),
+                        Expanded(
+                          child: SearchableCustomerDropdown(
+                            value: pos.selectedCustomer,
+                            onChanged: (c) => pos.setCustomer(c),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => const AddCustomerDialog(),
+                            );
+                          },
+                          icon: const Icon(LucideIcons.userPlus),
+                          tooltip: 'Add New Customer',
                         ),
                       ],
                     ),
                   ],
                 ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                    child: Column(
-                      children: [
-                        ModernCard(
-                          padding: const EdgeInsets.all(24.0),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              SizedBox(
-                                width: 80,
-                                child: CustomTextField(
-                                  label: 'Qty',
-                                  initialValue: pos.bulkQuantity.toString(),
-                                  keyboardType: TextInputType.number,
-                                  onChanged: (v) {
-                                    final parsed = int.tryParse(v) ?? 1;
-                                    pos.setBulkQuantity(parsed);
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: CustomTextField(
-                                  controller: _barcodeController,
-                                  focusNode: _barcodeFocusNode,
-                                  label: 'Scan Barcode',
-                                  hint: 'Enter barcode...',
-                                  prefixIcon: LucideIcons.scanLine,
-                                  autofocus: true,
-                                  onSubmitted: (barcode) async {
-                                    if (barcode.isEmpty) return;
-                                    
-                                    final success = await pos.handleBarcode(
-                                      barcode, 
-                                      context.read<ProductRepository>(),
-                                    );
-
-                                    if (!success && mounted) {
-                                      AppToast.show(
-                                        context,
-                                        title: 'Scan Error',
-                                        message: pos.error ?? 'Product not found',
-                                        type: ToastType.error,
-                                      );
-                                    }
-                                    
-                                    _barcodeController.clear();
-                                    _barcodeFocusNode.requestFocus();
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        // Robust Cart Header
-                        if (pos.cartItems.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                            child: Row(
-                              children: [
-                                const SizedBox(width: 48), // Icon space
-                                const SizedBox(width: 20),
-                                Expanded(flex: 4, child: Text('PRODUCT', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.bold))),
-                                Expanded(flex: 2, child: Text('PRICE', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.bold))),
-                                Expanded(flex: 3, child: Center(child: Text('QUANTITY', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.bold)))),
-                                Expanded(flex: 2, child: Align(alignment: Alignment.centerRight, child: Text('TOTAL', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.bold)))),
-                                const SizedBox(width: 48), // Action space
-                              ],
-                            ),
-                          ),
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).cardTheme.color,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: Theme.of(context).dividerTheme.color?.withOpacity(0.5) ?? Colors.grey.withOpacity(0.1),
-                                width: 1,
-                              ),
-                            ),
-                            child: pos.cartItems.isEmpty
-                                ? const _EmptyCartState()
-                                : ClipRRect(
-                                    borderRadius: BorderRadius.circular(16),
-                                    child: ListView.separated(
-                                      padding: const EdgeInsets.symmetric(vertical: 8),
-                                      itemCount: pos.cartItems.length,
-                                      separatorBuilder: (_, __) => Divider(height: 1, color: Theme.of(context).dividerTheme.color?.withOpacity(0.5)),
-                                      itemBuilder: (context, index) {
-                                        final item = pos.cartItems[index];
-                                        return _ModernCartRow(item: item);
-                                      },
-                                    ),
-                                  ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Right Side - The Cart Sidebar
-          Container(
-            width: 340,
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardTheme.color,
-              border: Border(
-                left: BorderSide(color: Theme.of(context).dividerTheme.color ?? Colors.grey.shade300),
               ),
-            ),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Checkout Details', style: Theme.of(context).textTheme.titleLarge),
-                          Icon(LucideIcons.shoppingCart, color: Theme.of(context).primaryColor, size: 24),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      Text('Customer', style: Theme.of(context).textTheme.labelLarge),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: SearchableCustomerDropdown(
-                              value: pos.selectedCustomer,
-                              onChanged: (c) => pos.setCustomer(c),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (context) => const AddCustomerDialog(),
-                              );
-                            },
-                            icon: const Icon(LucideIcons.userPlus),
-                            tooltip: 'Add New Customer',
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+              const Divider(height: 1),
+              const Expanded(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.zero,
+                  child: _CheckoutSummary(),
                 ),
-                const Divider(height: 1),
-                const Expanded(
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.zero,
-                    child: _CheckoutSummary(),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

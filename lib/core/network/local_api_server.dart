@@ -16,6 +16,7 @@ import '../repositories/supplier_repository.dart';
 import '../services/fcm_service.dart';
 import '../services/data_sync_service.dart';
 import '../../features/auth/application/auth_service.dart';
+import '../../core/models/auth_models.dart';
 
 /// Local HTTP server for Companion App
 /// Runs on background isolate (handled via app initialization)
@@ -373,12 +374,17 @@ class LocalApiServer {
         print('LocalServer: Registered FCM Token for $username: $fcmToken');
       }
 
+      // For admin role, always send full permissions regardless of DB values
+      final effectivePermissions = user.role == UserRole.admin
+          ? UserPermissions.fromRole(UserRole.admin)
+          : user.permissions;
+
       return Response.ok(jsonEncode({
         'status': 'success',
         'message': 'Logged in successfully',
         'token': _sessionKey,
         'role': user.role.toString().split('.').last,
-        'permissions': user.permissions.toMap(),
+        'permissions': effectivePermissions.toMap(),
       }));
     }
     
