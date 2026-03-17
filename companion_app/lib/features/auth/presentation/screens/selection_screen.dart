@@ -39,7 +39,7 @@ class SelectionScreen extends StatelessWidget {
                 builder: (context, auth, _) {
                   return Column(
                     children: [
-                      if (auth.canAccessInventory)
+                      if (!auth.isLoggedIn || auth.canAccessInventory)
                         _buildSelectionCard(
                           context,
                           title: 'Manage Inventory',
@@ -50,8 +50,8 @@ class SelectionScreen extends StatelessWidget {
                             context.read<AuthProvider>().setAppMode(AppMode.inventory);
                           },
                         ),
-                      if (auth.canAccessInventory) const SizedBox(height: 20),
-                      if (auth.canAccessAnalytics)
+                      if (!auth.isLoggedIn || auth.canAccessInventory) const SizedBox(height: 20),
+                      if (!auth.isLoggedIn || auth.canAccessAnalytics)
                         _buildSelectionCard(
                           context,
                           title: 'Admin Dashboard',
@@ -62,7 +62,7 @@ class SelectionScreen extends StatelessWidget {
                             context.read<AuthProvider>().setAppMode(AppMode.admin);
                           },
                         ),
-                      if (!auth.canAccessInventory && !auth.canAccessAnalytics)
+                      if (auth.isLoggedIn && !auth.canAccessInventory && !auth.canAccessAnalytics)
                         const Center(
                           child: Text(
                             'No modules assigned to your account.\nPlease contact Admin.',

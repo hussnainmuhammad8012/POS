@@ -179,11 +179,14 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                                   onPressed: _pickFiles,
                                   icon: const Icon(LucideIcons.paperclip, size: 18),
                                   label: const Text('Attach Files'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: theme.primaryColor.withOpacity(0.1),
-                                    foregroundColor: theme.primaryColor,
-                                    overlayColor: theme.primaryColor.withOpacity(0.15),
-                                    elevation: 0,
+                                  style: ButtonStyle(
+                                    backgroundColor: WidgetStateProperty.resolveWith((states) {
+                                      if (states.contains(WidgetState.hovered)) return theme.primaryColor.withOpacity(0.2);
+                                      return theme.primaryColor.withOpacity(0.1);
+                                    }),
+                                    foregroundColor: WidgetStateProperty.all(theme.primaryColor),
+                                    elevation: WidgetStateProperty.all(0),
+                                    overlayColor: WidgetStateProperty.all(Colors.transparent),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -191,11 +194,14 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                                   onPressed: _captureScreenshot,
                                   icon: const Icon(LucideIcons.camera, size: 18),
                                   label: const Text('Screenshot'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: theme.primaryColor.withOpacity(0.1),
-                                    foregroundColor: theme.primaryColor,
-                                    overlayColor: theme.primaryColor.withOpacity(0.15),
-                                    elevation: 0,
+                                  style: ButtonStyle(
+                                    backgroundColor: WidgetStateProperty.resolveWith((states) {
+                                      if (states.contains(WidgetState.hovered)) return theme.primaryColor.withOpacity(0.2);
+                                      return theme.primaryColor.withOpacity(0.1);
+                                    }),
+                                    foregroundColor: WidgetStateProperty.all(theme.primaryColor),
+                                    elevation: WidgetStateProperty.all(0),
+                                    overlayColor: WidgetStateProperty.all(Colors.transparent),
                                   ),
                                 ),
                                 const Spacer(),

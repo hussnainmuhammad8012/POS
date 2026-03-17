@@ -689,6 +689,8 @@ class _SettingsNavTile extends StatelessWidget {
           ),
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        hoverColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+        splashColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
         onTap: onTap,
       ),
     );
@@ -840,10 +842,14 @@ class _UserManagementPanelState extends State<_UserManagementPanel> {
                         onPressed: () => _showEditUserDialog(user),
                         icon: const Icon(LucideIcons.edit3, size: 16),
                         label: const Text('Manage Permissions'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: theme.primaryColor.withOpacity(0.1),
-                          foregroundColor: theme.primaryColor,
-                          elevation: 0,
+                        style: ButtonStyle(
+                          backgroundColor: WidgetStateProperty.resolveWith((states) {
+                            if (states.contains(WidgetState.hovered)) return theme.primaryColor.withOpacity(0.2);
+                            return theme.primaryColor.withOpacity(0.1);
+                          }),
+                          foregroundColor: WidgetStateProperty.all(theme.primaryColor),
+                          elevation: WidgetStateProperty.all(0),
+                          overlayColor: WidgetStateProperty.all(Colors.transparent),
                         ),
                       ),
                   ],

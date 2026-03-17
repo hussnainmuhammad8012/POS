@@ -54,6 +54,8 @@ class CompanionApp extends StatelessWidget {
           // 2. Path A: Inventory
           if (auth.currentMode == AppMode.inventory) {
             if (!auth.isPaired) return const PairingScreen();
+            if (!auth.isLoggedIn) return const LoginScreen();
+            
             return ChangeNotifierProvider(
               create: (_) => InventoryProvider(
                 serverIp: auth.serverIp!,
