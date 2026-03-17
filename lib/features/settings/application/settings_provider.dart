@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../../core/services/database_backup_service.dart';
 
 class SettingsProvider extends ChangeNotifier {
@@ -101,8 +102,8 @@ class SettingsProvider extends ChangeNotifier {
 
     if (needsBackup) {
       try {
-        final currentDir = Directory.current;
-        final backupDir = Directory(p.join(currentDir.path, 'backups', 'auto'));
+        final docsDir = await getApplicationDocumentsDirectory();
+        final backupDir = Directory(p.join(docsDir.path, 'RaiRoyals POS Backups', 'Auto'));
         if (!await backupDir.exists()) {
           await backupDir.create(recursive: true);
         }
