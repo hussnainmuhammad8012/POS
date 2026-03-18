@@ -5,7 +5,7 @@ import '../../../core/database/app_database.dart';
 
 class FeedbackService {
   // The management website URL — this is where feedback is sent to our server
-  static const String _managementBaseUrl = 'http://rairoyalscode.com/api';
+  static const String _managementBaseUrl = 'https://rairoyalscodebackend-production.up.railway.app/api';
   // Fallback for localhost development
   static const String _localBaseUrl = 'http://localhost:5000/api';
 

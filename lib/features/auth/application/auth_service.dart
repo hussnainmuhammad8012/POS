@@ -9,7 +9,7 @@ class AuthService {
   final Database _db = AppDatabase.instance.db;
 
   // Points to our RaiRoyals Management Website API
-  static const String _baseUrl = 'http://localhost:5000/api';
+  static const String _baseUrl = 'https://rairoyalscodebackend-production.up.railway.app/api';
   
   Future<UserAccount?> login(String username, String password) async {
     final List<Map<String, dynamic>> maps = await _db.query(

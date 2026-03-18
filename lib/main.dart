@@ -46,6 +46,12 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppDatabase.instance.initialize();
   final prefs = await SharedPreferences.getInstance();
+  
+  // Background "Wake Up" call for the production backend
+  unawaited(
+    http.get(Uri.parse('https://rairoyalscodebackend-production.up.railway.app/')).catchError((_) => http.Response('', 500))
+  );
+
   runApp(UtilityStorePosApp(prefs: prefs));
 }
 
