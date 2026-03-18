@@ -58,14 +58,25 @@ class _LicenseActivationScreenState extends State<LicenseActivationScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // Branding
+              const Icon(LucideIcons.shieldCheck, color: AppColors.INFO, size: 48),
+              const SizedBox(height: 16),
               Text(
                 'RaiRoyalsCode',
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 28,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.2,
                   color: theme.primaryColor,
                   fontFamily: 'Poppins',
+                ),
+              ),
+              const Text(
+                'PRODUCT ACTIVATION',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2,
+                  color: AppColors.DARK_TEXT_TERTIARY,
                 ),
               ),
               const SizedBox(height: 48),
@@ -129,13 +140,25 @@ class _LicenseActivationScreenState extends State<LicenseActivationScreen> {
                     ),
                     
                     const SizedBox(height: 24),
-                    Text(
-                      'Don\'t have a key? Contact your provider.',
-                      style: theme.textTheme.bodySmall?.copyWith(color: AppColors.DARK_TEXT_TERTIARY),
+                    const Divider(),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'BUILT BY RAIROYALSCODE',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.5,
+                        color: AppColors.DARK_TEXT_TERTIARY,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Support: Hussnain Muhammad',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                     const Text(
-                      'Support: 03258012402',
-                      style: TextStyle(fontSize: 10, color: AppColors.DARK_TEXT_TERTIARY),
+                      '03258012402',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.INFO),
                     ),
                   ],
                 ),

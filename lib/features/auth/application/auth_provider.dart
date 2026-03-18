@@ -16,6 +16,9 @@ class AuthProvider extends ChangeNotifier {
   
   bool _needsActivation = false;
   bool get needsActivation => _needsActivation;
+
+  bool _hasAcceptedTerms = true; // Default to true until checked
+  bool get hasAcceptedTerms => _hasAcceptedTerms;
   
   String _statusMessage = '';
   String get statusMessage => _statusMessage;
@@ -47,6 +50,7 @@ class AuthProvider extends ChangeNotifier {
     final status = await _authService.checkLicenseStatus();
     _isBlocked = status['isBlocked'] ?? false;
     _needsActivation = status['needsActivation'] ?? false;
+    _hasAcceptedTerms = await _authService.hasAcceptedTerms();
     
     // Trial logic
     final isTrial = status['isTrial'] ?? false;
@@ -59,6 +63,12 @@ class AuthProvider extends ChangeNotifier {
     }
     
     _statusMessage = status['message'] ?? '';
+    notifyListeners();
+  }
+
+  Future<void> acceptTerms() async {
+    await _authService.acceptTerms();
+    _hasAcceptedTerms = true;
     notifyListeners();
   }
 

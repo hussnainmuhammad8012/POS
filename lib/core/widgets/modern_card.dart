@@ -13,6 +13,7 @@ class ModernCard extends StatefulWidget {
   final Color? borderColor;
   final Color? backgroundColor;
   final double? width;
+  final double? height;
 
   const ModernCard({
     super.key,
@@ -26,6 +27,7 @@ class ModernCard extends StatefulWidget {
     this.borderColor,
     this.backgroundColor,
     this.width,
+    this.height,
   });
 
   @override
@@ -49,6 +51,7 @@ class _ModernCardState extends State<ModernCard> {
         curve: Curves.easeOutCubic,
         margin: widget.margin,
         width: widget.width,
+        height: widget.height,
         transform: Matrix4.identity()..scale(_isHovered ? 1.02 : 1.0),
         transformAlignment: Alignment.center,
         decoration: BoxDecoration(

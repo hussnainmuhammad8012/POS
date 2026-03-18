@@ -60,6 +60,20 @@ class AuthService {
     return maps.first['value'] as String;
   }
 
+  Future<bool> hasAcceptedTerms() async {
+    final List<Map<String, dynamic>> maps = await _db.query('settings', where: 'key = ?', whereArgs: ['terms_accepted']);
+    if (maps.isEmpty) return false;
+    return maps.first['value'] == 'true';
+  }
+
+  Future<void> acceptTerms() async {
+    await _db.insert(
+      'settings', 
+      {'key': 'terms_accepted', 'value': 'true'},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
   Future<Map<String, dynamic>> activateLicense(String key) async {
     try {
       final String deviceId = await _getDeviceId();

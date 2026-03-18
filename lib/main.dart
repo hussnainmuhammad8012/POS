@@ -39,6 +39,7 @@ import 'features/auth/application/auth_provider.dart';
 import 'features/auth/application/auth_service.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/screens/license_screen.dart';
+import 'features/auth/presentation/screens/consent_screen.dart';
 import 'core/widgets/block_screen.dart';
 
 // ... other imports ...
@@ -285,6 +286,10 @@ class _AppBootstrapperState extends State<_AppBootstrapper> with TrayListener {
           themeMode: themeProvider.themeMode,
           home: Consumer<AuthProvider>(
             builder: (context, auth, _) {
+              if (!auth.hasAcceptedTerms) {
+                return const ConsentScreen();
+              }
+              
               if (auth.needsActivation) {
                 return const LicenseActivationScreen();
               }
