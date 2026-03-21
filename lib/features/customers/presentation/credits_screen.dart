@@ -11,6 +11,8 @@ import '../../../core/widgets/custom_text_field.dart';
 import '../../../core/widgets/toast_notification.dart';
 import '../application/customers_provider.dart';
 import '../application/credit_ledger_provider.dart';
+import '../../transactions/application/transactions_provider.dart';
+import '../../transactions/presentation/transaction_details_screen.dart';
 
 class CreditsScreen extends StatefulWidget {
   const CreditsScreen({super.key});
@@ -263,12 +265,30 @@ class _CustomerLedgerView extends StatelessWidget {
                           final entry = ledgers[index];
                           final isCredit = entry.type == 'CREDIT';
                           return ListTile(
+                            onTap: entry.transactionId != null 
+                              ? () async {
+                                  final tx = await context.read<TransactionsProvider>().getTransactionById(entry.transactionId!);
+                                  if (tx != null && context.mounted) {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (context) => TransactionDetailsScreen(transaction: tx)),
+                                    );
+                                  }
+                                }
+                              : null,
                             leading: Icon(
                               isCredit ? LucideIcons.arrowUpRight : LucideIcons.arrowDownLeft,
                               color: isCredit ? AppColors.DANGER : Colors.green,
                             ),
                             title: Text(isCredit ? 'Credit Sale' : 'Payment Received'),
-                            subtitle: Text(DateFormat('MMM dd, yyyy HH:mm').format(entry.createdAt)),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(DateFormat('MMM dd, yyyy HH:mm').format(entry.createdAt)),
+                                if (entry.transactionId != null)
+                                  const Text('Tap to view items', style: TextStyle(fontSize: 10, color: Colors.blue)),
+                              ],
+                            ),
                             trailing: Text(
                               '${isCredit ? "+" : "-"} Rs ${entry.amount.toStringAsFixed(2)}',
                               style: TextStyle(

@@ -11,8 +11,11 @@ import '../../../../core/widgets/app_dropdown.dart';
 import '../../../../core/widgets/toast_notification.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/product_summary_model.dart';
+import '../../data/models/product_unit_model.dart';
+import '../../data/repositories/product_repository.dart';
 import '../../../../features/suppliers/application/suppliers_provider.dart';
 import '../../../../features/suppliers/presentation/widgets/add_supplier_dialog.dart';
+import '../../../../features/settings/application/settings_provider.dart';
 
 class AddProductDialog extends StatefulWidget {
   final ProductSummary? initialProduct;
@@ -28,6 +31,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
   final _scrollController = ScrollController();
   int _currentStep = 0;
   bool _isSaving = false;
+  bool _isLoadingUoms = false;
   bool _skuManuallyEdited = false;
   bool _isAutoGeneratingSku = false;
 
@@ -35,12 +39,12 @@ class _AddProductDialogState extends State<AddProductDialog> {
   final _nameController = TextEditingController();
   final _skuController = TextEditingController();
   final _descriptionController = TextEditingController();
-  String? _selectedImagePath; // replaces the text path field
+  String? _selectedImagePath; 
   String? _selectedCategoryId;
-  String? _selectedSupplierId; // Supplier ID for Product
+  String? _selectedSupplierId; 
 
-  // Step 2: Pricing & Units
-  final _unitController = TextEditingController(text: 'Pieces');
+  // Step 2: Pricing & Base Unit
+  final _unitController = TextEditingController(text: 'Piece');
   final _barcodeController = TextEditingController();
   final _qrController = TextEditingController();
   final _costPriceController = TextEditingController();
@@ -48,7 +52,10 @@ class _AddProductDialogState extends State<AddProductDialog> {
   final _wholesalePriceController = TextEditingController();
   final _mrpController = TextEditingController();
 
-  // Step 3: Stock Management
+  // Step 3 (Multipliers): List of UOMs mapped locally
+  List<ProductUnit> _multiplierUnits = [];
+
+  // Step 4: Stock Management
   final _initialStockController = TextEditingController(text: '0');
   final _lowStockThresholdController = TextEditingController(text: '10');
 
@@ -59,18 +66,19 @@ class _AddProductDialogState extends State<AddProductDialog> {
     super.initState();
     _nameController.addListener(_onNameChanged);
     _skuController.addListener(_onSkuChanged);
+    
     if (isEditing) {
       final p = widget.initialProduct!.product;
       _nameController.text = p.name;
       _skuController.text = p.baseSku;
-      _skuManuallyEdited = true; // Pretend it's edited so we don't overwrite existing SKU
+      _skuManuallyEdited = true; 
       _descriptionController.text = p.description ?? '';
       _selectedCategoryId = p.categoryId;
       _selectedSupplierId = p.supplierId;
       _selectedImagePath = p.mainImagePath;
       _unitController.text = p.unitType;
       
-      // Pricing
+      // Basic Fallback defaults
       _costPriceController.text = widget.initialProduct!.costPrice?.toString() ?? '';
       _retailPriceController.text = widget.initialProduct!.minPrice.toString();
       _wholesalePriceController.text = widget.initialProduct!.wholesalePrice?.toString() ?? '';
@@ -78,10 +86,30 @@ class _AddProductDialogState extends State<AddProductDialog> {
       _barcodeController.text = widget.initialProduct!.barcode ?? '';
       _qrController.text = widget.initialProduct!.qrCode ?? '';
 
-      // Stock
       _initialStockController.text = widget.initialProduct!.totalStock.toString();
-      // Assume lowStockThreshold defaults to 10 if we didn't fetch it explicitly in summary, 
-      // but if we did, we would map it here. For now, leave it as default or clear it.
+
+      _isLoadingUoms = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final repo = context.read<ProductRepository>();
+        final units = await repo.getUnitsByProductId(p.id);
+        if (units.isNotEmpty) {
+           final baseUnit = units.firstWhere((u) => u.isBaseUnit, orElse: () => units.first);
+           _unitController.text = baseUnit.unitName;
+           _costPriceController.text = baseUnit.costPrice.toString();
+           _retailPriceController.text = baseUnit.retailPrice.toString();
+           _wholesalePriceController.text = baseUnit.wholesalePrice?.toString() ?? '';
+           _mrpController.text = baseUnit.mrp?.toString() ?? '';
+           _barcodeController.text = baseUnit.barcode ?? '';
+           _qrController.text = baseUnit.qrCode ?? '';
+           
+           setState(() {
+             _multiplierUnits = units.where((u) => !u.isBaseUnit).toList();
+             _isLoadingUoms = false;
+           });
+        } else {
+           setState(() => _isLoadingUoms = false);
+        }
+      });
     }
   }
 
@@ -116,8 +144,14 @@ class _AddProductDialogState extends State<AddProductDialog> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoadingUoms) {
+      return const AlertDialog(content: SizedBox(height: 100, child: Center(child: CircularProgressIndicator())));
+    }
+
     final provider = context.watch<InventoryProvider>();
     final suppliersProvider = context.watch<SuppliersProvider>();
+    final isUom = context.watch<SettingsProvider>().enableUomSystem;
+    final totalSteps = isUom ? 4 : 3;
 
     return AlertDialog(
       title: Row(
@@ -128,14 +162,14 @@ class _AddProductDialogState extends State<AddProductDialog> {
         ],
       ),
       content: Container(
-        width: 600,
+        width: 650,
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.7,
+          maxHeight: MediaQuery.of(context).size.height * 0.75,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildStepIndicator(),
+            _buildStepIndicator(isUom, totalSteps),
             const SizedBox(height: 24),
             Flexible(
               child: Theme(
@@ -159,7 +193,11 @@ class _AddProductDialogState extends State<AddProductDialog> {
                           duration: const Duration(milliseconds: 300),
                           child: _currentStep == 0 
                             ? _buildStepOne(provider, suppliersProvider) 
-                            : (_currentStep == 1 ? _buildStepTwo() : _buildStepThree()),
+                            : (_currentStep == 1 
+                                ? _buildStepTwo(isUom) 
+                                : (isUom && _currentStep == 2 
+                                    ? _buildStepThreeUom() 
+                                    : _buildStepStock(isUom))),
                         ),
                       ),
                     ),
@@ -182,28 +220,33 @@ class _AddProductDialogState extends State<AddProductDialog> {
           ),
         const SizedBox(width: 8),
         ElevatedButton(
-          onPressed: _isSaving ? null : () => _handleNext(provider),
+          onPressed: _isSaving ? null : () => _handleNext(provider, isUom, totalSteps),
           child: _isSaving 
             ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : Text(_currentStep < 2 ? 'Next' : (isEditing ? 'Save Changes' : 'Create Product')),
+            : Text(_currentStep < (totalSteps - 1) ? 'Next' : (isEditing ? 'Save Changes' : 'Create Product')),
         ),
       ],
     );
   }
 
-  Widget _buildStepIndicator() {
+  Widget _buildStepIndicator(bool isUom, int totalSteps) {
     return Row(
       children: [
-        _indicatorItem(0, 'Identity', LucideIcons.tag),
+        _indicatorItem(0, 'Identity', LucideIcons.tag, totalSteps),
         _indicatorLine(),
-        _indicatorItem(1, 'Pricing', LucideIcons.coins),
+        _indicatorItem(1, isUom ? 'Base Unit' : 'Pricing', LucideIcons.coins, totalSteps),
         _indicatorLine(),
-        _indicatorItem(2, 'Stock', LucideIcons.boxes),
+        if (isUom) ...[
+          _indicatorItem(2, 'Multipliers', LucideIcons.layers, totalSteps),
+          _indicatorLine(),
+          _indicatorItem(3, 'Stock', LucideIcons.boxes, totalSteps),
+        ] else 
+          _indicatorItem(2, 'Stock', LucideIcons.boxes, totalSteps),
       ],
     );
   }
 
-  Widget _indicatorItem(int index, String label, IconData icon) {
+  Widget _indicatorItem(int index, String label, IconData icon, int totalSteps) {
     bool isActive = _currentStep == index;
     bool isCompleted = _currentStep > index;
     Color color = isActive || isCompleted 
@@ -238,7 +281,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
 
   Widget _indicatorLine() {
     return Container(
-      width: 20, // Slightly shorter for 3 steps
+      width: 15,
       height: 2,
       margin: const EdgeInsets.only(bottom: 20),
       color: Colors.grey.shade300,
@@ -311,26 +354,11 @@ class _AddProductDialogState extends State<AddProductDialog> {
           validator: (v) => v == null || v.isEmpty ? 'Required' : null,
         ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: CustomTextField(
-                controller: _skuController,
-                label: 'Base SKU',
-                prefixIcon: LucideIcons.tag,
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: CustomTextField(
-                controller: _unitController,
-                label: 'Unit Type',
-                prefixIcon: LucideIcons.hash,
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-              ),
-            ),
-          ],
+        CustomTextField(
+          controller: _skuController,
+          label: 'Base SKU',
+          prefixIcon: LucideIcons.tag,
+          validator: (v) => v == null || v.isEmpty ? 'Required' : null,
         ),
         const SizedBox(height: 16),
         CustomTextField(
@@ -429,21 +457,39 @@ class _AddProductDialogState extends State<AddProductDialog> {
     );
   }
 
-  Widget _buildStepTwo() {
+  Widget _buildStepTwo(bool isUom) {
     return Column(
       key: const ValueKey(1),
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (isUom)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16.0),
+            child: Text('Define the native formatting and pricing for the lowest sellable chunk of this product.', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+          ),
+        Row(
+          children: [
+            Expanded(
+              child: CustomTextField(
+                controller: _unitController,
+                label: isUom ? 'Base Unit Name (e.g. Piece)' : 'Unit Type',
+                prefixIcon: LucideIcons.hash,
+                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
         Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Expanded(
               child: CustomTextField(
                 controller: _barcodeController,
-                label: 'Product Barcode',
+                label: 'Base Barcode',
                 prefixIcon: LucideIcons.scanLine,
                 hint: 'Scan or enter barcode...',
-                autofocus: true,
               ),
             ),
             const SizedBox(width: 8),
@@ -451,33 +497,12 @@ class _AddProductDialogState extends State<AddProductDialog> {
               margin: const EdgeInsets.only(bottom: 4),
               child: IconButton(
                 icon: const Icon(LucideIcons.refreshCw),
-                onPressed: _generateInternalBarcode,
+                onPressed: () => _generateInternalBarcode(_barcodeController),
                 tooltip: 'Generate Internal Barcode',
                 color: Theme.of(context).primaryColor,
               ),
             ),
           ],
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.amber.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.amber.withOpacity(0.2)),
-          ),
-          child: Row(
-            children: [
-              const Icon(LucideIcons.alertTriangle, size: 14, color: Colors.amber),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text(
-                  'Generated barcodes are for internal inventory use and are not GS1 registered product codes.',
-                  style: TextStyle(fontSize: 11, color: Colors.amber, fontWeight: FontWeight.w500),
-                ),
-              ),
-            ],
-          ),
         ),
         const SizedBox(height: 16),
         Row(
@@ -496,7 +521,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
               margin: const EdgeInsets.only(bottom: 4),
               child: IconButton(
                 icon: const Icon(LucideIcons.refreshCw),
-                onPressed: _generateInternalQr,
+                onPressed: () => _generateInternalQr(_qrController),
                 tooltip: 'Generate Alphanumeric QR',
                 color: Colors.green,
               ),
@@ -533,7 +558,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
             Expanded(
               child: CustomTextField(
                 controller: _wholesalePriceController,
-                label: 'Wholesale Price',
+                label: 'Wholesale Price (Optional)',
                 prefixIcon: LucideIcons.users,
                 keyboardType: TextInputType.number,
               ),
@@ -542,7 +567,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
             Expanded(
               child: CustomTextField(
                 controller: _mrpController,
-                label: 'MRP',
+                label: 'MRP (Optional)',
                 prefixIcon: LucideIcons.shieldCheck,
                 keyboardType: TextInputType.number,
               ),
@@ -553,17 +578,158 @@ class _AddProductDialogState extends State<AddProductDialog> {
     );
   }
 
-  Widget _buildStepThree() {
+  Widget _buildStepThreeUom() {
     return Column(
       key: const ValueKey(2),
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+           const Text(
+              'Multiplier Units',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => _showAddMultiplierDialog(),
+              icon: const Icon(LucideIcons.plus, size: 16),
+              label: const Text('Add UOM'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text('Add boxes or cartons based on how many ${_unitController.text}s they contain.', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+        const SizedBox(height: 16),
+        if (_multiplierUnits.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(24),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+            ),
+            child: Text('No multipliers added. Product will only be sold as piece/base.', style: TextStyle(color: Colors.grey.shade500)),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _multiplierUnits.length,
+            itemBuilder: (context, index) {
+              final u = _multiplierUnits[index];
+              return Card(
+                elevation: 0,
+                color: Colors.grey.shade50,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: Colors.grey.shade300)),
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  title: Text('${u.unitName} = ${u.conversionRate} ${_unitController.text}s', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text('Cost: ${u.costPrice} | Retail: ${u.retailPrice}\nBarcode: ${u.barcode ?? "N/A"}'),
+                  isThreeLine: true,
+                  trailing: IconButton(
+                    icon: const Icon(LucideIcons.trash2, color: Colors.red),
+                    onPressed: () => setState(() => _multiplierUnits.removeAt(index)),
+                  ),
+                ),
+              );
+            },
+          ),
+      ],
+    );
+  }
+
+  void _showAddMultiplierDialog() {
+    final nameCtrl = TextEditingController();
+    final rateCtrl = TextEditingController();
+    final barcodeCtrl = TextEditingController();
+    final costCtrl = TextEditingController();
+    final retailCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Add Multiplier Unit'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CustomTextField(controller: nameCtrl, label: 'Unit Name (e.g. Box)', prefixIcon: LucideIcons.package),
+                const SizedBox(height: 12),
+                CustomTextField(controller: rateCtrl, label: 'Conversion Rate (How many Base units?)', keyboardType: TextInputType.number, prefixIcon: LucideIcons.layers),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(child: CustomTextField(controller: barcodeCtrl, label: 'Barcode', prefixIcon: LucideIcons.scanLine)),
+                    IconButton(icon: const Icon(LucideIcons.refreshCw), onPressed: () => _generateInternalBarcode(barcodeCtrl)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                CustomTextField(controller: costCtrl, label: 'Cost Price', keyboardType: TextInputType.number, prefixIcon: LucideIcons.arrowDownCircle),
+                const SizedBox(height: 12),
+                CustomTextField(controller: retailCtrl, label: 'Retail Price', keyboardType: TextInputType.number, prefixIcon: LucideIcons.arrowUpCircle),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () {
+                if (nameCtrl.text.isEmpty || rateCtrl.text.isEmpty || costCtrl.text.isEmpty || retailCtrl.text.isEmpty) {
+                  AppToast.show(ctx, title: 'Error', message: 'Please fill all required fields.', type: ToastType.error);
+                  return;
+                }
+                final rate = int.tryParse(rateCtrl.text) ?? 0;
+                if (rate <= 1) {
+                  AppToast.show(ctx, title: 'Error', message: 'Conversion rate must be > 1.', type: ToastType.error);
+                  return;
+                }
+                setState(() {
+                  _multiplierUnits.add(ProductUnit(
+                    id: 'unit_new_${DateTime.now().microsecondsSinceEpoch}',
+                    productId: isEditing ? widget.initialProduct!.product.id : '',
+                    unitName: nameCtrl.text,
+                    conversionRate: rate,
+                    isBaseUnit: false,
+                    barcode: barcodeCtrl.text.isEmpty ? null : barcodeCtrl.text,
+                    costPrice: double.parse(costCtrl.text),
+                    retailPrice: double.parse(retailCtrl.text),
+                    isActive: true,
+                    createdAt: DateTime.now(),
+                    updatedAt: DateTime.now(),
+                  ));
+                });
+                Navigator.pop(ctx);
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        );
+      }
+    );
+  }
+
+  Widget _buildStepStock(bool isUom) {
+    return Column(
+      key: const ValueKey(3),
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (isUom)
+           Padding(
+            padding: const EdgeInsets.only(bottom: 16.0),
+            child: Text('Initial stock must be provided in the lowest Base Unit (${_unitController.text}s).', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+          ),
         Row(
           children: [
             Expanded(
               child: CustomTextField(
                 controller: _initialStockController,
-                label: 'Initial Stock (Pieces)',
+                label: 'Initial Stock',
                 prefixIcon: LucideIcons.packageCheck,
                 keyboardType: TextInputType.number,
                 validator: (v) => v == null || int.tryParse(v) == null ? 'Invalid quantity' : null,
@@ -581,147 +747,172 @@ class _AddProductDialogState extends State<AddProductDialog> {
             ),
           ],
         ),
-        const SizedBox(height: 24),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Theme.of(context).primaryColor.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Theme.of(context).primaryColor.withOpacity(0.1)),
-          ),
-          child: Row(
-            children: [
-              Icon(LucideIcons.info, size: 20, color: Theme.of(context).primaryColor),
-              const SizedBox(width: 16),
-              const Expanded(
-                child: Text(
-                  'This will initialize your live inventory. You can manage cartons and batches later in the Stock tab.',
-                  style: TextStyle(fontSize: 13),
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
 
-  void _generateInternalBarcode() {
+  void _generateInternalBarcode(TextEditingController ctrl) {
     final random = math.Random();
     String code = '';
     for (int i = 0; i < 12; i++) {
       code += random.nextInt(10).toString();
     }
-    setState(() => _barcodeController.text = code);
+    setState(() => ctrl.text = code);
     AppToast.show(context, title: 'Barcode Generated', message: 'Internal barcode $code created.', type: ToastType.success);
   }
 
-  void _generateInternalQr() {
+  void _generateInternalQr(TextEditingController ctrl) {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final random = math.Random();
     String code = '';
     for (int i = 0; i < 8; i++) {
       code += chars[random.nextInt(chars.length)];
     }
-    setState(() => _qrController.text = code);
+    setState(() => ctrl.text = code);
     AppToast.show(context, title: 'QR Data Generated', message: 'Internal QR code $code created.', type: ToastType.success);
   }
 
-  void _handleNext(InventoryProvider provider) async {
+  void _handleNext(InventoryProvider provider, bool isUom, int totalSteps) async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_currentStep < 2) {
+    if (_currentStep < (totalSteps - 1)) {
       setState(() => _currentStep++);
     } else {
-      if (isEditing) {
-        setState(() => _isSaving = true);
-        try {
-          await provider.updateProduct(
-            widget.initialProduct!.product.id,
-            categoryId: _selectedCategoryId!,
-            name: _nameController.text,
-            baseSku: _skuController.text,
-            description: _descriptionController.text,
-            mainImagePath: _selectedImagePath,
-            unitType: _unitController.text,
-            supplierId: _selectedSupplierId,
-            costPrice: double.tryParse(_costPriceController.text) ?? 0.0,
-            retailPrice: double.tryParse(_retailPriceController.text) ?? 0.0,
-            wholesalePrice: _wholesalePriceController.text.isEmpty ? null : double.tryParse(_wholesalePriceController.text),
-            mrp: _mrpController.text.isEmpty ? null : double.tryParse(_mrpController.text),
-            barcode: _barcodeController.text.isEmpty ? null : _barcodeController.text,
-            qrCode: _qrController.text.isEmpty ? null : _qrController.text,
-            initialStock: int.tryParse(_initialStockController.text) ?? 0,
-            lowStockThreshold: int.tryParse(_lowStockThresholdController.text) ?? 10,
-          );
-          if (mounted) Navigator.pop(context);
-        } catch (e) {
-          if (mounted) {
-            String errorMsg = e.toString();
-            if (errorMsg.contains('UNIQUE constraint failed: products.base_sku')) {
-              errorMsg = 'A product with this Base SKU already exists.';
-            } else if (errorMsg.contains('UNIQUE constraint failed: product_variants.barcode')) {
-              errorMsg = 'A product with this Barcode already exists.';
-            } else if (errorMsg.contains('UNIQUE constraint failed: product_variants.sku')) {
-              errorMsg = 'A product variant with this SKU already exists.';
-            }
-            AppToast.show(
-              context,
-              title: 'Update Failed',
-              message: errorMsg,
-              type: ToastType.error,
+      setState(() => _isSaving = true);
+      
+      final baseUnit = ProductUnit(
+        id: isEditing ? (widget.initialProduct!.product.id + "_base") : "temp_base", // Will be overridden or used gracefully
+        productId: isEditing ? widget.initialProduct!.product.id : '',
+        unitName: _unitController.text,
+        conversionRate: 1,
+        isBaseUnit: true,
+        barcode: _barcodeController.text.isEmpty ? null : _barcodeController.text,
+        qrCode: _qrController.text.isEmpty ? null : _qrController.text,
+        costPrice: double.tryParse(_costPriceController.text) ?? 0.0,
+        retailPrice: double.tryParse(_retailPriceController.text) ?? 0.0,
+        wholesalePrice: double.tryParse(_wholesalePriceController.text),
+        mrp: double.tryParse(_mrpController.text),
+        isActive: true,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      try {
+        if (isEditing) {
+          if (isUom) {
+             // For update, we look up the existing base unit ID from the product's units
+             // The repo's updateProductWithUoms matches by product_id + is_base_unit = 1
+             // so we just need the correct ID. Derive a stable one.
+             final existingBaseId = 'unit_${widget.initialProduct!.product.id}_base';
+             final resolvedBaseUnit = ProductUnit(
+               id: existingBaseId,
+               productId: widget.initialProduct!.product.id,
+               unitName: baseUnit.unitName,
+               conversionRate: 1,
+               isBaseUnit: true,
+               barcode: baseUnit.barcode,
+               qrCode: baseUnit.qrCode,
+               costPrice: baseUnit.costPrice,
+               retailPrice: baseUnit.retailPrice,
+               wholesalePrice: baseUnit.wholesalePrice,
+               mrp: baseUnit.mrp,
+               isActive: true,
+               createdAt: baseUnit.createdAt,
+               updatedAt: DateTime.now(),
+             );
+             await provider.updateProductWithUoms(
+               widget.initialProduct!.product.id,
+               categoryId: _selectedCategoryId!,
+               name: _nameController.text,
+               baseSku: _skuController.text,
+               description: _descriptionController.text,
+               supplierId: _selectedSupplierId,
+               baseUnit: resolvedBaseUnit,
+               multiplierUnits: _multiplierUnits,
+               manualBaseStockAdjust: int.tryParse(_initialStockController.text) ?? 0,
+               lowStockThreshold: int.tryParse(_lowStockThresholdController.text) ?? 10,
+             );
+          } else {
+            await provider.updateProduct(
+              widget.initialProduct!.product.id,
+              categoryId: _selectedCategoryId!,
+              name: _nameController.text,
+              baseSku: _skuController.text,
+              description: _descriptionController.text,
+              mainImagePath: _selectedImagePath,
+              unitType: _unitController.text,
+              supplierId: _selectedSupplierId,
+              costPrice: baseUnit.costPrice,
+              retailPrice: baseUnit.retailPrice,
+              wholesalePrice: baseUnit.wholesalePrice,
+              mrp: baseUnit.mrp,
+              barcode: baseUnit.barcode,
+              qrCode: baseUnit.qrCode,
+              initialStock: int.tryParse(_initialStockController.text) ?? 0,
+              lowStockThreshold: int.tryParse(_lowStockThresholdController.text) ?? 10,
             );
           }
-        } finally {
-          if (mounted) setState(() => _isSaving = false);
+        } else {
+          if (isUom) {
+            final newBaseUnitId = 'unit_${DateTime.now().microsecondsSinceEpoch}';
+            final resolvedBaseUnit = ProductUnit(
+              id: newBaseUnitId,
+              productId: '', // Will be set by the repository after product creation
+              unitName: baseUnit.unitName,
+              conversionRate: 1,
+              isBaseUnit: true,
+              barcode: baseUnit.barcode,
+              qrCode: baseUnit.qrCode,
+              costPrice: baseUnit.costPrice,
+              retailPrice: baseUnit.retailPrice,
+              wholesalePrice: baseUnit.wholesalePrice,
+              mrp: baseUnit.mrp,
+              isActive: true,
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            );
+            await provider.createProductWithUoms(
+              categoryId: _selectedCategoryId!,
+              name: _nameController.text,
+              baseSku: _skuController.text,
+              description: _descriptionController.text,
+              supplierId: _selectedSupplierId,
+              baseUnit: resolvedBaseUnit,
+              multiplierUnits: _multiplierUnits,
+              initialBaseStock: int.tryParse(_initialStockController.text) ?? 0,
+              lowStockThreshold: int.tryParse(_lowStockThresholdController.text) ?? 10,
+            );
+          } else {
+            final productId = await provider.createProduct(
+              categoryId: _selectedCategoryId!,
+              name: _nameController.text,
+              baseSku: _skuController.text,
+              description: _descriptionController.text,
+              mainImagePath: _selectedImagePath,
+              unitType: _unitController.text,
+              supplierId: _selectedSupplierId,
+            );
+
+            await provider.createProductVariant(
+              productId: productId,
+              variantName: 'Default',
+              sku: '${_skuController.text}-DEF',
+              barcode: baseUnit.barcode,
+              qrCode: baseUnit.qrCode,
+              costPrice: baseUnit.costPrice,
+              retailPrice: baseUnit.retailPrice,
+              wholesalePrice: baseUnit.wholesalePrice,
+              mrp: baseUnit.mrp,
+              initialStock: int.tryParse(_initialStockController.text) ?? 0,
+              lowStockThreshold: int.tryParse(_lowStockThresholdController.text) ?? 10,
+            );
+          }
         }
-        return;
-      }
-      setState(() => _isSaving = true);
-      try {
-        // 1. Create Product
-        final productId = await provider.createProduct(
-          categoryId: _selectedCategoryId!,
-          name: _nameController.text,
-          baseSku: _skuController.text,
-          description: _descriptionController.text,
-          mainImagePath: _selectedImagePath,
-          unitType: _unitController.text,
-          supplierId: _selectedSupplierId,
-        );
-
-        // 2. Create Default Variant with Stock
-        await provider.createProductVariant(
-          productId: productId,
-          variantName: 'Default',
-          sku: '${_skuController.text}-DEF',
-          barcode: _barcodeController.text.isEmpty ? null : _barcodeController.text,
-          qrCode: _qrController.text.isEmpty ? null : _qrController.text,
-          costPrice: double.tryParse(_costPriceController.text) ?? 0.0,
-          retailPrice: double.tryParse(_retailPriceController.text) ?? 0.0,
-          wholesalePrice: _wholesalePriceController.text.isEmpty ? null : double.tryParse(_wholesalePriceController.text),
-          mrp: _mrpController.text.isEmpty ? null : double.tryParse(_mrpController.text),
-          initialStock: int.tryParse(_initialStockController.text) ?? 0,
-          lowStockThreshold: int.tryParse(_lowStockThresholdController.text) ?? 10,
-        );
-
         if (mounted) Navigator.pop(context);
       } catch (e) {
         if (mounted) {
-            String errorMsg = e.toString();
-            if (errorMsg.contains('UNIQUE constraint failed: products.base_sku')) {
-              errorMsg = 'A product with this Base SKU already exists.';
-            } else if (errorMsg.contains('UNIQUE constraint failed: product_variants.barcode')) {
-              errorMsg = 'A product with this Barcode already exists.';
-            } else if (errorMsg.contains('UNIQUE constraint failed: product_variants.sku')) {
-              errorMsg = 'A product variant with this SKU already exists.';
-            }
-          AppToast.show(
-            context,
-            title: 'Creation Failed',
-            message: errorMsg,
-            type: ToastType.error,
-          );
+          String errorMsg = e.toString();
+          AppToast.show(context, title: 'Operation Failed', message: errorMsg, type: ToastType.error);
         }
       } finally {
         if (mounted) setState(() => _isSaving = false);

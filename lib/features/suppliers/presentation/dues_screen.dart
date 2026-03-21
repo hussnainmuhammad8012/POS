@@ -307,6 +307,8 @@ class _SupplierDuesLedgerViewState extends State<_SupplierDuesLedgerView> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(DateFormat('MMM dd, yyyy HH:mm').format(entry.createdAt)),
+                                if (entry.notes != null && entry.notes!.isNotEmpty)
+                                  Text(entry.notes!, style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
                                 if (isPurchase && entry.dueDate != null)
                                   Text('Due by: ${DateFormat('MMM dd, yyyy').format(entry.dueDate!)}', 
                                     style: TextStyle(color: isOverdue ? AppColors.DANGER : null, fontWeight: isOverdue ? FontWeight.bold : null)

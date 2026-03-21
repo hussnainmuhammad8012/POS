@@ -169,11 +169,47 @@ class _StoreInfoPanel extends StatelessWidget {
                 onChanged: (v) => settings.updateStoreInfo(phone: v),
               ),
               const SizedBox(height: 24),
+              const SizedBox(height: 24),
               CustomTextField(
                 label: 'Tax Rate (%)',
                 initialValue: settings.taxRate.toString(),
                 keyboardType: TextInputType.number,
                 onChanged: (v) => settings.updateStoreInfo(tax: double.tryParse(v)),
+              ),
+              const SizedBox(height: 32),
+              const Divider(),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(LucideIcons.layers, color: Theme.of(context).primaryColor, size: 20),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Enable Multi-Unit Management (UOM)', 
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)
+                        ),
+                        Text('Allow items to have multiple units (Boxes, Cartons) with automatic conversion.',
+                          style: TextStyle(color: Theme.of(context).colorScheme.secondary, fontSize: 13)
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: settings.enableUomSystem,
+                    activeColor: Theme.of(context).primaryColor,
+                    overlayColor: WidgetStateProperty.all(Colors.transparent),
+                    onChanged: (value) async => settings.setUomSystemEnabled(value),
+                  ),
+                ],
               ),
             ],
           ),

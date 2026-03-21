@@ -18,11 +18,14 @@ import '../../customers/presentation/widgets/add_customer_dialog.dart';
 import '../../analytics/application/analytics_provider.dart';
 import '../../transactions/application/transactions_provider.dart';
 import '../../inventory/application/stock_provider.dart';
+import '../../inventory/data/models/product_unit_model.dart';
 import '../../../core/features/notifications/application/notification_provider.dart';
 import '../application/pos_provider.dart';
+import 'package:utility_store_pos/features/pos/data/models/cart_item.dart';
 import '../application/product_scanner.dart';
 import 'widgets/invoice_dialog.dart';
 import 'widgets/searchable_customer_dropdown.dart';
+import 'widgets/uom_selector.dart';
 // Notifications moved to nav_shell.dart
 
 class PosScreen extends StatefulWidget {
@@ -127,10 +130,12 @@ class _PosScreenState extends State<PosScreen> {
                                 autofocus: true,
                                 onSubmitted: (barcode) async {
                                   if (barcode.isEmpty) return;
+                                  final isUomEnabled = context.read<SettingsProvider>().enableUomSystem;
                                   
                                   final success = await pos.handleBarcode(
                                     barcode, 
                                     context.read<ProductRepository>(),
+                                    isUomEnabled: isUomEnabled,
                                   );
 
                                   if (!success && mounted) {
@@ -178,7 +183,7 @@ class _PosScreenState extends State<PosScreen> {
                             ),
                           ),
                           child: pos.cartItems.isEmpty
-                              ? const _EmptyCartState()
+                              ? _EmptyCartState()
                               : ClipRRect(
                                   borderRadius: BorderRadius.circular(16),
                                   child: ListView.separated(
@@ -293,13 +298,33 @@ class _ModernCartRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  item.productName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      item.productName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '#${item.productSku}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).hintColor,
+                        fontSize: 10,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
                 ),
-                if (item.variantName.isNotEmpty)
+                if (item.isUomItem && item.productUnits.isNotEmpty)
+                  AppUomSelector(
+                    item: item,
+                    onSelected: (unit) => pos.changeItemUnit(item.id, unit),
+                  )
+                else if (item.variantName.isNotEmpty)
                   Text(
                     item.variantName,
                     maxLines: 1,

@@ -228,22 +228,52 @@ class TransactionDetailsScreen extends StatelessWidget {
                 separatorBuilder: (context, index) => const Divider(height: 1),
                 itemBuilder: (context, index) {
                   final item = items[index];
-                  final productName = item['product_name'] as String;
+                  final productName = item['product_name'] as String? ?? 'Unknown Product';
+                  final productSku = item['product_sku'] as String? ?? item['product_variant_id'];
                   final variantName = item['variant_name'] as String?;
-                  final quantity = item['quantity'] as int;
+                  final unitName = item['unit_name'] as String?;
+                  final quantity = (item['quantity'] as num).toInt();
                   final price = (item['price_at_time'] as num).toDouble();
                   final subtotal = (item['subtotal'] as num).toDouble();
 
                   return ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    title: Text(productName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(variantName ?? '', style: TextStyle(color: theme.colorScheme.secondary)),
+                    title: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(productName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        Text(
+                          'SKU: $productSku',
+                          style: TextStyle(color: theme.hintColor, fontSize: 11, letterSpacing: 0.5),
+                        ),
+                      ],
+                    ),
+                    subtitle: variantName != null && variantName.isNotEmpty 
+                      ? Text(variantName, style: TextStyle(color: theme.colorScheme.secondary, fontSize: 13))
+                      : null,
                     trailing: IntrinsicWidth(
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text('$quantity x ${currencyFormat.format(price)}', style: const TextStyle(color: Colors.grey)),
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '$quantity ${unitName ?? ""}',
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              Text(
+                                'x ${currencyFormat.format(price)}',
+                                style: TextStyle(color: theme.hintColor, fontSize: 11),
+                              ),
+                            ],
+                          ),
                           const SizedBox(width: 24),
-                          Text(currencyFormat.format(subtotal), style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text(
+                            currencyFormat.format(subtotal),
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          ),
                         ],
                       ),
                     ),

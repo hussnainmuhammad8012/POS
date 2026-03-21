@@ -248,6 +248,8 @@ class TransactionItem {
   final double priceAtTime;
   final double? costAtTime;
   final double subtotal;
+  final String? unitId;     // UOM: which unit was sold
+  final String? unitName;   // UOM: human-readable unit name for receipt
 
   const TransactionItem({
     this.id,
@@ -257,6 +259,8 @@ class TransactionItem {
     required this.priceAtTime,
     this.costAtTime,
     required this.subtotal,
+    this.unitId,
+    this.unitName,
   });
 }
 

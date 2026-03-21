@@ -81,6 +81,10 @@ class TransactionsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<Transaction?> getTransactionById(String id) async {
+    return _repository.getTransactionById(id);
+  }
+
   Future<List<Map<String, Object?>>> getTransactionItems(String txId) async {
     return _repository.getItemsForTransaction(txId);
   }

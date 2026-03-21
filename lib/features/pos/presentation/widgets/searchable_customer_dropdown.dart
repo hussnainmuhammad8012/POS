@@ -51,15 +51,21 @@ class _SearchableCustomerDropdownState extends State<SearchableCustomerDropdown>
             showWhenUnlinked: false,
             offset: Offset(0, size.height + 4),
             child: Material(
-              elevation: 8,
-              borderRadius: BorderRadius.circular(12),
-              color: Theme.of(context).cardTheme.color,
+              color: Colors.transparent,
               child: Container(
                 width: size.width,
-                constraints: const BoxConstraints(maxHeight: 300),
+                constraints: const BoxConstraints(maxHeight: 400),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Theme.of(context).dividerColor),
+                  color: Theme.of(context).cardTheme.color,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.5)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
                 ),
                 child: _CustomerSearchList(
                   onSelect: (c) {
@@ -85,31 +91,52 @@ class _SearchableCustomerDropdownState extends State<SearchableCustomerDropdown>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return CompositedTransformTarget(
       link: _link,
-      child: InkWell(
+      child: GestureDetector(
         onTap: _showOverlay,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: Theme.of(context).cardTheme.color,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: _isMenuOpen ? Theme.of(context).primaryColor : Theme.of(context).dividerColor),
+            color: theme.cardTheme.color,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: _isMenuOpen 
+                  ? theme.primaryColor 
+                  : theme.dividerTheme.color?.withOpacity(0.5) ?? Colors.grey.withOpacity(0.2),
+              width: _isMenuOpen ? 2 : 1,
+            ),
+            boxShadow: _isMenuOpen ? [
+              BoxShadow(
+                color: theme.primaryColor.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              )
+            ] : null,
           ),
           child: Row(
             children: [
-              Icon(LucideIcons.user, size: 18, color: Theme.of(context).colorScheme.secondary),
+              Icon(
+                LucideIcons.user, 
+                size: 18, 
+                color: _isMenuOpen ? theme.primaryColor : theme.colorScheme.secondary
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   widget.value?.name ?? 'Walk-in Customer',
-                  style: TextStyle(
-                    color: widget.value == null ? Theme.of(context).hintColor : null,
-                    fontWeight: widget.value != null ? FontWeight.w500 : null,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: widget.value == null ? theme.hintColor : theme.textTheme.bodyLarge?.color,
+                    fontWeight: widget.value != null ? FontWeight.w600 : FontWeight.normal,
                   ),
                 ),
               ),
-              Icon(_isMenuOpen ? LucideIcons.chevronUp : LucideIcons.chevronDown, size: 16),
+              Icon(
+                _isMenuOpen ? LucideIcons.chevronUp : LucideIcons.chevronDown, 
+                size: 16,
+                color: _isMenuOpen ? theme.primaryColor : theme.hintColor,
+              ),
             ],
           ),
         ),

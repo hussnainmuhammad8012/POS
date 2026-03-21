@@ -163,8 +163,9 @@ class PdfReportService {
         final revenue = (p['total_revenue'] as num).toDouble();
         final profit = (p['total_profit'] as num).toDouble();
         final margin = revenue > 0 ? (profit / revenue) * 100 : 0.0;
+        final unitStr = p['unit_name'] != null ? ' (${p['unit_name']})' : '';
         return [
-          p['name'],
+          '${p['name']}$unitStr',
           p['total_qty'].toString(),
           _currencyFormat.format(revenue),
           _currencyFormat.format(profit),

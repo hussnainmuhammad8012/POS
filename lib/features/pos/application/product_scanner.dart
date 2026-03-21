@@ -32,6 +32,7 @@ class ProductScanner {
       _posProvider.addToCart(
         variantId: variant.id,
         productName: product.name,
+        productSku: product.baseSku,
         variantName: variant.variantName ?? '',
         unitPrice: variant.retailPrice,
         quantity: quantity,

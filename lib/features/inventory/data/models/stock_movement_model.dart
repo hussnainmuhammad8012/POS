@@ -15,6 +15,8 @@ class StockMovement {
   final String? categoryName;
   final String? productId;     // Added
   final String? categoryId;    // Added
+  final String? unitId;        // Added
+  final String? unitName;      // Added
   final DateTime createdAt;
 
   StockMovement({
@@ -33,6 +35,8 @@ class StockMovement {
     this.categoryName,
     this.productId,
     this.categoryId,
+    this.unitId,
+    this.unitName,
     required this.createdAt,
   });
 
@@ -57,6 +61,8 @@ class StockMovement {
     categoryName: json['category_name'],
     productId: json['product_id'],
     categoryId: json['category_id'],
+    unitId: json['unit_id'],
+    unitName: json['unit_name'],
     createdAt: DateTime.parse(json['created_at']),
   );
 
@@ -72,6 +78,8 @@ class StockMovement {
     'reference_id': referenceId,
     'notes': notes,
     'recorded_by': recordedBy,
+    'unit_id': unitId,
+    'unit_name': unitName,
     'created_at': createdAt.toIso8601String(),
   };
 }

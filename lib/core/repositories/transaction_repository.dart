@@ -39,6 +39,8 @@ class TransactionRepository {
           'price_at_time': item.priceAtTime,
           'cost_at_time': item.costAtTime,
           'subtotal': item.subtotal,
+          'unit_id': item.unitId,       // UOM: null for classic items
+          'unit_name': item.unitName,   // UOM: null for classic items
         });
 
         // Decrease stock in the new V2 schema (stock_levels)
@@ -132,10 +134,15 @@ class TransactionRepository {
 
   Future<List<Map<String, Object?>>> getItemsForTransaction(String txId) {
     return _db.rawQuery('''
-      SELECT ti.*, p.name as product_name, pv.variant_name
+      SELECT ti.*, 
+             COALESCE(p1.name, p2.name) as product_name,
+             COALESCE(p1.base_sku, p2.base_sku) as product_sku,
+             COALESCE(pv.variant_name, pu.unit_name) as variant_name
       FROM transaction_items ti
-      JOIN product_variants pv ON ti.product_variant_id = pv.id
-      JOIN products p ON pv.product_id = p.id
+      LEFT JOIN product_variants pv ON ti.product_variant_id = pv.id
+      LEFT JOIN products p1 ON pv.product_id = p1.id
+      LEFT JOIN product_units pu ON ti.product_variant_id = pu.id
+      LEFT JOIN products p2 ON pu.product_id = p2.id
       WHERE ti.transaction_id = ?
     ''', [txId]);
   }
@@ -154,6 +161,18 @@ class TransactionRepository {
     );
     final value = rows.first['total'] as num?;
     return value?.toDouble() ?? 0;
+  }
+
+  Future<Transaction?> getTransactionById(String id) async {
+    final rows = await _db.rawQuery('''
+      SELECT t.*, c.name as customer_name
+      FROM transactions t
+      LEFT JOIN customers c ON t.customer_id = c.id
+      WHERE t.id = ?
+    ''', [id]);
+    
+    if (rows.isEmpty) return null;
+    return _fromRow(rows.first);
   }
 
   Future<List<Transaction>> getTransactionsByDateRange(

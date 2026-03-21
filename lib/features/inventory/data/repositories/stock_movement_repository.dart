@@ -21,8 +21,9 @@ class StockMovementRepository {
     String query = '''
       SELECT m.*, p.name as product_name, c.name as category_name, p.id as product_id, p.category_id as category_id
       FROM stock_movements m
-      JOIN product_variants v ON m.product_variant_id = v.id
-      JOIN products p ON v.product_id = p.id
+      LEFT JOIN product_variants v ON m.product_variant_id = v.id
+      LEFT JOIN product_units u ON m.product_variant_id = u.id
+      JOIN products p ON (v.product_id = p.id OR u.product_id = p.id)
       LEFT JOIN categories c ON p.category_id = c.id
       WHERE p.is_active = 1
 ''';
@@ -60,6 +61,8 @@ class StockMovementRepository {
     required int quantityAdjustment,
     required String reason,
     String? notes,
+    String? unitId,
+    String? unitName,
   }) async {
     await _db.transaction((txn) async {
       final stockResult = await txn.query(
@@ -96,6 +99,8 @@ class StockMovementRepository {
         'quantity_after': newTotal,
         'reason': reason,
         'notes': notes,
+        'unit_id': unitId,
+        'unit_name': unitName,
         'recorded_by': 'system',
         'created_at': DateTime.now().toIso8601String(),
       });

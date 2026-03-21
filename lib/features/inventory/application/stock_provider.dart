@@ -104,6 +104,8 @@ class StockProvider extends ChangeNotifier {
     String? supplierId,
     String? storageLocation,
     String? notes,
+    String? unitId,
+    String? unitName,
   }) async {
     try {
       final id = await _cartonRepository.receiveCarton(
@@ -117,6 +119,8 @@ class StockProvider extends ChangeNotifier {
         supplierId: supplierId,
         storageLocation: storageLocation,
         notes: notes,
+        unitId: unitId,
+        unitName: unitName,
       );
       await loadMovements();
       return id;
@@ -133,6 +137,8 @@ class StockProvider extends ChangeNotifier {
     required int quantityAdjustment,
     required String reason,
     String? notes,
+    String? unitId,
+    String? unitName,
   }) async {
     try {
       await _movementRepository.recordAdjustment(
@@ -140,6 +146,8 @@ class StockProvider extends ChangeNotifier {
         quantityAdjustment: quantityAdjustment,
         reason: reason,
         notes: notes,
+        unitId: unitId,
+        unitName: unitName,
       );
       await loadMovements();
     } catch (e) {

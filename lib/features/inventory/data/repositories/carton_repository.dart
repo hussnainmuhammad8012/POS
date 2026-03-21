@@ -23,6 +23,8 @@ class CartonRepository {
     String? supplierId,
     String? storageLocation,
     String? notes,
+    String? unitId,
+    String? unitName,
   }) async {
     final id = 'ctn_${DateTime.now().millisecondsSinceEpoch}';
     final cartonCost = piecesPerCarton * costPerPiece;
@@ -49,9 +51,18 @@ class CartonRepository {
 
       // Update stock level
       await _updateStockLevel(txn, productVariantId, receivedQuantity);
-
+      
       // Record movement
-      await _recordMovement(txn, productVariantId, id, 'IN', receivedQuantity, 'Purchase');
+      await _recordMovement(
+        txn, 
+        productVariantId, 
+        id, 
+        'IN', 
+        receivedQuantity, 
+        'Purchase',
+        unitId: unitId,
+        unitName: unitName,
+      );
     });
 
     return id;
@@ -149,6 +160,8 @@ class CartonRepository {
     int change,
     String reason, {
     String? referenceId,
+    String? unitId,
+    String? unitName,
   }) async {
     final stockResult = await txn.query('stock_levels', where: 'product_variant_id = ?', whereArgs: [variantId]);
     if (stockResult.isEmpty) return;
@@ -165,6 +178,8 @@ class CartonRepository {
       'quantity_after': stock.totalPieces + change,
       'reason': reason,
       'reference_id': referenceId,
+      'unit_id': unitId,
+      'unit_name': unitName,
       'recorded_by': 'system',
       'created_at': DateTime.now().toIso8601String(),
     });

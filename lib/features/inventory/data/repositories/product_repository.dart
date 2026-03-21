@@ -4,6 +4,7 @@ import '../../../../core/database/app_database.dart';
 import '../models/product_model.dart';
 import '../models/product_summary_model.dart';
 import '../models/product_variant_model.dart';
+import '../models/product_unit_model.dart';
 import '../models/stock_level_model.dart';
 
 class ProductRepository {
@@ -138,6 +139,271 @@ class ProductRepository {
     if (results.isEmpty) return null;
     return results.first['id'] as String;
   }
+
+  /// ==========================================
+  /// MULTI-UOM SPECIFIC METHODS
+  /// ==========================================
+
+  /// Creates a product along with multiple UOMs (base unit + multipliers) and initial stock level.
+  Future<String> createProductWithUoms({
+    required String categoryId,
+    required String name,
+    required String baseSku,
+    String? description,
+    String? supplierId,
+    required ProductUnit baseUnit,
+    List<ProductUnit> multiplierUnits = const [],
+    int initialBaseStock = 0,
+    int lowStockThreshold = 10,
+  }) async {
+    return await _db.transaction((txn) async {
+      final now = DateTime.now().toIso8601String();
+      final productId = 'prod_${DateTime.now().millisecondsSinceEpoch}';
+      
+      // 1. Create Product
+      await txn.insert('products', {
+        'id': productId,
+        'category_id': categoryId,
+        'name': name,
+        'description': description,
+        'base_sku': baseSku,
+        'unit_type': baseUnit.unitName, // Fallback for backwards compatibility
+        'supplier_id': supplierId,
+        'is_active': 1,
+        'created_at': now,
+        'updated_at': now,
+      });
+
+      // 2. Insert Base Unit
+      await txn.insert('product_units', {
+        'id': baseUnit.id,
+        'product_id': productId,
+        'unit_name': baseUnit.unitName,
+        'conversion_rate': baseUnit.conversionRate,
+        'is_base_unit': 1,
+        'barcode': baseUnit.barcode,
+        'qr_code': baseUnit.qrCode,
+        'cost_price': baseUnit.costPrice,
+        'retail_price': baseUnit.retailPrice,
+        'wholesale_price': baseUnit.wholesalePrice,
+        'mrp': baseUnit.mrp,
+        'is_active': 1,
+        'created_at': now,
+        'updated_at': now,
+      });
+
+      // 3. Insert Multiplier Units
+      for (final unit in multiplierUnits) {
+        await txn.insert('product_units', {
+          'id': unit.id,
+          'product_id': productId,
+          'unit_name': unit.unitName,
+          'conversion_rate': unit.conversionRate,
+          'is_base_unit': 0,
+          'barcode': unit.barcode,
+          'qr_code': unit.qrCode,
+          'cost_price': unit.costPrice,
+          'retail_price': unit.retailPrice,
+          'wholesale_price': unit.wholesalePrice,
+          'mrp': unit.mrp,
+          'is_active': 1,
+          'created_at': now,
+          'updated_at': now,
+        });
+      }
+
+      // 4. Create Stock Level (tracked at the product level, using base unit ID as reference for backwards compatibility!)
+      final stockId = 'stk_${DateTime.now().millisecondsSinceEpoch}';
+      await txn.insert('stock_levels', {
+        'id': stockId,
+        'product_variant_id': baseUnit.id, // Using the base unit ID in the variant ID column
+        'total_pieces': initialBaseStock,
+        'total_cartons': 0,
+        'reserved_pieces': 0,
+        'available_pieces': initialBaseStock,
+        'low_stock_threshold': lowStockThreshold,
+        'reorder_point': lowStockThreshold * 2,
+        'is_low_stock_warning': initialBaseStock <= lowStockThreshold ? 1 : 0,
+        'created_at': now,
+        'updated_at': now,
+      });
+
+      // 5. Record Initial Stock Movement
+      if (initialBaseStock > 0) {
+        await txn.insert('stock_movements', {
+          'id': 'mov_${DateTime.now().microsecondsSinceEpoch}',
+          'product_variant_id': baseUnit.id,
+          'movement_type': 'IN',
+          'quantity_change': initialBaseStock,
+          'quantity_before': 0,
+          'quantity_after': initialBaseStock,
+          'reason': 'Initial Stock Configured via UOM',
+          'created_at': now,
+        });
+      }
+
+      return productId;
+    });
+  }
+
+  Future<List<ProductUnit>> getUnitsByProductId(String productId) async {
+    final results = await _db.query(
+      'product_units',
+      where: 'product_id = ? AND is_active = 1',
+      whereArgs: [productId],
+      orderBy: 'conversion_rate ASC',
+    );
+    return results.map((e) => ProductUnit.fromJson(e)).toList();
+  }
+
+  Future<ProductUnit?> getUnitByBarcode(String barcode) async {
+    final result = await _db.query(
+      'product_units',
+      where: 'barcode = ? AND is_active = 1',
+      whereArgs: [barcode],
+    );
+    if (result.isEmpty) return null;
+    return ProductUnit.fromJson(result.first);
+  }
+
+  Future<ProductUnit?> getBaseUnitByProductId(String productId) async {
+    final result = await _db.query(
+      'product_units',
+      where: 'product_id = ? AND is_base_unit = 1 AND is_active = 1',
+      whereArgs: [productId],
+      limit: 1,
+    );
+    if (result.isEmpty) return null;
+    return ProductUnit.fromJson(result.first);
+  }
+
+  Future<void> updateProductWithUoms({
+    required String productId,
+    String? categoryId,
+    String? name,
+    String? baseSku,
+    String? description,
+    String? supplierId,
+    required ProductUnit baseUnit,
+    required List<ProductUnit> multiplierUnits,
+    int? manualBaseStockAdjust,
+    int? lowStockThreshold,
+  }) async {
+    await _db.transaction((txn) async {
+      final now = DateTime.now().toIso8601String();
+
+      // 1. Update Product
+      final pUpdates = <String, dynamic>{'updated_at': now};
+      if (categoryId != null) pUpdates['category_id'] = categoryId;
+      if (name != null) pUpdates['name'] = name;
+      if (baseSku != null) pUpdates['base_sku'] = baseSku;
+      if (description != null) pUpdates['description'] = description;
+      pUpdates['unit_type'] = baseUnit.unitName;
+      if (supplierId != null) pUpdates['supplier_id'] = supplierId.isEmpty ? null : supplierId;
+
+      await txn.update('products', pUpdates, where: 'id = ?', whereArgs: [productId]);
+
+      // 2. Upsert Base Unit
+      // We assume baseUnit.id already exists
+      await txn.update('product_units', {
+        'unit_name': baseUnit.unitName,
+        'conversion_rate': baseUnit.conversionRate,
+        'barcode': baseUnit.barcode,
+        'qr_code': baseUnit.qrCode,
+        'cost_price': baseUnit.costPrice,
+        'retail_price': baseUnit.retailPrice,
+        'wholesale_price': baseUnit.wholesalePrice,
+        'mrp': baseUnit.mrp,
+        'updated_at': now,
+      }, where: 'id = ?', whereArgs: [baseUnit.id]);
+
+      // 3. Sync Multiplier Units
+      // For simplicity, we can deactivate existing multiplier units and insert/update the ones passed in
+      // Deactivating all non-base units for this product
+      await txn.update('product_units', {
+        'is_active': 0,
+        'updated_at': now,
+      }, where: 'product_id = ? AND is_base_unit = 0', whereArgs: [productId]);
+
+      for (final unit in multiplierUnits) {
+        // Upsert by checking if it exists
+        final exists = await txn.query('product_units', where: 'id = ?', whereArgs: [unit.id]);
+        if (exists.isNotEmpty) {
+          await txn.update('product_units', {
+            'unit_name': unit.unitName,
+            'conversion_rate': unit.conversionRate,
+            'barcode': unit.barcode,
+            'qr_code': unit.qrCode,
+            'cost_price': unit.costPrice,
+            'retail_price': unit.retailPrice,
+            'wholesale_price': unit.wholesalePrice,
+            'mrp': unit.mrp,
+            'is_active': 1,
+            'updated_at': now,
+          }, where: 'id = ?', whereArgs: [unit.id]);
+        } else {
+          await txn.insert('product_units', {
+            'id': unit.id,
+            'product_id': productId,
+            'unit_name': unit.unitName,
+            'conversion_rate': unit.conversionRate,
+            'is_base_unit': 0,
+            'barcode': unit.barcode,
+            'qr_code': unit.qrCode,
+            'cost_price': unit.costPrice,
+            'retail_price': unit.retailPrice,
+            'wholesale_price': unit.wholesalePrice,
+            'mrp': unit.mrp,
+            'is_active': 1,
+            'created_at': now,
+            'updated_at': now,
+          });
+        }
+      }
+
+      // 4. Update Stock Level (using baseUnit.id)
+      final sUpdates = <String, dynamic>{'updated_at': now};
+      if (manualBaseStockAdjust != null) {
+        sUpdates['total_pieces'] = manualBaseStockAdjust;
+        sUpdates['available_pieces'] = manualBaseStockAdjust;
+      }
+      if (lowStockThreshold != null) {
+        sUpdates['low_stock_threshold'] = lowStockThreshold;
+      }
+
+      if (sUpdates.length > 1) {
+        final stocks = await txn.query('stock_levels', where: 'product_variant_id = ?', whereArgs: [baseUnit.id]);
+        int prevStock = 0;
+        
+        if (stocks.isNotEmpty) {
+           prevStock = (stocks.first['available_pieces'] as int?) ?? 0;
+           final int currStock = manualBaseStockAdjust ?? prevStock;
+           final int currThreshold = lowStockThreshold ?? (stocks.first['low_stock_threshold'] as int?) ?? 0;
+           sUpdates['is_low_stock_warning'] = currStock <= currThreshold ? 1 : 0;
+        }
+
+        if (manualBaseStockAdjust != null && manualBaseStockAdjust != prevStock) {
+           final int diff = manualBaseStockAdjust - prevStock;
+           await txn.insert('stock_movements', {
+             'id': 'mov_${DateTime.now().microsecondsSinceEpoch}',
+             'product_variant_id': baseUnit.id,
+             'movement_type': diff > 0 ? 'ADJUSTMENT' : 'OUT',
+             'quantity_change': diff,
+             'quantity_before': prevStock,
+             'quantity_after': manualBaseStockAdjust,
+             'reason': 'Manual Adjustment from Product UOM Form',
+             'created_at': now,
+           });
+        }
+
+        await txn.update('stock_levels', sUpdates, where: 'product_variant_id = ?', whereArgs: [baseUnit.id]);
+      }
+    });
+  }
+
+  /// ==========================================
+  /// END MULTI-UOM METHODS
+  /// ==========================================
 
   // Update product, its primary variant, and its stock level
   Future<void> updateProduct(String id, {
@@ -324,20 +590,24 @@ class ProductRepository {
       SELECT 
         p.*,
         c.name as category_name,
-        MIN(v.retail_price) as min_price,
-        MAX(v.retail_price) as max_price,
-        MIN(v.cost_price) as cost_price,
-        MIN(v.wholesale_price) as wholesale_price,
-        MIN(v.mrp) as mrp,
-        MAX(v.barcode) as barcode,
-        MAX(v.qr_code) as qr_code,
-        SUM(s.available_pieces) as total_stock,
-        MAX(s.low_stock_threshold) as low_stock_threshold,
-        MAX(s.is_low_stock_warning) as is_low_stock_warning
+        COALESCE(MIN(v.retail_price), MIN(u.retail_price), 0) as min_price,
+        COALESCE(MAX(v.retail_price), MAX(u.retail_price), 0) as max_price,
+        COALESCE(MIN(v.cost_price), MIN(u.cost_price), 0) as cost_price,
+        COALESCE(MIN(v.wholesale_price), MIN(u.wholesale_price), 0) as wholesale_price,
+        COALESCE(MIN(v.mrp), MIN(u.mrp), 0) as mrp,
+        COALESCE(MAX(v.barcode), MAX(u.barcode)) as barcode,
+        COALESCE(MAX(v.qr_code), MAX(u.qr_code)) as qr_code,
+        COALESCE(SUM(sv.available_pieces), SUM(su.available_pieces), 0) as total_stock,
+        COALESCE(MAX(sv.low_stock_threshold), MAX(su.low_stock_threshold), 10) as low_stock_threshold,
+        COALESCE(MAX(sv.is_low_stock_warning), MAX(su.is_low_stock_warning), 0) as is_low_stock_warning
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
+      -- Try to get data from variants (classic mode)
       LEFT JOIN product_variants v ON p.id = v.product_id AND v.is_active = 1
-      LEFT JOIN stock_levels s ON v.id = s.product_variant_id
+      LEFT JOIN stock_levels sv ON v.id = sv.product_variant_id
+      -- Try to get data from units (UOM mode)
+      LEFT JOIN product_units u ON p.id = u.product_id AND u.is_active = 1
+      LEFT JOIN stock_levels su ON u.id = su.product_variant_id
       WHERE p.is_active = 1
     ''';
 
@@ -583,5 +853,37 @@ class ProductRepository {
         'created_at': now,
       });
     });
+  }
+
+  /// Formats a total number of pieces into a human-readable string based on available units.
+  /// Example: 10 pieces with a "Pet" unit (6 pieces) -> "1 Pet 4 Pieces"
+  Future<String> formatStockPieces(String productId, int totalPieces) async {
+    final units = await getUnitsByProductId(productId);
+    if (units.isEmpty) return totalPieces.toString();
+
+    // Sort units by conversion rate descending (largest first)
+    final sortedUnits = List<ProductUnit>.from(units)
+      ..sort((a, b) => b.conversionRate.compareTo(a.conversionRate));
+
+    List<String> parts = [];
+    int remaining = totalPieces;
+
+    for (final unit in sortedUnits) {
+      if (unit.conversionRate > 1 && remaining >= unit.conversionRate) {
+        int count = remaining ~/ unit.conversionRate;
+        remaining %= unit.conversionRate;
+        parts.add('$count ${unit.unitName}');
+      } else if (unit.isBaseUnit && remaining > 0) {
+        parts.add('$remaining ${unit.unitName}');
+        remaining = 0;
+      }
+    }
+
+    if (parts.isEmpty && totalPieces > 0) {
+      // Fallback if no base unit found but we have pieces
+      return '$totalPieces Pieces';
+    }
+
+    return parts.isEmpty ? '0' : parts.join(' ');
   }
 }

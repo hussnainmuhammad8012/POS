@@ -137,6 +137,7 @@ class AnalyticsRepository {
     String query = '''
       SELECT 
         p.name, 
+        ti.unit_name,
         SUM(ti.quantity) as total_qty, 
         SUM(ti.subtotal) as total_revenue,
         SUM(ti.subtotal - (ti.cost_at_time * ti.quantity)) as total_profit
@@ -161,7 +162,7 @@ class AnalyticsRepository {
       }
     }
 
-    query += ' GROUP BY p.id ORDER BY total_revenue DESC LIMIT ?';
+    query += ' GROUP BY p.id, ti.unit_name ORDER BY total_revenue DESC LIMIT ?';
     args.add(limit.toString());
     
     return await _db.rawQuery(query, args);
@@ -170,11 +171,11 @@ class AnalyticsRepository {
   Future<List<Map<String, dynamic>>> getLeastPerformingProducts({int limit = 5}) async {
     // Products with low or zero sales
     final result = await _db.rawQuery('''
-      SELECT p.name, COALESCE(SUM(ti.quantity), 0) as total_qty
+      SELECT p.name, ti.unit_name, COALESCE(SUM(ti.quantity), 0) as total_qty
       FROM products p
       LEFT JOIN product_variants pv ON p.id = pv.product_id
       LEFT JOIN transaction_items ti ON pv.id = ti.product_variant_id
-      GROUP BY p.id
+      GROUP BY p.id, ti.unit_name
       ORDER BY total_qty ASC
       LIMIT ?
     ''', [limit]);
@@ -196,10 +197,11 @@ class AnalyticsRepository {
 
   Future<List<Map<String, dynamic>>> getLowStockItems() async {
     return await _db.rawQuery('''
-      SELECT p.name, sl.available_pieces, sl.low_stock_threshold
+      SELECT p.name, sl.available_pieces, sl.low_stock_threshold, pu.unit_name
       FROM stock_levels sl
       JOIN product_variants pv ON sl.product_variant_id = pv.id
       JOIN products p ON pv.product_id = p.id
+      LEFT JOIN product_units pu ON pv.id = pu.id
       WHERE sl.available_pieces <= sl.low_stock_threshold
       AND p.is_active = 1
     ''');

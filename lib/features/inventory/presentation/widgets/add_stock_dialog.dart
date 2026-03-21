@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../data/models/product_summary_model.dart';
 import '../../data/models/product_variant_model.dart';
+import '../../data/models/product_unit_model.dart';
 import '../../data/repositories/product_repository.dart';
 import '../../application/inventory_provider.dart';
 import '../../application/stock_provider.dart';
@@ -33,6 +34,8 @@ class _AddStockDialogState extends State<AddStockDialog> {
   
   List<ProductVariant> _variants = [];
   ProductVariant? _selectedVariant;
+  List<ProductUnit> _productUnits = [];
+  ProductUnit? _selectedUnit; // for UOM mode
   String? _selectedSupplierId;
   DateTime? _dueDate;
   bool _isLoading = true;
@@ -45,17 +48,31 @@ class _AddStockDialogState extends State<AddStockDialog> {
 
   Future<void> _loadVariants() async {
     final repo = context.read<ProductRepository>();
+    final isUomEnabled = context.read<SettingsProvider>().enableUomSystem;
     final data = await repo.getProductWithVariants(widget.productSummary.product.id);
     
-    if (mounted && data != null) {
-      setState(() {
-        _variants = data['variants'] as List<ProductVariant>;
-        if (_variants.isNotEmpty) {
-          _selectedVariant = _variants.first;
-        }
-        _selectedSupplierId = widget.productSummary.product.supplierId;
-        _isLoading = false;
-      });
+    if (mounted) {
+      if (isUomEnabled) {
+        // Load UOM units instead of variants
+        final units = await repo.getUnitsByProductId(widget.productSummary.product.id);
+        setState(() {
+          _productUnits = units;
+          _selectedUnit = units.isNotEmpty ? units.firstWhere((u) => u.isBaseUnit, orElse: () => units.first) : null;
+          _selectedSupplierId = widget.productSummary.product.supplierId;
+          _isLoading = false;
+        });
+      } else if (data != null) {
+        setState(() {
+          _variants = data['variants'] as List<ProductVariant>;
+          if (_variants.isNotEmpty) {
+            _selectedVariant = _variants.first;
+          }
+          _selectedSupplierId = widget.productSummary.product.supplierId;
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -87,23 +104,71 @@ class _AddStockDialogState extends State<AddStockDialog> {
                     ),
                     const SizedBox(height: 24),
                     
-                    if (_variants.length > 1) ...[
-                      const Text('Select Variant', style: TextStyle(fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<ProductVariant>(
-                        value: _selectedVariant,
-                        items: _variants.map((v) => DropdownMenuItem(
-                          value: v,
-                          child: Text(v.variantName ?? v.sku),
-                        )).toList(),
-                        onChanged: (v) => setState(() => _selectedVariant = v),
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
+                    // ── UOM Unit Selector ──
+                    Consumer<SettingsProvider>(
+                      builder: (ctx, settings, _) {
+                        if (!settings.enableUomSystem) {
+                          // Classic variant selector
+                          if (_variants.length > 1) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Select Variant', style: TextStyle(fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 8),
+                                DropdownButtonFormField<ProductVariant>(
+                                  value: _selectedVariant,
+                                  items: _variants.map((v) => DropdownMenuItem(
+                                    value: v,
+                                    child: Text(v.variantName ?? v.sku),
+                                  )).toList(),
+                                  onChanged: (v) => setState(() => _selectedVariant = v),
+                                  decoration: InputDecoration(
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        }
+
+                        // UOM mode: unit dropdown
+                        if (_productUnits.isEmpty) return const SizedBox.shrink();
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Receiving Unit', style: TextStyle(fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 8),
+                            DropdownButtonFormField<ProductUnit>(
+                              value: _selectedUnit,
+                              items: _productUnits.map((u) => DropdownMenuItem(
+                                value: u,
+                                child: Text('${u.unitName}${u.isBaseUnit ? " (Base)" : " (×${u.conversionRate})"}'),
+                              )).toList(),
+                              onChanged: (u) => setState(() => _selectedUnit = u),
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            if (_selectedUnit != null && !_selectedUnit!.isBaseUnit)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
+                                child: Text(
+                                  '1 ${_selectedUnit!.unitName} = ${_selectedUnit!.conversionRate} base units. Qty will be auto-converted.',
+                                  style: TextStyle(fontSize: 11, color: Colors.blue.shade800),
+                                ),
+                              ),
+                            const SizedBox(height: 16),
+                          ],
+                        );
+                      },
+                    ),
 
                     CustomTextField(
                       label: 'Quantity to Add',
@@ -264,10 +329,35 @@ class _AddStockDialogState extends State<AddStockDialog> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate() || _selectedVariant == null) return;
+    final isUomEnabled = context.read<SettingsProvider>().enableUomSystem;
+    
+    // Validate guard rail
+    if (isUomEnabled) {
+      if (_selectedUnit == null) {
+        AppToast.show(context, title: 'No Unit Selected', message: 'Please select a receiving unit.', type: ToastType.error);
+        return;
+      }
+    } else {
+      if (!_formKey.currentState!.validate() || _selectedVariant == null) return;
+    }
+    if (!_formKey.currentState!.validate()) return;
 
-    final quantity = int.parse(_quantityController.text);
+    final enteredQty = int.parse(_quantityController.text);
     final notes = _notesController.text;
+    
+    // For UOM mode, multiply entered qty by conversion rate to get base unit quantity
+    final int baseQtyToAdd;
+    final String effectiveVariantId;
+    if (isUomEnabled && _selectedUnit != null) {
+      // Find the base unit to know which stock_level row to update
+      final baseUnit = _productUnits.firstWhere((u) => u.isBaseUnit, orElse: () => _selectedUnit!);
+      baseQtyToAdd = enteredQty * _selectedUnit!.conversionRate;
+      effectiveVariantId = baseUnit.id; // stock_levels row is always keyed by base unit ID
+    } else {
+      baseQtyToAdd = enteredQty;
+      effectiveVariantId = _selectedVariant!.id;
+    }
+    
     final stockProvider = context.read<StockProvider>();
     final inventoryProvider = context.read<InventoryProvider>();
     final suppliersProv = context.read<SuppliersProvider>();
@@ -275,19 +365,24 @@ class _AddStockDialogState extends State<AddStockDialog> {
 
     try {
       if (_selectedSupplierId != null) {
-        // Record as Carton received from Supplier
         final totalCost = double.tryParse(_totalCostController.text) ?? 0.0;
-        final costPerPiece = quantity > 0 ? (totalCost / quantity) : 0.0;
+        final costPerPiece = baseQtyToAdd > 0 ? (totalCost / baseQtyToAdd) : 0.0;
         final paidAmount = double.tryParse(_paidAmountController.text) ?? 0.0;
         
         final cartonId = await stockProvider.receiveCarton(
-          productVariantId: _selectedVariant!.id,
+          productVariantId: effectiveVariantId,
           cartonNumber: 'CTN-${DateTime.now().millisecondsSinceEpoch}',
-          piecesPerCarton: quantity,
+          piecesPerCarton: baseQtyToAdd,
           costPerPiece: costPerPiece,
-          receivedQuantity: quantity,
+          receivedQuantity: baseQtyToAdd,
           supplierId: _selectedSupplierId,
-          notes: notes.isNotEmpty ? notes : 'Purchased from supplier',
+          unitId: isUomEnabled ? _selectedUnit?.id : null,
+          unitName: isUomEnabled ? _selectedUnit?.unitName : null,
+          notes: notes.isNotEmpty 
+            ? notes 
+            : isUomEnabled && _selectedUnit != null
+                ? 'Received $enteredQty ${_selectedUnit!.unitName}(s) = $baseQtyToAdd base units'
+                : 'Purchased from supplier',
         );
 
         if (settingsProv.isSupplierLedgerEnabled) {
@@ -297,16 +392,18 @@ class _AddStockDialogState extends State<AddStockDialog> {
           }
         }
       } else {
-        // Just manual stock adjustment
         await stockProvider.recordAdjustment(
-          productVariantId: _selectedVariant!.id,
-          quantityAdjustment: quantity,
-          reason: 'Manual Stock Addition',
+          productVariantId: effectiveVariantId,
+          quantityAdjustment: baseQtyToAdd,
+          reason: isUomEnabled && _selectedUnit != null
+            ? 'Manual Addition: $enteredQty ${_selectedUnit!.unitName}(s) → $baseQtyToAdd base units'
+            : 'Manual Stock Addition',
           notes: notes,
+          unitId: isUomEnabled ? _selectedUnit?.id : null,
+          unitName: isUomEnabled ? _selectedUnit?.unitName : null,
         );
       }
       
-      // Refresh the products list to show updated stock
       await inventoryProvider.loadProducts();
       
       if (mounted) {
@@ -314,7 +411,9 @@ class _AddStockDialogState extends State<AddStockDialog> {
         AppToast.show(
           context, 
           title: 'Stock Updated', 
-          message: 'Stock has been added successfully.',
+          message: isUomEnabled && _selectedUnit != null
+            ? 'Added $enteredQty ${_selectedUnit!.unitName}(s) (+$baseQtyToAdd base units) successfully.'
+            : 'Stock has been added successfully.',
           type: ToastType.success,
         );
       }

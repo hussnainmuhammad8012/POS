@@ -165,7 +165,7 @@ class _StockTabState extends State<StockTab> {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Text(
-            '${isIn ? '+' : ''}${movement.quantityChange}',
+            '${isIn ? '+' : ''}${movement.quantityChange}${movement.unitName != null ? " ${movement.unitName}" : ""}',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 16,

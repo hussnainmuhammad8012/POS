@@ -19,6 +19,7 @@ import '../../../settings/application/settings_provider.dart';
 import '../../../../core/models/entities.dart';
 import '../../../../core/widgets/toast_notification.dart';
 import '../../application/pos_provider.dart';
+import 'package:utility_store_pos/features/pos/data/models/cart_item.dart';
 
 class InvoiceDialog extends StatefulWidget {
   final Transaction transaction;
@@ -215,7 +216,7 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
           const Divider(height: 32),
           
           ...widget.cartItems.map((CartItem item) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(bottom: 10),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -223,15 +224,67 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('${item.productName} ${item.variantName.isNotEmpty ? "(${item.variantName})" : ""}'),
-                      Text(
-                        '${item.quantity} x ${_currencyFormat.format(item.unitPrice)}',
-                        style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.productName,
+                                  style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                                ),
+                                Text(
+                                  'SKU: ${item.productSku}',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.hintColor,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            _currencyFormat.format(item.subtotal),
+                            style: GoogleFonts.spaceMono(
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: theme.primaryColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              item.unitName ?? item.variantName,
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: theme.primaryColor,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${item.quantity} x ${_currencyFormat.format(item.unitPrice)}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.hintColor,
+                              fontFamily: GoogleFonts.spaceMono().fontFamily,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-                Text(_currencyFormat.format(item.subtotal), style: const TextStyle(fontWeight: FontWeight.bold)),
               ],
             ),
           )),
@@ -373,20 +426,29 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
               pw.SizedBox(height: 10),
               pw.Divider(),
               ...widget.cartItems.map((CartItem item) {
-                return pw.Container(
-                  padding: const pw.EdgeInsets.symmetric(vertical: 2),
-                  child: pw.Row(
+                return pw.Padding(
+                  padding: const pw.EdgeInsets.only(bottom: 4),
+                  child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Expanded(
-                        child: pw.Text(
-                          '${item.productName}${item.variantName.isNotEmpty ? " (${item.variantName})" : ""} x${item.quantity}',
-                          style: const pw.TextStyle(fontSize: 10),
-                        ),
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Expanded(
+                            child: pw.Column(
+                              crossAxisAlignment: pw.CrossAxisAlignment.start,
+                              children: [
+                                pw.Text(item.productName, style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                                pw.Text('[${item.productSku}]', style: const pw.TextStyle(fontSize: 7)),
+                              ],
+                            ),
+                          ),
+                          pw.Text(_currencyFormat.format(item.subtotal), style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                        ],
                       ),
                       pw.Text(
-                        _currencyFormat.format(item.subtotal),
-                        style: const pw.TextStyle(fontSize: 10),
+                        '  ${item.quantity} ${item.unitName ?? item.variantName} x ${_currencyFormat.format(item.unitPrice)}',
+                        style: const pw.TextStyle(fontSize: 8),
                       ),
                     ],
                   ),

@@ -465,9 +465,9 @@ class _ProductRankingCard extends StatelessWidget {
                       color: isTop ? Colors.green : Colors.orange,
                     ),
                   ),
-                  title: Text(item['name'] as String),
+                  title: Text('${item['name']}${item['unit_name'] != null ? ' (${item['unit_name']})' : ''}'),
                   trailing: Text(
-                    '${item['total_qty']} units',
+                    '${item['total_qty']} ${item['unit_name'] ?? "units"}',
                     style: const TextStyle(fontWeight: FontWeight.w500),
                   ),
                 );

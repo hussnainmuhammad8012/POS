@@ -122,6 +122,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       ),
                       const SizedBox(height: 24),
                       _TopProductsTableCard(products: provider.topProducts),
+                      if (provider.lowStockItems.isNotEmpty) ...[
+                        const SizedBox(height: 24),
+                        _LowStockItemsCard(items: provider.lowStockItems),
+                      ],
                     ],
                   ),
                 ),
@@ -414,7 +418,10 @@ class _TopProductsTableCard extends StatelessWidget {
             
             return DataRow(
               cells: [
-                DataCell(Text(p['name'], style: const TextStyle(fontWeight: FontWeight.w500))),
+                DataCell(Text(
+                  p['name'] + (p['unit_name'] != null ? ' (${p['unit_name']})' : ''), 
+                  style: const TextStyle(fontWeight: FontWeight.w500)
+                )),
                 DataCell(Text(p['total_qty'].toString())),
                 DataCell(Text(curFormat.format(revenue))),
                 DataCell(Text(curFormat.format(profit))),
@@ -423,6 +430,55 @@ class _TopProductsTableCard extends StatelessWidget {
             );
           }).toList(),
         ),
+      ),
+    );
+  }
+}
+
+class _LowStockItemsCard extends StatelessWidget {
+  final List<Map<String, dynamic>> items;
+  const _LowStockItemsCard({required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    return ModernCard(
+      title: 'Low Stock Alerts',
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: items.map((item) {
+          final name = item['name'] as String;
+          final unit = item['unit_name'] as String?;
+          final available = (item['available_pieces'] as num).toDouble();
+          final threshold = (item['low_stock_threshold'] as num).toDouble();
+          
+          return ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.DANGER.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(LucideIcons.alertTriangle, size: 20, color: AppColors.DANGER),
+            ),
+            title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: Text('Threshold: ${threshold.toStringAsFixed(0)} ${unit ?? "units"}'),
+            trailing: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '${available.toStringAsFixed(0)} ${unit ?? "units"}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.DANGER,
+                    fontSize: 16,
+                  ),
+                ),
+                const Text('Remaining', style: TextStyle(fontSize: 10, color: Colors.grey)),
+              ],
+            ),
+          );
+        }).toList(),
       ),
     );
   }

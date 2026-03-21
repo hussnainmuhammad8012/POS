@@ -42,6 +42,9 @@ class SettingsProvider extends ChangeNotifier {
   // Supplier Settings
   bool get isSupplierLedgerEnabled => _prefs.getBool('is_supplier_ledger_enabled') ?? true;
 
+  // UOM Settings
+  bool get enableUomSystem => _prefs.getBool('enable_uom_system') ?? false;
+
   final _backupService = DatabaseBackupService();
 
   // Setters
@@ -180,5 +183,10 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
     // Note: The logic to add a SYSTEM_NOTE to ledgers will be handled by the UI / SupplierProvider
     // when calling this method, as SettingsProvider shouldn't depend on SupplierRepository directly.
+  }
+
+  Future<void> setUomSystemEnabled(bool enabled) async {
+    await _prefs.setBool('enable_uom_system', enabled);
+    notifyListeners();
   }
 }

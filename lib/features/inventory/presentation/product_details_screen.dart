@@ -1,7 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:provider/provider.dart';
 import '../data/models/product_summary_model.dart';
+import '../data/models/product_unit_model.dart';
+import '../data/repositories/product_repository.dart';
+import '../../../../features/settings/application/settings_provider.dart';
 import '../../../core/widgets/glass_header.dart';
 import '../../../core/widgets/modern_card.dart';
 import '../../../core/widgets/badge_widget.dart';
@@ -150,8 +154,21 @@ class ProductDetailsScreen extends StatelessWidget {
                                     ),
                                   ),
                                   const Divider(height: 32),
-                                  _buildInfoRow(LucideIcons.boxes, 'Current Stock', '${productSummary.totalStock}', 
-                                    valueColor: productSummary.isLowStockWarning ? Colors.orange.shade700 : null),
+                                  Consumer<SettingsProvider>(
+                                    builder: (context, settings, _) {
+                                      if (!settings.enableUomSystem) {
+                                        return _buildInfoRow(LucideIcons.boxes, 'Current Stock', '${productSummary.totalStock}', 
+                                          valueColor: productSummary.isLowStockWarning ? Colors.orange.shade700 : null);
+                                      }
+                                      return FutureBuilder<String>(
+                                        future: context.read<ProductRepository>().formatStockPieces(product.id, productSummary.totalStock),
+                                        builder: (context, snapshot) {
+                                          return _buildInfoRow(LucideIcons.boxes, 'Current Stock', snapshot.data ?? '${productSummary.totalStock}', 
+                                            valueColor: productSummary.isLowStockWarning ? Colors.orange.shade700 : null);
+                                        },
+                                      );
+                                    },
+                                  ),
                                   _buildInfoRow(LucideIcons.alertTriangle, 'Low Stock At', '${productSummary.lowStockThreshold}'),
                                 ],
                               ),
@@ -159,6 +176,81 @@ class ProductDetailsScreen extends StatelessWidget {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 24),
+
+                      // UOMs Section (Dynamic if Enabled)
+                      if (context.watch<SettingsProvider>().enableUomSystem)
+                        ModernCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Units of Measure (UOM)',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const Divider(height: 32),
+                              FutureBuilder<List<ProductUnit>>(
+                                future: context.read<ProductRepository>().getUnitsByProductId(product.id),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState == ConnectionState.waiting) {
+                                    return const Center(child: CircularProgressIndicator());
+                                  }
+                                  if (snapshot.hasError) {
+                                    return Text('Error loading UOMs: ${snapshot.error}', style: const TextStyle(color: Colors.red));
+                                  }
+                                  
+                                  final units = snapshot.data ?? [];
+                                  if (units.isEmpty) {
+                                    return const Text('No explicit units defined.');
+                                  }
+
+                                  return ListView.separated(
+                                    shrinkWrap: true,
+                                    physics: const NeverScrollableScrollPhysics(),
+                                    itemCount: units.length,
+                                    separatorBuilder: (_, __) => const Divider(),
+                                    itemBuilder: (context, index) {
+                                      final unit = units[index];
+                                      return ListTile(
+                                        leading: Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context).primaryColor.withOpacity(0.1),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(unit.isBaseUnit ? LucideIcons.star : LucideIcons.layers, 
+                                            color: Theme.of(context).primaryColor, size: 20),
+                                        ),
+                                        title: Row(
+                                          children: [
+                                            Text(unit.unitName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                            if (unit.isBaseUnit)
+                                              Container(
+                                                margin: const EdgeInsets.only(left: 8),
+                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                decoration: BoxDecoration(color: Colors.green.shade100, borderRadius: BorderRadius.circular(4)),
+                                                child: Text('BASE', style: TextStyle(fontSize: 10, color: Colors.green.shade800, fontWeight: FontWeight.bold)),
+                                              )
+                                          ],
+                                        ),
+                                        subtitle: Text(
+                                          'Conversion: ${unit.conversionRate}x | Barcode: ${unit.barcode ?? "N/A"}\n'
+                                          'Cost: \$${unit.costPrice.toStringAsFixed(2)} | Retail: \$${unit.retailPrice.toStringAsFixed(2)}'
+                                          '${unit.wholesalePrice != null ? " | WS: \$${unit.wholesalePrice!.toStringAsFixed(2)}" : ""}\n'
+                                          'Total in this Unit: ${(productSummary.totalStock / unit.conversionRate).toStringAsFixed(2)} ${unit.unitName}'
+                                        ),
+                                        isThreeLine: true,
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 ),

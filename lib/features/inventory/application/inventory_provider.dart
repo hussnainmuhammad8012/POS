@@ -4,6 +4,7 @@ import '../data/models/category_model.dart';
 import '../data/models/product_summary_model.dart';
 import '../data/repositories/category_repository.dart';
 import '../data/repositories/product_repository.dart';
+import '../data/models/product_unit_model.dart';
 import '../../../core/services/data_sync_service.dart';
 
 class InventoryProvider extends ChangeNotifier {
@@ -231,6 +232,71 @@ class InventoryProvider extends ChangeNotifier {
       return id;
     } catch (e) {
       _error = 'Failed to create variant: $e';
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  // UOM Specific
+  Future<String> createProductWithUoms({
+    required String categoryId,
+    required String name,
+    required String baseSku,
+    String? description,
+    String? supplierId,
+    required ProductUnit baseUnit,
+    List<ProductUnit> multiplierUnits = const [],
+    int initialBaseStock = 0,
+    int lowStockThreshold = 10,
+  }) async {
+    try {
+      final id = await _productRepository.createProductWithUoms(
+        categoryId: categoryId,
+        name: name,
+        baseSku: baseSku,
+        description: description,
+        supplierId: supplierId,
+        baseUnit: baseUnit,
+        multiplierUnits: multiplierUnits,
+        initialBaseStock: initialBaseStock,
+        lowStockThreshold: lowStockThreshold,
+      );
+      await loadProducts();
+      return id;
+    } catch (e) {
+      _error = 'Failed to create product with UOMs: $e';
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> updateProductWithUoms(String productId, {
+    String? categoryId,
+    String? name,
+    String? baseSku,
+    String? description,
+    String? supplierId,
+    required ProductUnit baseUnit,
+    required List<ProductUnit> multiplierUnits,
+    int? manualBaseStockAdjust,
+    int? lowStockThreshold,
+  }) async {
+    try {
+      await _productRepository.updateProductWithUoms(
+        productId: productId,
+        categoryId: categoryId,
+        name: name,
+        baseSku: baseSku,
+        description: description,
+        supplierId: supplierId,
+        baseUnit: baseUnit,
+        multiplierUnits: multiplierUnits,
+        manualBaseStockAdjust: manualBaseStockAdjust,
+        lowStockThreshold: lowStockThreshold,
+      );
+      await loadProducts();
+    } catch (e) {
+      _error = 'Failed to update product with UOMs: $e';
       notifyListeners();
       rethrow;
     }

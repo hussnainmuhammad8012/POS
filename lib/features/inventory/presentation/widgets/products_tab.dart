@@ -9,10 +9,13 @@ import '../../../../core/widgets/custom_text_field.dart';
 import '../../../../core/widgets/badge_widget.dart';
 import '../../../../core/widgets/app_dropdown.dart';
 import '../../../../core/widgets/toast_notification.dart';
+import '../../../../features/settings/application/settings_provider.dart';
 import '../product_details_screen.dart';
 import 'add_product_dialog.dart';
 import 'add_stock_dialog.dart';
 import 'barcode_dialog.dart';
+import '../../../../features/inventory/data/repositories/product_repository.dart';
+import '../../../../core/widgets/app_action_menu.dart';
 
 class ProductsTab extends StatefulWidget {
   const ProductsTab({super.key});
@@ -167,33 +170,19 @@ class _ProductsTabState extends State<ProductsTab> {
                   child: SingleChildScrollView(
                     scrollDirection: Axis.vertical,
                     primary: true,
-                    child: Scrollbar(
-                      controller: _horizontalScrollController,
-                      thumbVisibility: true,
-                      thickness: 8,
-                      radius: const Radius.circular(4),
-                      child: SingleChildScrollView(
-                        controller: _horizontalScrollController,
-                        scrollDirection: Axis.horizontal,
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minWidth: MediaQuery.of(context).size.width - 48,
-                          ),
-                          child: DataTable(
-                            horizontalMargin: 24,
-                            columnSpacing: 24,
-                            columns: const [
-                              DataColumn(label: Text('Product')),
-                              DataColumn(label: Text('SKU')),
-                              DataColumn(label: Text('Category')),
-                              DataColumn(label: Text('Prices')),
-                              DataColumn(label: Text('Current Stock')),
-                              DataColumn(label: Text('Unit')),
-                              DataColumn(label: Text('Actions')),
-                            ],
-                            rows: products.map((product) => _buildProductRow(context, product, provider)).toList(),
-                          ),
-                        ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: DataTable(
+                        horizontalMargin: 16,
+                        columnSpacing: 12,
+                        columns: const [
+                          DataColumn(label: Text('Product')),
+                          DataColumn(label: Text('Category')),
+                          DataColumn(label: Text('Prices')),
+                          DataColumn(label: Text('Current Stock')),
+                          DataColumn(label: Text('Actions')),
+                        ],
+                        rows: products.map((product) => _buildProductRow(context, product, provider)).toList(),
                       ),
                     ),
                   ),
@@ -211,73 +200,108 @@ class _ProductsTabState extends State<ProductsTab> {
     return DataRow(
       color: WidgetStateProperty.resolveWith<Color?>(
         (Set<WidgetState> states) {
-          if (summary.isLowStockWarning) {
-            return Theme.of(context).colorScheme.error.withOpacity(0.1);
+          if (states.contains(WidgetState.hovered)) {
+            return Theme.of(context).primaryColor.withOpacity(0.05);
           }
-          return null; // Use default value for other states and when not in warning
+          if (summary.isLowStockWarning) {
+            return Theme.of(context).colorScheme.error.withOpacity(0.08);
+          }
+          return null;
         },
       ),
       cells: [
         DataCell(Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold))),
-        DataCell(Text(product.baseSku)),
         DataCell(Text(summary.categoryName ?? 'Unknown')),
         DataCell(Text(summary.priceRange)),
         DataCell(
-          Text(
-            summary.totalStock.toString(),
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: summary.isLowStockWarning ? Theme.of(context).colorScheme.error : null,
-            ),
-          )
-        ),
-        DataCell(Text(product.unitType)),
-        DataCell(
-          Row(
-            children: [
-              IconButton(icon: const Icon(LucideIcons.eye, size: 18), onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ProductDetailsScreen(productSummary: summary),
+          Consumer<SettingsProvider>(
+            builder: (context, settings, _) {
+              if (!settings.enableUomSystem) {
+                return Text(
+                  summary.totalStock.toString(),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: summary.isLowStockWarning ? Theme.of(context).colorScheme.error : null,
                   ),
                 );
-              }),
-              Tooltip(
-                message: 'Add Stock',
-                child: IconButton(
-                  icon: const Icon(LucideIcons.plus, size: 18, color: Colors.blue),
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => AddStockDialog(productSummary: summary),
-                    );
-                  },
-                ),
-              ),
-              Tooltip(
-                message: 'Print Labels',
-                child: IconButton(
-                  icon: const Icon(LucideIcons.scanLine, size: 18, color: Colors.blue),
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => BarcodeDialog(productSummary: summary),
-                    );
-                  },
-                ),
-              ),
-              IconButton(icon: const Icon(LucideIcons.pencil, size: 18), onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => AddProductDialog(initialProduct: summary),
-                );
-              }),
-              IconButton(
-                icon: const Icon(LucideIcons.trash2, size: 18, color: Colors.red), 
-                onPressed: () {
+              }
+              
+              // UOM Mode: Format stock string
+              return FutureBuilder<String>(
+                future: context.read<ProductRepository>().formatStockPieces(product.id, summary.totalStock),
+                builder: (context, snapshot) {
+                  return Text(
+                    snapshot.data ?? summary.totalStock.toString(),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: summary.isLowStockWarning ? Theme.of(context).colorScheme.error : null,
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        DataCell(
+          AppActionMenu<String>(
+            onSelected: (value) async {
+              switch (value) {
+                case 'view':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ProductDetailsScreen(productSummary: summary),
+                    ),
+                  );
+                  break;
+                case 'add_stock':
+                  showDialog(
+                    context: context,
+                    builder: (context) => AddStockDialog(productSummary: summary),
+                  );
+                  break;
+                case 'print':
+                  showDialog(
+                    context: context,
+                    builder: (context) => BarcodeDialog(productSummary: summary),
+                  );
+                  break;
+                case 'edit':
+                  showDialog(
+                    context: context,
+                    builder: (context) => AddProductDialog(initialProduct: summary),
+                  );
+                  break;
+                case 'delete':
                   _showDeleteConfirmation(context, summary, provider);
-                }
+                  break;
+              }
+            },
+            items: const [
+              AppDropdownItem(
+                value: 'view',
+                label: 'View Details',
+                icon: LucideIcons.eye,
+              ),
+              AppDropdownItem(
+                value: 'add_stock',
+                label: 'Add Stock',
+                icon: LucideIcons.plus,
+              ),
+              AppDropdownItem(
+                value: 'print',
+                label: 'Print Labels',
+                icon: LucideIcons.scanLine,
+              ),
+              AppDropdownItem(
+                value: 'edit',
+                label: 'Edit Product',
+                icon: LucideIcons.pencil,
+              ),
+              AppDropdownItem(
+                value: 'delete',
+                label: 'Delete',
+                icon: LucideIcons.trash2,
               ),
             ],
           ),
