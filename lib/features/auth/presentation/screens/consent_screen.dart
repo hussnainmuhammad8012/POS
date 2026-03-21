@@ -27,6 +27,7 @@ class _ConsentScreenState extends State<ConsentScreen> {
         child: ModernCard(
           width: 800,
           height: 650,
+          mainAxisSize: MainAxisSize.max,
           padding: EdgeInsets.zero,
           child: Row(
             children: [
