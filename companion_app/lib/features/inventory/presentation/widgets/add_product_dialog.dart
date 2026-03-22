@@ -6,6 +6,7 @@ import 'package:companion_app/core/theme/app_theme.dart';
 import 'package:companion_app/core/widgets/custom_text_field.dart';
 import 'package:companion_app/core/widgets/app_dropdown.dart';
 import 'package:companion_app/features/inventory/application/inventory_provider.dart';
+import 'package:companion_app/features/inventory/data/models/product_unit_model.dart';
 import 'package:companion_app/features/inventory/presentation/screens/scanner_screen.dart';
 import 'package:companion_app/features/inventory/presentation/widgets/add_supplier_dialog.dart';
 
@@ -20,6 +21,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
   final _formKey = GlobalKey<FormState>();
   int _currentStep = 0;
   bool _isSaving = false;
+  double _thresholdConversionRate = 1.0;
   bool _skuManuallyEdited = false;
   bool _isAutoGeneratingSku = false;
 
@@ -30,7 +32,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
   String? _selectedCategoryId;
   String? _selectedSupplierId;
 
-  // Step 2: Pricing & Units
+  // Step 2: Pricing & Base Unit
   final _unitController = TextEditingController(text: 'Pieces');
   final _barcodeController = TextEditingController();
   final _costPriceController = TextEditingController();
@@ -41,7 +43,10 @@ class _AddProductDialogState extends State<AddProductDialog> {
   bool _qrManuallyEdited = false;
   bool _isAutoGeneratingQr = false;
 
-  // Step 3: Stock Management
+  // Step 3: Multiplier Units (UOM)
+  List<ProductUnit> _multiplierUnits = [];
+
+  // Step 4: Stock Management
   final _initialStockController = TextEditingController(text: '0');
   final _lowStockThresholdController = TextEditingController(text: '10');
 
@@ -155,9 +160,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
                         child: SingleChildScrollView(
                           child: AnimatedSwitcher(
                             duration: const Duration(milliseconds: 300),
-                            child: _currentStep == 0 
-                              ? _buildIdentityStep() 
-                              : (_currentStep == 1 ? _buildPricingStep() : _buildStockStep()),
+                            child: _buildCurrentStep(),
                           ),
                         ),
                       ),
@@ -171,6 +174,17 @@ class _AddProductDialogState extends State<AddProductDialog> {
         ),
       ),
     );
+  }
+
+  Widget _buildCurrentStep() {
+    final isUom = context.read<InventoryProvider>().isUomEnabled;
+    switch (_currentStep) {
+      case 0: return _buildIdentityStep();
+      case 1: return _buildPricingStep();
+      case 2: return isUom ? _buildUomStep() : _buildStockStep();
+      case 3: return isUom ? _buildStockStep() : const SizedBox();
+      default: return const SizedBox();
+    }
   }
 
   Widget _buildDialogHeader() {
@@ -204,7 +218,9 @@ class _AddProductDialogState extends State<AddProductDialog> {
         children: [
           if (_currentStep > 0)
             TextButton(
-              onPressed: _isSaving ? null : () => setState(() => _currentStep--),
+              onPressed: _isSaving ? null : () {
+                setState(() => _currentStep--);
+              },
               child: const Text('Back', style: TextStyle(color: AppColors.STAR_TEXT_SECONDARY)),
             ),
           const Spacer(),
@@ -218,7 +234,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
             onPressed: _isSaving ? null : _handleNext,
             child: _isSaving 
               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : Text(_currentStep < 2 ? 'Next Step' : 'Create Product'),
+              : Text(_currentStep < (context.read<InventoryProvider>().isUomEnabled ? 3 : 2) ? 'Next Step' : 'Create Product'),
           ),
         ],
       ),
@@ -226,13 +242,21 @@ class _AddProductDialogState extends State<AddProductDialog> {
   }
 
   Widget _buildStepIndicator() {
+    final isUom = context.read<InventoryProvider>().isUomEnabled;
     return Row(
       children: [
         _buildIndicatorPoint(0, 'Identity'),
         _buildIndicatorLine(0),
         _buildIndicatorPoint(1, 'Pricing'),
-        _buildIndicatorLine(1),
-        _buildIndicatorPoint(2, 'Stock'),
+        if (isUom) ...[
+          _buildIndicatorLine(1),
+          _buildIndicatorPoint(2, 'Multi-Units'),
+          _buildIndicatorLine(2),
+          _buildIndicatorPoint(3, 'Stock'),
+        ] else ...[
+          _buildIndicatorLine(1),
+          _buildIndicatorPoint(2, 'Stock'),
+        ]
       ],
     );
   }
@@ -244,20 +268,20 @@ class _AddProductDialogState extends State<AddProductDialog> {
       child: Column(
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: 28,
+            height: 28,
             decoration: BoxDecoration(
               color: isCompleted ? AppColors.SUCCESS : (isActive ? AppColors.STAR_PRIMARY : AppColors.STAR_BORDER),
               shape: BoxShape.circle,
             ),
             child: Center(
               child: isCompleted 
-                ? const Icon(LucideIcons.check, size: 16, color: Colors.white)
-                : Text('${index + 1}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ? const Icon(LucideIcons.check, size: 14, color: Colors.white)
+                : Text('${index + 1}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
             ),
           ),
           const SizedBox(height: 4),
-          Text(label, style: TextStyle(fontSize: 10, color: isActive ? AppColors.STAR_PRIMARY : AppColors.STAR_TEXT_SECONDARY)),
+          Text(label, style: TextStyle(fontSize: 8, color: isActive ? AppColors.STAR_PRIMARY : AppColors.STAR_TEXT_SECONDARY)),
         ],
       ),
     );
@@ -266,7 +290,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
   Widget _buildIndicatorLine(int afterIndex) {
     bool isCompleted = _currentStep > afterIndex;
     return Container(
-      width: 20,
+      width: 15,
       height: 2,
       color: isCompleted ? AppColors.SUCCESS : AppColors.STAR_BORDER,
     );
@@ -333,11 +357,33 @@ class _AddProductDialogState extends State<AddProductDialog> {
           validator: (v) => v == null || v.isEmpty ? 'Required' : null,
         ),
         const SizedBox(height: 16),
-        CustomTextField(
-          controller: _skuController,
-          label: 'Base SKU',
-          prefixIcon: LucideIcons.hash,
-          validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: CustomTextField(
+                controller: _skuController,
+                label: 'Base SKU',
+                prefixIcon: LucideIcons.hash,
+                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.STAR_PRIMARY.withOpacity(0.1),
+                foregroundColor: AppColors.STAR_PRIMARY,
+                elevation: 0,
+                padding: const EdgeInsets.all(12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () {
+                _skuManuallyEdited = false;
+                _onNameChanged();
+              },
+              child: const Icon(LucideIcons.refreshCw, size: 20),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         CustomTextField(
@@ -359,7 +405,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
             Expanded(
               child: CustomTextField(
                 controller: _barcodeController,
-                label: 'Barcode / SKU',
+                label: 'Base Barcode',
                 prefixIcon: LucideIcons.scan,
               ),
             ),
@@ -372,9 +418,29 @@ class _AddProductDialogState extends State<AddProductDialog> {
                   foregroundColor: AppColors.STAR_PRIMARY,
                   elevation: 0,
                   padding: const EdgeInsets.all(12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
                 onPressed: _openScanner,
                 child: const Icon(LucideIcons.camera),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              margin: const EdgeInsets.only(top: 20),
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.STAR_PRIMARY.withOpacity(0.1),
+                  foregroundColor: AppColors.STAR_PRIMARY,
+                  elevation: 0,
+                  padding: const EdgeInsets.all(12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () {
+                  setState(() {
+                    _barcodeController.text = 'BAR-${DateTime.now().millisecondsSinceEpoch}';
+                  });
+                },
+                child: const Icon(LucideIcons.refreshCw),
               ),
             ),
           ],
@@ -428,9 +494,10 @@ class _AddProductDialogState extends State<AddProductDialog> {
         const SizedBox(height: 16),
         CustomTextField(
           controller: _unitController,
-          label: 'Unit Type',
+          label: context.read<InventoryProvider>().isUomEnabled ? 'Base Unit Name' : 'Unit Type',
           prefixIcon: LucideIcons.layers,
           hint: 'Pieces, Kg, Liter, etc.',
+          validator: (v) => v == null || v.isEmpty ? 'Required' : null,
         ),
         const SizedBox(height: 16),
         Row(
@@ -453,60 +520,326 @@ class _AddProductDialogState extends State<AddProductDialog> {
                 padding: const EdgeInsets.all(12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              onPressed: _generateInternalQr,
-              child: const Icon(LucideIcons.refreshCw, size: 20),
+              onPressed: _openScannerForQr,
+              child: const Icon(LucideIcons.camera, size: 20),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              margin: const EdgeInsets.only(bottom: 2), // Align visually
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.STAR_PRIMARY.withOpacity(0.1),
+                  foregroundColor: AppColors.STAR_PRIMARY,
+                  elevation: 0,
+                  padding: const EdgeInsets.all(12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: _generateInternalQr,
+                child: const Icon(LucideIcons.refreshCw, size: 20),
+              ),
             ),
           ],
-        ),
-        const Padding(
-          padding: EdgeInsets.only(top: 8, left: 4),
-          child: Text(
-            'Generated codes are for internal inventory use only.',
-            style: TextStyle(fontSize: 10, color: Colors.grey, fontStyle: FontStyle.italic),
-          ),
         ),
       ],
     );
   }
 
-  Widget _buildStockStep() {
+  Widget _buildUomStep() {
     return Column(
       key: const ValueKey(2),
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CustomTextField(
-          controller: _initialStockController,
-          label: 'Initial Stock Pieces',
-          keyboardType: TextInputType.number,
-          prefixIcon: LucideIcons.boxes,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Multiplier Units', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.STAR_TEXT)),
+            ElevatedButton.icon(
+              onPressed: _showAddMultiplierDialog,
+              icon: const Icon(LucideIcons.plus, size: 16),
+              label: const Text('Add UOM'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.STAR_PRIMARY,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 16),
-        CustomTextField(
-          controller: _lowStockThresholdController,
-          label: 'Low Stock Alert Threshold',
-          keyboardType: TextInputType.number,
-          prefixIcon: LucideIcons.alertTriangle,
-        ),
-        const SizedBox(height: 24),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.STAR_PRIMARY.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.STAR_PRIMARY.withOpacity(0.1)),
-          ),
-          child: Row(
-            children: [
-              const Icon(LucideIcons.info, color: AppColors.STAR_PRIMARY, size: 20),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'This will initialize the primary variant with the given stock levels.',
-                  style: TextStyle(fontSize: 12, color: AppColors.STAR_TEXT_SECONDARY),
+        const SizedBox(height: 12),
+        if (_multiplierUnits.isEmpty)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 40),
+              child: Column(
+                children: [
+                  Icon(LucideIcons.layers, size: 48, color: AppColors.STAR_BORDER),
+                  const SizedBox(height: 12),
+                  const Text('No Multiplier Units Added', style: TextStyle(color: AppColors.STAR_TEXT_SECONDARY)),
+                  const Text('e.g. Pet = 6 Pieces', style: TextStyle(fontSize: 12, color: AppColors.STAR_TEXT_SECONDARY)),
+                ],
+              ),
+            ),
+          )
+        else
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _multiplierUnits.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (context, index) {
+              final unit = _multiplierUnits[index];
+              return Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.STAR_BORDER),
                 ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(color: AppColors.STAR_PRIMARY.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                      child: const Icon(LucideIcons.package, size: 18, color: AppColors.STAR_PRIMARY),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(unit.unitName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          Text('1 ${unit.unitName} = ${unit.conversionRate} ${_unitController.text}', style: const TextStyle(fontSize: 12, color: AppColors.STAR_TEXT_SECONDARY)),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text('Rs. ${unit.retailPrice}', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.STAR_PRIMARY)),
+                        GestureDetector(
+                          onTap: () => setState(() => _multiplierUnits.removeAt(index)),
+                          child: const Text('Remove', style: TextStyle(color: AppColors.DANGER, fontSize: 12)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+      ],
+    );
+  }
+
+  void _showAddMultiplierDialog() {
+    final nameCtrl = TextEditingController();
+    final rateCtrl = TextEditingController();
+    final costCtrl = TextEditingController();
+    final retailCtrl = TextEditingController();
+    final barcodeCtrl = TextEditingController();
+    final qrCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Multiplier Unit'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CustomTextField(controller: nameCtrl, label: 'Unit Name (e.g. Pet, Box)', prefixIcon: LucideIcons.type),
+              const SizedBox(height: 12),
+              CustomTextField(controller: rateCtrl, label: 'Conversion Rate (vs Base)', prefixIcon: LucideIcons.hash, keyboardType: TextInputType.number),
+              const SizedBox(height: 12),
+              CustomTextField(controller: costCtrl, label: 'Cost Price', prefixIcon: LucideIcons.banknote, keyboardType: TextInputType.number),
+              const SizedBox(height: 12),
+              CustomTextField(controller: retailCtrl, label: 'Retail Price', prefixIcon: LucideIcons.tag, keyboardType: TextInputType.number),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(child: CustomTextField(controller: barcodeCtrl, label: 'Unit Barcode', prefixIcon: LucideIcons.scan)),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.STAR_PRIMARY.withOpacity(0.1),
+                      foregroundColor: AppColors.STAR_PRIMARY,
+                      elevation: 0,
+                      padding: const EdgeInsets.all(12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (ctx) => ScannerScreen(onScan: (code) => barcodeCtrl.text = code)));
+                    },
+                    child: const Icon(LucideIcons.camera, size: 20),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.STAR_PRIMARY.withOpacity(0.1),
+                      foregroundColor: AppColors.STAR_PRIMARY,
+                      elevation: 0,
+                      padding: const EdgeInsets.all(12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () => barcodeCtrl.text = 'BAR-${DateTime.now().millisecondsSinceEpoch}',
+                    child: const Icon(LucideIcons.refreshCw, size: 20),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(child: CustomTextField(controller: qrCtrl, label: 'Unit QR Code', prefixIcon: LucideIcons.scanLine)),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.STAR_PRIMARY.withOpacity(0.1),
+                      foregroundColor: AppColors.STAR_PRIMARY,
+                      elevation: 0,
+                      padding: const EdgeInsets.all(12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (ctx) => ScannerScreen(onScan: (code) => qrCtrl.text = code)));
+                    },
+                    child: const Icon(LucideIcons.camera, size: 20),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.STAR_PRIMARY.withOpacity(0.1),
+                      foregroundColor: AppColors.STAR_PRIMARY,
+                      elevation: 0,
+                      padding: const EdgeInsets.all(12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () => qrCtrl.text = 'QR-${DateTime.now().microsecondsSinceEpoch}',
+                    child: const Icon(LucideIcons.refreshCw, size: 20),
+                  ),
+                ],
               ),
             ],
           ),
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              if (nameCtrl.text.isEmpty || rateCtrl.text.isEmpty || retailCtrl.text.isEmpty) return;
+              setState(() {
+                _multiplierUnits.add(ProductUnit(
+                  id: 'unit_mul_${DateTime.now().millisecondsSinceEpoch}',
+                  productId: '',
+                  unitName: nameCtrl.text,
+                  conversionRate: int.tryParse(rateCtrl.text) ?? 1,
+                  isBaseUnit: false,
+                  barcode: barcodeCtrl.text.isEmpty ? null : barcodeCtrl.text,
+                  qrCode: qrCtrl.text.isEmpty ? null : qrCtrl.text,
+                  costPrice: double.tryParse(costCtrl.text) ?? 0,
+                  retailPrice: double.parse(retailCtrl.text),
+                  isActive: true,
+                  createdAt: DateTime.now(),
+                  updatedAt: DateTime.now(),
+                ));
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStockStep() {
+    return Column(
+      key: const ValueKey(3),
+      children: [
+        CustomTextField(
+          controller: _initialStockController,
+          label: context.read<InventoryProvider>().isUomEnabled ? 'Initial Stock (Base Units)' : 'Initial Stock',
+          keyboardType: TextInputType.number,
+          prefixIcon: LucideIcons.boxes,
+        ),
+        const SizedBox(height: 16),
+        if (context.read<InventoryProvider>().isUomEnabled)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                flex: 2,
+                child: CustomTextField(
+                  controller: _lowStockThresholdController,
+                  label: 'Low Stock Threshold',
+                  keyboardType: TextInputType.number,
+                  prefixIcon: LucideIcons.alertTriangle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 1,
+                child: DropdownButtonFormField<double>(
+                  value: _thresholdConversionRate,
+                  decoration: InputDecoration(
+                    labelText: 'Unit',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.STAR_BORDER),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.STAR_BORDER),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.STAR_PRIMARY, width: 2),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                  ),
+                  items: [
+                    DropdownMenuItem(value: 1.0, child: Text(_unitController.text.isNotEmpty ? _unitController.text : 'Base Unit', overflow: TextOverflow.ellipsis)),
+                    ..._multiplierUnits.map((u) => DropdownMenuItem(value: u.conversionRate.toDouble(), child: Text(u.unitName, overflow: TextOverflow.ellipsis))),
+                  ],
+                  onChanged: (val) {
+                    setState(() {
+                      _thresholdConversionRate = val ?? 1.0;
+                    });
+                  },
+                ),
+              ),
+            ],
+          )
+        else
+          CustomTextField(
+            controller: _lowStockThresholdController,
+            label: 'Low Stock Alert Threshold',
+            keyboardType: TextInputType.number,
+            prefixIcon: LucideIcons.alertTriangle,
+          ),
+        const SizedBox(height: 24),
+        if (context.read<InventoryProvider>().isUomEnabled)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.STAR_PRIMARY.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.STAR_PRIMARY.withOpacity(0.1)),
+            ),
+            child: Row(
+              children: [
+                const Icon(LucideIcons.info, color: AppColors.STAR_PRIMARY, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'This will initialize the product with the given stock levels in ${_unitController.text}.',
+                    style: const TextStyle(fontSize: 12, color: AppColors.STAR_TEXT_SECONDARY),
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -526,6 +859,21 @@ class _AddProductDialogState extends State<AddProductDialog> {
     );
   }
 
+  void _openScannerForQr() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ScannerScreen(
+          onScan: (barcode) {
+            setState(() {
+              _qrController.text = barcode;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
   void _showAddSupplier(BuildContext context) {
     showDialog(
       context: context,
@@ -534,16 +882,17 @@ class _AddProductDialogState extends State<AddProductDialog> {
     );
   }
 
-  Future<void> _handleNext() async {
+  void _handleNext() async {
     if (!_formKey.currentState!.validate()) return;
+    final provider = context.read<InventoryProvider>();
 
-    if (_currentStep < 2) {
+    final totalSteps = provider.isUomEnabled ? 4 : 3;
+    if (_currentStep < (totalSteps - 1)) {
       setState(() => _currentStep++);
       return;
     }
 
     setState(() => _isSaving = true);
-    final provider = context.read<InventoryProvider>();
     
     String? error;
     try {
@@ -559,9 +908,28 @@ class _AddProductDialogState extends State<AddProductDialog> {
         retailPrice: double.parse(_retailPriceController.text),
         wholesalePrice: double.tryParse(_wholesalePriceController.text),
         mrp: double.tryParse(_mrpController.text),
-        initialStock: int.tryParse(_initialStockController.text) ?? 0,
-        lowStockThreshold: int.tryParse(_lowStockThresholdController.text) ?? 10,
+        initialStock: (int.tryParse(_initialStockController.text) ?? 0) * _thresholdConversionRate.round(),
+        lowStockThreshold: (int.tryParse(_lowStockThresholdController.text) ?? 10) * _thresholdConversionRate.round(),
         qrCode: _qrController.text.isEmpty ? null : _qrController.text,
+        units: [
+          ProductUnit(
+            id: 'unit_base_${DateTime.now().millisecondsSinceEpoch}',
+            productId: '', 
+            unitName: _unitController.text,
+            conversionRate: 1,
+            isBaseUnit: true,
+            barcode: _barcodeController.text.isEmpty ? null : _barcodeController.text,
+            qrCode: _qrController.text.isEmpty ? null : _qrController.text,
+            costPrice: double.parse(_costPriceController.text),
+            retailPrice: double.parse(_retailPriceController.text),
+            wholesalePrice: double.tryParse(_wholesalePriceController.text),
+            mrp: double.tryParse(_mrpController.text),
+            isActive: true,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          ),
+          ..._multiplierUnits,
+        ],
       );
     } catch (e) {
       error = e.toString();

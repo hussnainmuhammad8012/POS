@@ -58,6 +58,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
   // Step 4: Stock Management
   final _initialStockController = TextEditingController(text: '0');
   final _lowStockThresholdController = TextEditingController(text: '10');
+  double _thresholdConversionRate = 1.0;
 
   bool get isEditing => widget.initialProduct != null;
 
@@ -644,6 +645,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
     final nameCtrl = TextEditingController();
     final rateCtrl = TextEditingController();
     final barcodeCtrl = TextEditingController();
+    final qrCtrl = TextEditingController();
     final costCtrl = TextEditingController();
     final retailCtrl = TextEditingController();
 
@@ -664,8 +666,24 @@ class _AddProductDialogState extends State<AddProductDialog> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Expanded(child: CustomTextField(controller: barcodeCtrl, label: 'Barcode', prefixIcon: LucideIcons.scanLine)),
-                    IconButton(icon: const Icon(LucideIcons.refreshCw), onPressed: () => _generateInternalBarcode(barcodeCtrl)),
+                    Expanded(child: CustomTextField(controller: barcodeCtrl, label: 'Barcode (Optional)', prefixIcon: LucideIcons.scanLine)),
+                    const SizedBox(width: 8),
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 4),
+                      child: IconButton(icon: const Icon(LucideIcons.refreshCw), color: Theme.of(context).primaryColor, tooltip: 'Generate Barcode', onPressed: () => _generateInternalBarcode(barcodeCtrl)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(child: CustomTextField(controller: qrCtrl, label: 'QR Code (Optional)', prefixIcon: LucideIcons.scanLine)),
+                    const SizedBox(width: 8),
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 4),
+                      child: IconButton(icon: const Icon(LucideIcons.refreshCw), color: Colors.green, tooltip: 'Generate QR', onPressed: () => _generateInternalQr(qrCtrl)),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -696,6 +714,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
                     conversionRate: rate,
                     isBaseUnit: false,
                     barcode: barcodeCtrl.text.isEmpty ? null : barcodeCtrl.text,
+                    qrCode: qrCtrl.text.isEmpty ? null : qrCtrl.text,
                     costPrice: double.parse(costCtrl.text),
                     retailPrice: double.parse(retailCtrl.text),
                     isActive: true,
@@ -736,15 +755,55 @@ class _AddProductDialogState extends State<AddProductDialog> {
               ),
             ),
             const SizedBox(width: 16),
-            Expanded(
-              child: CustomTextField(
-                controller: _lowStockThresholdController,
-                label: 'Low Stock Alert',
-                prefixIcon: LucideIcons.alertTriangle,
-                keyboardType: TextInputType.number,
-                validator: (v) => v == null || int.tryParse(v) == null ? 'Invalid threshold' : null,
+            if (isUom)
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: CustomTextField(
+                        controller: _lowStockThresholdController,
+                        label: 'Low Stock Alert',
+                        prefixIcon: LucideIcons.alertTriangle,
+                        keyboardType: TextInputType.number,
+                        validator: (v) => v == null || int.tryParse(v) == null ? 'Invalid' : null,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 1,
+                      child: DropdownButtonFormField<double>(
+                        value: _thresholdConversionRate,
+                        decoration: InputDecoration(
+                          labelText: 'Unit',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                        ),
+                        items: [
+                          DropdownMenuItem(value: 1.0, child: Text(_unitController.text.isNotEmpty ? _unitController.text : 'Base Unit', overflow: TextOverflow.ellipsis)),
+                          ..._multiplierUnits.map((u) => DropdownMenuItem(value: u.conversionRate.toDouble(), child: Text(u.unitName, overflow: TextOverflow.ellipsis))),
+                        ],
+                        onChanged: (val) {
+                          setState(() {
+                            _thresholdConversionRate = val ?? 1.0;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Expanded(
+                child: CustomTextField(
+                  controller: _lowStockThresholdController,
+                  label: 'Low Stock Alert',
+                  prefixIcon: LucideIcons.alertTriangle,
+                  keyboardType: TextInputType.number,
+                  validator: (v) => v == null || int.tryParse(v) == null ? 'Invalid threshold' : null,
+                ),
               ),
-            ),
           ],
         ),
       ],
@@ -801,9 +860,8 @@ class _AddProductDialogState extends State<AddProductDialog> {
         if (isEditing) {
           if (isUom) {
              // For update, we look up the existing base unit ID from the product's units
-             // The repo's updateProductWithUoms matches by product_id + is_base_unit = 1
-             // so we just need the correct ID. Derive a stable one.
-             final existingBaseId = 'unit_${widget.initialProduct!.product.id}_base';
+             final existingBaseUnit = widget.initialProduct!.units.firstWhere((u) => u.isBaseUnit, orElse: () => widget.initialProduct!.units.first);
+             final existingBaseId = existingBaseUnit.id;
              final resolvedBaseUnit = ProductUnit(
                id: existingBaseId,
                productId: widget.initialProduct!.product.id,
@@ -829,8 +887,8 @@ class _AddProductDialogState extends State<AddProductDialog> {
                supplierId: _selectedSupplierId,
                baseUnit: resolvedBaseUnit,
                multiplierUnits: _multiplierUnits,
-               manualBaseStockAdjust: int.tryParse(_initialStockController.text) ?? 0,
-               lowStockThreshold: int.tryParse(_lowStockThresholdController.text) ?? 10,
+               manualBaseStockAdjust: (int.tryParse(_initialStockController.text) ?? 0) * _thresholdConversionRate.round(),
+               lowStockThreshold: (int.tryParse(_lowStockThresholdController.text) ?? 10) * _thresholdConversionRate.round(),
              );
           } else {
             await provider.updateProduct(
@@ -849,7 +907,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
               barcode: baseUnit.barcode,
               qrCode: baseUnit.qrCode,
               initialStock: int.tryParse(_initialStockController.text) ?? 0,
-              lowStockThreshold: int.tryParse(_lowStockThresholdController.text) ?? 10,
+              lowStockThreshold: (int.tryParse(_lowStockThresholdController.text) ?? 10) * _thresholdConversionRate.round(),
             );
           }
         } else {
@@ -879,8 +937,8 @@ class _AddProductDialogState extends State<AddProductDialog> {
               supplierId: _selectedSupplierId,
               baseUnit: resolvedBaseUnit,
               multiplierUnits: _multiplierUnits,
-              initialBaseStock: int.tryParse(_initialStockController.text) ?? 0,
-              lowStockThreshold: int.tryParse(_lowStockThresholdController.text) ?? 10,
+              initialBaseStock: (int.tryParse(_initialStockController.text) ?? 0) * _thresholdConversionRate.round(),
+              lowStockThreshold: (int.tryParse(_lowStockThresholdController.text) ?? 10) * _thresholdConversionRate.round(),
             );
           } else {
             final productId = await provider.createProduct(

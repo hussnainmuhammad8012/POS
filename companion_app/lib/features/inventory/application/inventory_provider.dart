@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:companion_app/features/inventory/data/models/product_model.dart';
 import 'package:companion_app/features/inventory/data/models/category_model.dart';
 import 'package:companion_app/features/inventory/data/models/supplier_model.dart';
+import 'package:companion_app/features/inventory/data/models/product_unit_model.dart';
 
 class InventoryProvider extends ChangeNotifier {
   final String serverIp;
@@ -13,11 +14,13 @@ class InventoryProvider extends ChangeNotifier {
   List<Category> _categories = [];
   List<Supplier> _suppliers = [];
   bool _isLoading = false;
+  bool _isUomEnabled = true;
 
   List<Product> get products => _products;
   List<Category> get categories => _categories;
   List<Supplier> get suppliers => _suppliers;
   bool get isLoading => _isLoading;
+  bool get isUomEnabled => _isUomEnabled;
 
   InventoryProvider({required this.serverIp, required this.accessToken}) {
     fetchInventory();
@@ -30,6 +33,13 @@ class InventoryProvider extends ChangeNotifier {
     try {
       final baseUrl = 'http://$serverIp/inventory';
       final headers = {'Authorization': 'Bearer $accessToken'};
+
+      // Fetch UOM Toggle status from Ping
+      final pingRes = await http.get(Uri.parse('http://$serverIp/ping'), headers: headers);
+      if (pingRes.statusCode == 200) {
+        final pingData = jsonDecode(pingRes.body);
+        _isUomEnabled = pingData['isUomEnabled'] ?? false;
+      }
 
       final prodRes = await http.get(Uri.parse('$baseUrl/products'), headers: headers);
       final catRes = await http.get(Uri.parse('$baseUrl/categories'), headers: headers);
@@ -142,6 +152,7 @@ class InventoryProvider extends ChangeNotifier {
     int initialStock = 0,
     int lowStockThreshold = 10,
     String? qrCode,
+    List<ProductUnit> units = const [],
   }) async {
     try {
       final response = await http.post(
@@ -165,6 +176,7 @@ class InventoryProvider extends ChangeNotifier {
           'mrp': mrp,
           'initialStock': initialStock,
           'lowStockThreshold': lowStockThreshold,
+          'units': units.map((u) => u.toJson()).toList(),
         }),
       );
 

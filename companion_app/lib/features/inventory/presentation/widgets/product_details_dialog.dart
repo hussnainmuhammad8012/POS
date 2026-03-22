@@ -8,7 +8,11 @@ import 'dart:typed_data';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:companion_app/features/inventory/data/models/product_model.dart';
+import 'package:companion_app/features/inventory/data/models/product_unit_model.dart';
 import 'package:companion_app/core/theme/app_theme.dart';
+
+import 'package:provider/provider.dart';
+import 'package:companion_app/features/inventory/application/inventory_provider.dart';
 
 class ProductDetailsDialog extends StatefulWidget {
   final Product product;
@@ -59,79 +63,110 @@ class _ProductDetailsDialogState extends State<ProductDetailsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: AppColors.STAR_BACKGROUND,
-      insetPadding: const EdgeInsets.all(16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildHeader(context),
-          Flexible(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  _buildProductInfo(),
-                  const SizedBox(height: 24),
-                  Screenshot(
-                    controller: _screenshotController,
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
+    return Consumer<InventoryProvider>(
+      builder: (context, inventoryProvider, _) {
+        // Find the updated product from the provider to ensure we have fresh stock counts
+        final product = inventoryProvider.products.firstWhere(
+          (p) => p.id == widget.product.id,
+          orElse: () => widget.product,
+        );
+
+        return Dialog(
+          backgroundColor: AppColors.STAR_BACKGROUND,
+          insetPadding: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildHeader(context),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      _buildProductInfo(product),
+                      const SizedBox(height: 24),
+                      Screenshot(
+                        controller: _screenshotController,
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
-                        ],
+                          child: Column(
+                            children: [
+                              Text(
+                                product.name,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 16),
+                              // Use a builder to catch potential widget crashes for safety
+                              Builder(
+                                builder: (context) {
+                                  try {
+                                    if (_barcode.isNotEmpty) {
+                                      return BarcodeWidget(
+                                        barcode: Barcode.code128(),
+                                        data: _barcode,
+                                        width: 250,
+                                        height: 80,
+                                        drawText: true,
+                                        style: const TextStyle(fontSize: 12, color: Colors.black),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    debugPrint('Barcode crash: $e');
+                                  }
+                                  return const Text('No Barcode/SKU available', style: TextStyle(color: Colors.red));
+                                },
+                              ),
+                              const SizedBox(height: 24),
+                              Builder(
+                                builder: (context) {
+                                  try {
+                                    return QrImageView(
+                                      data: _qrData.isNotEmpty ? _qrData : 'N/A',
+                                      version: QrVersions.auto,
+                                      size: 140.0,
+                                    );
+                                  } catch (e) {
+                                    debugPrint('QR crash: $e');
+                                    return const Icon(Icons.qr_code, size: 100, color: Colors.grey);
+                                  }
+                                },
+                              ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Internal Inventory Use Only',
+                                style: TextStyle(fontSize: 10, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                      child: Column(
-                        children: [
-                          Text(
-                            widget.product.name,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 16),
-                          BarcodeWidget(
-                            barcode: Barcode.code128(),
-                            data: _barcode,
-                            width: 250,
-                            height: 80,
-                            drawText: true,
-                            style: const TextStyle(fontSize: 12, color: Colors.black),
-                          ),
-                          const SizedBox(height: 24),
-                          QrImageView(
-                            data: _qrData,
-                            version: QrVersions.auto,
-                            size: 140.0,
-                          ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Internal Inventory Use Only',
-                            style: TextStyle(fontSize: 10, color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    ),
+                      const SizedBox(height: 24),
+                      _buildActions(context),
+                    ],
                   ),
-                  const SizedBox(height: 24),
-                  _buildActions(context),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -161,12 +196,65 @@ class _ProductDetailsDialogState extends State<ProductDetailsDialog> {
     );
   }
 
-  Widget _buildProductInfo() {
+  Widget _buildProductInfo(Product product) {
+    final hasUnits = product.units.isNotEmpty;
+    final baseUnit = hasUnits 
+        ? product.units.firstWhere((u) => u.isBaseUnit, orElse: () => product.units.first)
+        : null;
+    final unitName = baseUnit?.unitName ?? product.unitType;
+    final retailPrice = baseUnit?.retailPrice ?? product.price;
+        
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildInfoRow(LucideIcons.tag, 'SKU', widget.product.baseSku),
-        _buildInfoRow(LucideIcons.boxes, 'Current Stock', '${widget.product.currentStock} ${widget.product.unitType}'),
-        _buildInfoRow(LucideIcons.banknote, 'Retail Price', 'Rs. ${widget.product.price.toStringAsFixed(0)}'),
+        _buildInfoRow(LucideIcons.tag, 'SKU', product.baseSku),
+        _buildInfoRow(LucideIcons.boxes, 'Current Stock', '${product.currentStock} $unitName'),
+        _buildInfoRow(LucideIcons.banknote, 'Base Price', 'Rs. ${retailPrice.toStringAsFixed(0)}'),
+        const SizedBox(height: 16),
+        if (context.read<InventoryProvider>().isUomEnabled && product.units.length > 1) ...[
+          const Text(
+            'Available Units',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.STAR_TEXT),
+          ),
+          const SizedBox(height: 8),
+          ...widget.product.units.map((unit) => Padding(
+          padding: const EdgeInsets.only(bottom: 8.0),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.STAR_BORDER),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  unit.isBaseUnit ? LucideIcons.box : LucideIcons.layers,
+                  size: 16,
+                  color: AppColors.STAR_PRIMARY,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(unit.unitName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      Text(
+                        '1 ${unit.unitName} = ${unit.conversionRate} ${baseUnit?.unitName ?? widget.product.unitType}',
+                        style: const TextStyle(fontSize: 11, color: AppColors.STAR_TEXT_SECONDARY),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  'Rs. ${unit.retailPrice.toStringAsFixed(0)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.STAR_PRIMARY, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        )),
+        ],
       ],
     );
   }

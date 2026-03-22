@@ -13,6 +13,7 @@ class AppColors {
   static const Color STAR_YELLOW = Color(0xFFE0B50F);
   
   static const Color STAR_TEXT_PRIMARY = Color(0xFF212529);
+  static const Color STAR_TEXT = Color(0xFF212529);
   static const Color STAR_TEXT_SECONDARY = Color(0xFF878A99);
   static const Color STAR_BORDER = Color(0xFFE9EBEC);
 

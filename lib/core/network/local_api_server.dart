@@ -11,6 +11,8 @@ import '../../features/inventory/data/repositories/carton_repository.dart';
 import '../../features/analytics/data/analytics_repository.dart';
 import '../repositories/transaction_repository.dart';
 import '../models/entities.dart';
+import '../../features/inventory/data/models/product_unit_model.dart';
+import '../../features/inventory/data/models/product_model.dart';
 import '../../features/settings/application/settings_provider.dart';
 import '../repositories/supplier_repository.dart';
 import '../services/fcm_service.dart';
@@ -174,7 +176,8 @@ class LocalApiServer {
       return Response.ok(jsonEncode({
         'status': 'ok', 
         'timestamp': DateTime.now().toIso8601String(),
-        'appName': _settingsProvider?.storeName ?? 'Gravity POS'
+        'appName': _settingsProvider?.storeName ?? 'Gravity POS',
+        'isUomEnabled': _settingsProvider?.enableUomSystem ?? false,
       }));
     });
     
@@ -271,6 +274,7 @@ class LocalApiServer {
       'price': s.minPrice,
       'barcode': s.barcode ?? s.product.baseSku,
       'qr_code': s.qrCode ?? s.barcode ?? s.product.baseSku,
+      'units': s.units.map((u) => u.toJson()).toList(),
     }).toList();
     return Response.ok(jsonEncode(list));
   }
@@ -281,23 +285,37 @@ class LocalApiServer {
     final data = jsonDecode(body);
     
     try {
-      // 1. Create Product
-      final productId = await _productRepository!.createProductWithDefaultVariant(
-        categoryId: data['categoryId'],
-        name: data['name'],
-        baseSku: data['baseSku'],
-        description: data['description'],
-        unitType: data['unitType'] ?? 'Pieces',
-        supplierId: data['supplierId'],
-        barcode: (data['barcode']?.toString().isEmpty ?? true) ? null : data['barcode'],
-        qrCode: (data['qrCode']?.toString().isEmpty ?? true) ? null : data['qrCode'],
-        costPrice: (data['costPrice'] as num?)?.toDouble() ?? 0.0,
-        retailPrice: (data['retailPrice'] as num?)?.toDouble() ?? 0.0,
-        wholesalePrice: (data['wholesalePrice'] as num?)?.toDouble(),
-        mrp: (data['mrp'] as num?)?.toDouble(),
-        initialStock: (data['initialStock'] as num?)?.toInt() ?? 0,
-        lowStockThreshold: (data['lowStockThreshold'] as num?)?.toInt() ?? 10,
-      );
+      final productId = (data['units'] != null && (data['units'] as List).isNotEmpty)
+          ? await _productRepository!.createProductWithUoms(
+              categoryId: data['categoryId'],
+              name: data['name'],
+              baseSku: data['baseSku'],
+              description: data['description'],
+              supplierId: data['supplierId'],
+              baseUnit: ProductUnit.fromJson((data['units'] as List).firstWhere((u) => u['is_base_unit'] == 1 || u['is_base_unit'] == true)),
+              multiplierUnits: (data['units'] as List)
+                  .where((u) => u['is_base_unit'] == 0 || u['is_base_unit'] == false)
+                  .map<ProductUnit>((u) => ProductUnit.fromJson(u))
+                  .toList(),
+              initialBaseStock: (data['initialStock'] as num?)?.toInt() ?? 0,
+              lowStockThreshold: (data['lowStockThreshold'] as num?)?.toInt() ?? 10,
+            )
+          : await _productRepository!.createProductWithDefaultVariant(
+              categoryId: data['categoryId'],
+              name: data['name'],
+              baseSku: data['baseSku'],
+              description: data['description'],
+              unitType: data['unitType'] ?? 'Pieces',
+              supplierId: data['supplierId'],
+              barcode: (data['barcode']?.toString().isEmpty ?? true) ? null : data['barcode'],
+              qrCode: (data['qrCode']?.toString().isEmpty ?? true) ? null : data['qrCode'],
+              costPrice: (data['costPrice'] as num?)?.toDouble() ?? 0.0,
+              retailPrice: (data['retailPrice'] as num?)?.toDouble() ?? 0.0,
+              wholesalePrice: (data['wholesalePrice'] as num?)?.toDouble(),
+              mrp: (data['mrp'] as num?)?.toDouble(),
+              initialStock: (data['initialStock'] as num?)?.toInt() ?? 0,
+              lowStockThreshold: (data['lowStockThreshold'] as num?)?.toInt() ?? 10,
+            );
       
       // 3. Notify Sync
       _dataSyncService?.notifyMobileUpdate();
@@ -432,8 +450,9 @@ class LocalApiServer {
       final dueDate = dueDateStr != null ? DateTime.parse(dueDateStr) : null;
 
       // 1. Get primary variant
-      final variantId = await _productRepository!.getPrimaryVariantId(productId);
+      final variantId = await _productRepository!.getPrimaryVariantId(productId.trim());
       if (variantId == null) {
+        print('Mobile Update Error: Variant not found for Product ID: $productId');
         return Response.badRequest(body: jsonEncode({'error': 'Product variant not found'}));
       }
 

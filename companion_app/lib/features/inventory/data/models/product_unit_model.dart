@@ -1,9 +1,9 @@
-// lib/features/inventory/data/models/product_unit_model.dart
+// companion_app/lib/features/inventory/data/models/product_unit_model.dart
 class ProductUnit {
   final String id;
   final String productId;
-  final String unitName; // e.g., 'Piece', 'Box', 'Carton'
-  final int conversionRate; // Multiplier vs base unit. Piece = 1, Box = 12
+  final String unitName;
+  final int conversionRate;
   final bool isBaseUnit;
   final String? barcode;
   final String? qrCode;
@@ -37,7 +37,7 @@ class ProductUnit {
         productId: json['product_id'],
         unitName: json['unit_name'],
         conversionRate: (json['conversion_rate'] as num?)?.toInt() ?? 1,
-        isBaseUnit: json['is_base_unit'] == 1,
+        isBaseUnit: json['is_base_unit'] == 1 || json['is_base_unit'] == true,
         barcode: json['barcode'],
         qrCode: json['qr_code'],
         costPrice: (json['cost_price'] as num).toDouble(),
@@ -46,7 +46,7 @@ class ProductUnit {
             ? (json['wholesale_price'] as num).toDouble()
             : null,
         mrp: json['mrp'] != null ? (json['mrp'] as num).toDouble() : null,
-        isActive: json['is_active'] == 1,
+        isActive: json['is_active'] == 1 || json['is_active'] == true,
         createdAt: DateTime.parse(json['created_at']),
         updatedAt: DateTime.parse(json['updated_at']),
       );

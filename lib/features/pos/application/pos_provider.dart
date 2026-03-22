@@ -6,10 +6,12 @@ import '../../inventory/data/models/product_model.dart';
 import '../../inventory/data/models/product_unit_model.dart';
 import '../../../core/repositories/transaction_repository.dart';
 import '../../../core/services/data_sync_service.dart';
+import '../../settings/application/settings_provider.dart';
 import 'package:utility_store_pos/features/pos/data/models/cart_item.dart';
 
 class PosProvider extends ChangeNotifier {
   final TransactionRepository _transactionRepository;
+  final SettingsProvider _settingsProvider;
   final DataSyncService? _syncService;
 
   // Cart items
@@ -29,7 +31,7 @@ class PosProvider extends ChangeNotifier {
   bool _isProcessing = false;
   String? _error;
 
-  PosProvider(this._transactionRepository, [this._syncService]);
+  PosProvider(this._transactionRepository, this._settingsProvider, [this._syncService]);
 
   // Getters
   List<CartItem> get cartItems => _cartItems;
@@ -41,6 +43,87 @@ class PosProvider extends ChangeNotifier {
   bool get isWholesale => _isWholesale;
   bool get isProcessing => _isProcessing;
   String? get error => _error;
+
+  @override
+  void notifyListeners() {
+    if (!_isProcessing) {
+      _recalculateProratedRemainders();
+    }
+    super.notifyListeners();
+  }
+
+  void _recalculateProratedRemainders() {
+    if (!_settingsProvider.prorateUomRemainders) {
+      _resetPiecePrices();
+      return;
+    }
+
+    final baseIds = _cartItems.map((item) => item.baseVariantId ?? item.variantId).toSet();
+    
+    for (final bId in baseIds) {
+      final itemsForProduct = _cartItems.where((i) => (i.baseVariantId ?? i.variantId) == bId).toList();
+      
+      CartItem? highestUnitItem;
+      for (final item in itemsForProduct) {
+        if (item.quantity > 0) {
+          if (highestUnitItem == null || item.conversionRate > highestUnitItem.conversionRate) {
+            highestUnitItem = item;
+          }
+        }
+      }
+
+      if (highestUnitItem != null && highestUnitItem.conversionRate > 1) {
+        final proratedPrice = highestUnitItem.unitPrice / highestUnitItem.conversionRate;
+        for (int i = 0; i < _cartItems.length; i++) {
+          final item = _cartItems[i];
+          if ((item.baseVariantId ?? item.variantId) == bId && item.conversionRate == 1) {
+            final baseUnit = item.productUnits.where((u) => u.conversionRate == 1).firstOrNull;
+            final cost = baseUnit?.costPrice ?? 0.0;
+            if (item.unitPrice != proratedPrice) {
+              _cartItems[i] = item.copyWith(
+                unitPrice: proratedPrice,
+                profitMargin: proratedPrice - cost,
+              );
+            }
+          }
+        }
+      } else {
+        for (int i = 0; i < _cartItems.length; i++) {
+          final item = _cartItems[i];
+          if ((item.baseVariantId ?? item.variantId) == bId && item.conversionRate == 1) {
+             final baseUnit = item.productUnits.where((u) => u.conversionRate == 1).firstOrNull;
+             if (baseUnit != null) {
+               final stdPrice = _isWholesale ? (baseUnit.wholesalePrice ?? baseUnit.retailPrice) : baseUnit.retailPrice;
+               if (item.unitPrice != stdPrice) {
+                 _cartItems[i] = item.copyWith(
+                   unitPrice: stdPrice,
+                   profitMargin: stdPrice - baseUnit.costPrice,
+                 );
+               }
+             }
+          }
+        }
+      }
+    }
+  }
+
+  void _resetPiecePrices() {
+    for (int i = 0; i < _cartItems.length; i++) {
+      final item = _cartItems[i];
+      if (item.conversionRate == 1) {
+         final baseUnit = item.productUnits.where((u) => u.conversionRate == 1).firstOrNull;
+         if (baseUnit != null) {
+           final stdPrice = _isWholesale ? (baseUnit.wholesalePrice ?? baseUnit.retailPrice) : baseUnit.retailPrice;
+           if (item.unitPrice != stdPrice) {
+             _cartItems[i] = item.copyWith(
+               unitPrice: stdPrice,
+               profitMargin: stdPrice - baseUnit.costPrice,
+             );
+           }
+         }
+      }
+    }
+  }
 
   // Calculations
   double get subtotal =>
@@ -348,6 +431,7 @@ class PosProvider extends ChangeNotifier {
           if (existingUnitIdx >= 0 && existingUnitIdx != index) {
             // Merge into existing bulk row
             _cartItems[existingUnitIdx].quantity += wholeUnits;
+            _cartItems[index].quantity = remainder;
           } else {
             // Transform current row or add new bulk row
             if (remainder == 0) {

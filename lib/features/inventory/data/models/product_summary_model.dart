@@ -1,5 +1,5 @@
-// lib/features/inventory/data/models/product_summary_model.dart
 import 'product_model.dart';
+import 'product_unit_model.dart';
 
 class ProductSummary {
   final Product product;
@@ -12,6 +12,7 @@ class ProductSummary {
   final String? barcode;
   final String? qrCode;
   final int totalStock;
+  final List<ProductUnit> units;
   final int lowStockThreshold;
   final bool isLowStockWarning;
 
@@ -26,6 +27,7 @@ class ProductSummary {
     this.barcode,
     this.qrCode,
     required this.totalStock,
+    this.units = const [],
     required this.lowStockThreshold,
     required this.isLowStockWarning,
   });

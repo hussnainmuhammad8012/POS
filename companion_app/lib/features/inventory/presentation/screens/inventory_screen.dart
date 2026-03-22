@@ -11,6 +11,7 @@ import 'package:companion_app/features/inventory/presentation/widgets/add_produc
 import 'package:companion_app/core/widgets/app_dropdown.dart';
 import 'package:companion_app/features/inventory/presentation/widgets/add_supplier_dialog.dart';
 import 'package:companion_app/features/inventory/presentation/widgets/product_details_dialog.dart';
+import 'package:companion_app/features/inventory/data/models/product_unit_model.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -160,14 +161,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               children: [
                 Text('SKU: ${p.baseSku}', style: const TextStyle(fontSize: 12)),
                 const SizedBox(height: 4),
-                Text(
-                  'Stock: ${p.currentStock} ${p.unitType}',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: p.currentStock <= 5 ? AppColors.DANGER : AppColors.STAR_TEXT_SECONDARY,
-                    fontWeight: p.currentStock <= 5 ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
+                _buildStockDisplay(p),
               ],
             ),
             trailing: Column(
@@ -176,45 +170,40 @@ class _InventoryScreenState extends State<InventoryScreen> {
               children: [
                 Text(
                   'Rs. ${p.price.toStringAsFixed(0)}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.STAR_PRIMARY),
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.STAR_PRIMARY, fontSize: 13),
                 ),
                 const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: AppColors.STAR_PRIMARY.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        constraints: const BoxConstraints(),
-                        padding: EdgeInsets.zero,
-                        icon: const Icon(LucideIcons.scanLine, size: 16, color: AppColors.STAR_PRIMARY),
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => ProductDetailsDialog(
-                              product: p,
-                              onAddStock: () => _showAddStockDialog(p),
-                            ),
-                          );
-                        },
+                Material(
+                  color: AppColors.STAR_PRIMARY.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  child: InkWell(
+                    onTap: () => _showAddStockDialog(p),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(LucideIcons.plus, size: 14, color: AppColors.STAR_PRIMARY),
+                          const SizedBox(width: 4),
+                          const Icon(LucideIcons.package, size: 14, color: AppColors.STAR_PRIMARY),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      const Icon(LucideIcons.plus, size: 16, color: AppColors.STAR_PRIMARY),
-                    ],
+                    ),
                   ),
                 ),
               ],
             ),
             onTap: () {
+              final provider = context.read<InventoryProvider>();
               showDialog(
                 context: context,
-                builder: (context) => ProductDetailsDialog(
-                  product: p,
-                  onAddStock: () => _showAddStockDialog(p),
+                builder: (context) => ChangeNotifierProvider.value(
+                  value: provider,
+                  child: ProductDetailsDialog(
+                    product: p,
+                    onAddStock: () => _showAddStockDialog(p),
+                  ),
                 ),
               );
             },
@@ -224,13 +213,81 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
+  Widget _buildStockDisplay(Product p) {
+    final inventoryProvider = context.read<InventoryProvider>();
+    if (!inventoryProvider.isUomEnabled || p.units.isEmpty) {
+      return Text('Stock: ${p.currentStock} ${p.unitType}', style: _getStockStyle(p.currentStock));
+    }
+
+    final baseUnit = p.units.firstWhere((u) => u.isBaseUnit, orElse: () => p.units.first);
+    final multiplierUnits = p.units.where((u) => !u.isBaseUnit).toList()
+      ..sort((a, b) => b.conversionRate.compareTo(a.conversionRate));
+
+    if (multiplierUnits.isEmpty) {
+      return Text('Stock: ${p.currentStock} ${baseUnit.unitName}', style: _getStockStyle(p.currentStock));
+    }
+
+    int remaining = p.currentStock;
+    List<String> parts = [];
+
+    for (var unit in multiplierUnits) {
+       int rate = unit.conversionRate.toInt();
+       if (rate > 0) {
+         int count = remaining ~/ rate;
+         if (count > 0) {
+           parts.add('$count ${unit.unitName}');
+           remaining %= rate;
+         }
+       }
+    }
+
+    if (remaining > 0 || parts.isEmpty) {
+      parts.add('$remaining ${baseUnit.unitName}');
+    }
+
+    return Text(
+      'Stock: ${parts.join(', ')}',
+      style: _getStockStyle(p.currentStock),
+    );
+  }
+
+  TextStyle _getStockStyle(int stock) {
+     return TextStyle(
+       fontSize: 13,
+       color: stock <= 5 ? AppColors.DANGER : AppColors.STAR_TEXT_SECONDARY,
+       fontWeight: stock <= 5 ? FontWeight.bold : FontWeight.normal,
+     );
+  }
+
   void _showAddStockDialog(Product product) {
+    final inventoryProvider = context.read<InventoryProvider>();
+    
+    // Check if we need units. If UOM is disabled or no units found but UOM is enabled, handle gracefully.
+    final hasUnits = product.units.isNotEmpty;
+    
+    // Create a fallback base unit if none exists (for old products)
+    final baseUnit = hasUnits 
+        ? product.units.firstWhere((u) => u.isBaseUnit, orElse: () => product.units.first)
+        : ProductUnit(
+            id: 'virtual_base',
+            productId: product.id,
+            unitName: product.unitType,
+            conversionRate: 1,
+            isBaseUnit: true,
+            costPrice: 0,
+            retailPrice: product.price,
+            isActive: true,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+
     final qtyController = TextEditingController();
     final totalCostController = TextEditingController(text: '0.0');
     final paidAmountController = TextEditingController(text: '0.0');
     final reasonController = TextEditingController(text: 'Purchased from mobile');
     final formKey = GlobalKey<FormState>();
-    final inventoryProvider = context.read<InventoryProvider>();
+    
+    ProductUnit selectedUnit = baseUnit;
     String? selectedSupplierId;
     DateTime? dueDate;
 
@@ -252,10 +309,19 @@ class _InventoryScreenState extends State<InventoryScreen> {
                    const Icon(LucideIcons.package, color: Colors.white),
                    const SizedBox(width: 12),
                    Expanded(
-                     child: Text(
-                       'Add Stock: ${product.name}', 
-                       style: const TextStyle(color: Colors.white, fontSize: 18)
-                     )
+                     child: Column(
+                       crossAxisAlignment: CrossAxisAlignment.start,
+                       children: [
+                         Text(
+                           'Add Stock: ${product.name}', 
+                           style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
+                         ),
+                         Text(
+                           'Current: ${product.currentStock} ${baseUnit.unitName}',
+                           style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
+                         ),
+                       ],
+                     ),
                    ),
                    IconButton(
                      icon: const Icon(LucideIcons.x, color: Colors.white, size: 20),
@@ -273,23 +339,52 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const SizedBox(height: 8),
-                      CustomTextField(
-                        label: 'Quantity to Add',
-                        hint: 'e.g. 10',
-                        keyboardType: TextInputType.number,
-                        controller: qtyController,
-                        prefixIcon: LucideIcons.boxes,
-                        validator: (v) {
-                          if (v == null || v.isEmpty) return 'Required';
-                          if (int.tryParse(v) == null) return 'Invalid number';
-                          return null;
-                        },
+                      const SizedBox(height: 12),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: CustomTextField(
+                              label: 'Quantity',
+                              hint: 'e.g. 10',
+                              keyboardType: TextInputType.number,
+                              controller: qtyController,
+                              prefixIcon: LucideIcons.boxes,
+                              validator: (v) {
+                                if (v == null || v.isEmpty) return 'Required';
+                                if (int.tryParse(v) == null) return 'Invalid';
+                                return null;
+                              },
+                            ),
+                          ),
+                          if (inventoryProvider.isUomEnabled && hasUnits) ...[
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 3,
+                              child: AppDropdown<ProductUnit>(
+                                label: 'Unit',
+                                hint: 'Select Unit',
+                                prefixIcon: LucideIcons.layers,
+                                value: selectedUnit,
+                                items: product.units.map((u) => AppDropdownItem<ProductUnit>(
+                                  value: u,
+                                  label: u.unitName,
+                                  subtitle: 'x${u.conversionRate.toInt()} ${baseUnit.unitName}',
+                                  icon: u.isBaseUnit ? LucideIcons.box : LucideIcons.layers,
+                                )).toList(),
+                                onChanged: (v) {
+                                  if (v != null) setState(() => selectedUnit = v);
+                                },
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       const SizedBox(height: 16),
                       CustomTextField(
                         label: 'Optional Notes',
-                        hint: 'Reason for adjustment...',
+                        hint: 'e.g. Purchased 10 ${selectedUnit.unitName}...',
                         controller: reasonController,
                         prefixIcon: LucideIcons.fileText,
                       ),
@@ -408,6 +503,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   if (!formKey.currentState!.validate()) return;
                   
                   final qty = int.parse(qtyController.text);
+                  // COMPUTE REAL STOCK BASED ON UOM
+                  final totalBasePieces = (qty * selectedUnit.conversionRate).toInt();
                   bool success = false;
 
                   // Show loading
@@ -418,21 +515,22 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   );
 
                   try {
+                    final stockReason = '${reasonController.text} (Added $qty ${selectedUnit.unitName})';
                     if (selectedSupplierId != null) {
                       success = await inventoryProvider.receiveCarton(
                         productId: product.id,
-                        quantity: qty,
+                        quantity: totalBasePieces,
                         totalCost: double.tryParse(totalCostController.text) ?? 0,
                         paidAmount: double.tryParse(paidAmountController.text) ?? 0,
                         supplierId: selectedSupplierId,
-                        notes: reasonController.text,
+                        notes: stockReason,
                         dueDate: dueDate,
                       );
                     } else {
                       success = await inventoryProvider.updateStock(
                         product.id, 
-                        qty, 
-                        reasonController.text
+                        totalBasePieces, 
+                        stockReason,
                       );
                     }
                   } finally {

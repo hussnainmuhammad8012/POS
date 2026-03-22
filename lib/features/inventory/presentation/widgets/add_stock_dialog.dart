@@ -52,22 +52,24 @@ class _AddStockDialogState extends State<AddStockDialog> {
     final data = await repo.getProductWithVariants(widget.productSummary.product.id);
     
     if (mounted) {
-      if (isUomEnabled) {
-        // Load UOM units instead of variants
-        final units = await repo.getUnitsByProductId(widget.productSummary.product.id);
-        setState(() {
-          _productUnits = units;
-          _selectedUnit = units.isNotEmpty ? units.firstWhere((u) => u.isBaseUnit, orElse: () => units.first) : null;
-          _selectedSupplierId = widget.productSummary.product.supplierId;
-          _isLoading = false;
-        });
-      } else if (data != null) {
+      if (data != null) {
         setState(() {
           _variants = data['variants'] as List<ProductVariant>;
           if (_variants.isNotEmpty) {
             _selectedVariant = _variants.first;
           }
           _selectedSupplierId = widget.productSummary.product.supplierId;
+        });
+      }
+
+      if (isUomEnabled) {
+        // Load UOM units
+        final units = await repo.getUnitsByProductId(widget.productSummary.product.id);
+        setState(() {
+          _productUnits = units;
+          _selectedUnit = units.isNotEmpty 
+              ? units.firstWhere((u) => u.isBaseUnit, orElse: () => units.first) 
+              : null;
           _isLoading = false;
         });
       } else {
@@ -330,9 +332,10 @@ class _AddStockDialogState extends State<AddStockDialog> {
 
   Future<void> _submit() async {
     final isUomEnabled = context.read<SettingsProvider>().enableUomSystem;
+    final hasUomUnits = isUomEnabled && _productUnits.isNotEmpty;
     
     // Validate guard rail
-    if (isUomEnabled) {
+    if (hasUomUnits) {
       if (_selectedUnit == null) {
         AppToast.show(context, title: 'No Unit Selected', message: 'Please select a receiving unit.', type: ToastType.error);
         return;
@@ -345,17 +348,31 @@ class _AddStockDialogState extends State<AddStockDialog> {
     final enteredQty = int.parse(_quantityController.text);
     final notes = _notesController.text;
     
-    // For UOM mode, multiply entered qty by conversion rate to get base unit quantity
     final int baseQtyToAdd;
-    final String effectiveVariantId;
-    if (isUomEnabled && _selectedUnit != null) {
-      // Find the base unit to know which stock_level row to update
-      final baseUnit = _productUnits.firstWhere((u) => u.isBaseUnit, orElse: () => _selectedUnit!);
+    final String? effectiveVariantId;
+    
+    if (hasUomUnits && _selectedUnit != null) {
       baseQtyToAdd = enteredQty * _selectedUnit!.conversionRate;
-      effectiveVariantId = baseUnit.id; // stock_levels row is always keyed by base unit ID
+      // Robust lookup: try direct primary search, fallback to cached variant list
+      effectiveVariantId = await context.read<ProductRepository>().getPrimaryVariantId(widget.productSummary.product.id)
+                          ?? (_variants.isNotEmpty ? _variants.first.id : null);
     } else {
       baseQtyToAdd = enteredQty;
-      effectiveVariantId = _selectedVariant!.id;
+      effectiveVariantId = _selectedVariant?.id;
+    }
+
+    if (effectiveVariantId == null) {
+      if (mounted) {
+        final pid = widget.productSummary.product.id;
+        final vCount = _variants.length;
+        AppToast.show(
+          context, 
+          title: 'Error', 
+          message: 'Product variant not found for ID: $pid (Cached Variants: $vCount)', 
+          type: ToastType.error
+        );
+      }
+      return;
     }
     
     final stockProvider = context.read<StockProvider>();
@@ -376,11 +393,11 @@ class _AddStockDialogState extends State<AddStockDialog> {
           costPerPiece: costPerPiece,
           receivedQuantity: baseQtyToAdd,
           supplierId: _selectedSupplierId,
-          unitId: isUomEnabled ? _selectedUnit?.id : null,
-          unitName: isUomEnabled ? _selectedUnit?.unitName : null,
+          unitId: hasUomUnits ? _selectedUnit?.id : null,
+          unitName: hasUomUnits ? _selectedUnit?.unitName : null,
           notes: notes.isNotEmpty 
             ? notes 
-            : isUomEnabled && _selectedUnit != null
+            : hasUomUnits && _selectedUnit != null
                 ? 'Received $enteredQty ${_selectedUnit!.unitName}(s) = $baseQtyToAdd base units'
                 : 'Purchased from supplier',
         );
@@ -395,12 +412,12 @@ class _AddStockDialogState extends State<AddStockDialog> {
         await stockProvider.recordAdjustment(
           productVariantId: effectiveVariantId,
           quantityAdjustment: baseQtyToAdd,
-          reason: isUomEnabled && _selectedUnit != null
+          reason: hasUomUnits && _selectedUnit != null
             ? 'Manual Addition: $enteredQty ${_selectedUnit!.unitName}(s) → $baseQtyToAdd base units'
             : 'Manual Stock Addition',
           notes: notes,
-          unitId: isUomEnabled ? _selectedUnit?.id : null,
-          unitName: isUomEnabled ? _selectedUnit?.unitName : null,
+          unitId: hasUomUnits ? _selectedUnit?.id : null,
+          unitName: hasUomUnits ? _selectedUnit?.unitName : null,
         );
       }
       
@@ -411,7 +428,7 @@ class _AddStockDialogState extends State<AddStockDialog> {
         AppToast.show(
           context, 
           title: 'Stock Updated', 
-          message: isUomEnabled && _selectedUnit != null
+          message: hasUomUnits && _selectedUnit != null
             ? 'Added $enteredQty ${_selectedUnit!.unitName}(s) (+$baseQtyToAdd base units) successfully.'
             : 'Stock has been added successfully.',
           type: ToastType.success,

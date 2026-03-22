@@ -211,6 +211,42 @@ class _StoreInfoPanel extends StatelessWidget {
                   ),
                 ],
               ),
+              if (settings.enableUomSystem) ...[
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const SizedBox(width: 48),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(LucideIcons.percent, color: Theme.of(context).primaryColor, size: 20),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Apply Bulk Pricing to Remainders', 
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)
+                          ),
+                          Text('Automatically discount extra pieces to match the attained bulk unit rate.',
+                            style: TextStyle(color: Theme.of(context).colorScheme.secondary, fontSize: 13)
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: settings.prorateUomRemainders,
+                      activeColor: Theme.of(context).primaryColor,
+                      overlayColor: WidgetStateProperty.all(Colors.transparent),
+                      onChanged: (value) async => settings.setProrateUomRemainders(value),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),

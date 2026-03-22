@@ -129,15 +129,68 @@ class ProductRepository {
   }
 
   Future<String?> getPrimaryVariantId(String productId) async {
+    final cleanId = productId.trim();
+    // 1. Try exact match (active)
     final results = await _db.query(
       'product_variants',
       columns: ['id'],
       where: 'product_id = ? AND is_active = 1',
-      whereArgs: [productId],
+      whereArgs: [cleanId],
       limit: 1,
     );
-    if (results.isEmpty) return null;
-    return results.first['id'] as String;
+    if (results.isNotEmpty) return results.first['id'] as String;
+
+    // 2. Try case-insensitive match (active)
+    final resultsCI = await _db.rawQuery(
+      'SELECT id FROM product_variants WHERE product_id = ? COLLATE NOCASE AND is_active = 1 LIMIT 1',
+      [cleanId],
+    );
+    if (resultsCI.isNotEmpty) return resultsCI.first['id'] as String;
+
+    // 3. Fallback to ANY variant for this product
+    final anyVariant = await _db.query(
+      'product_variants',
+      columns: ['id'],
+      where: 'product_id = ?',
+      whereArgs: [cleanId],
+      limit: 1,
+    );
+    if (anyVariant.isNotEmpty) return anyVariant.first['id'] as String;
+
+    // 4. AUTO-REPAIR: If product exists but has NO variant, create a default one
+    final productCheck = await _db.query('products', where: 'id = ?', whereArgs: [cleanId]);
+    if (productCheck.isNotEmpty) {
+      print('REPAIR: Product $cleanId exists but has NO variants. Creating default...');
+      final product = productCheck.first;
+      final newVariantId = 'var_repair_${DateTime.now().millisecondsSinceEpoch}';
+      
+      await _db.transaction((txn) async {
+        await txn.insert('product_variants', {
+          'id': newVariantId,
+          'product_id': cleanId,
+          'variant_name': 'Default',
+          'sku': '${product['base_sku']}-DEF-${DateTime.now().millisecond}',
+          'cost_price': 0.0,
+          'retail_price': 0.0,
+          'is_active': 1,
+          'created_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+        
+        await txn.insert('stock_levels', {
+          'id': 'stk_repair_${DateTime.now().millisecondsSinceEpoch}',
+          'product_variant_id': newVariantId,
+          'total_pieces': 0,
+          'available_pieces': 0,
+          'low_stock_threshold': 10,
+          'created_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+      });
+      return newVariantId;
+    }
+
+    return null;
   }
 
   /// ==========================================
@@ -212,11 +265,29 @@ class ProductRepository {
         });
       }
 
-      // 4. Create Stock Level (tracked at the product level, using base unit ID as reference for backwards compatibility!)
+      // 4. Create Primary Variant for Stock tracking
+      final variantId = 'v_${DateTime.now().millisecondsSinceEpoch}';
+      await txn.insert('product_variants', {
+        'id': variantId,
+        'product_id': productId,
+        'variant_name': 'Primary (${baseUnit.unitName})',
+        'sku': baseSku,
+        'cost_price': baseUnit.costPrice,
+        'retail_price': baseUnit.retailPrice,
+        'wholesale_price': baseUnit.wholesalePrice,
+        'mrp': baseUnit.mrp,
+        'barcode': baseUnit.barcode,
+        'qr_code': baseUnit.qrCode,
+        'is_active': 1,
+        'created_at': now,
+        'updated_at': now,
+      });
+
+      // 5. Create Stock Level
       final stockId = 'stk_${DateTime.now().millisecondsSinceEpoch}';
       await txn.insert('stock_levels', {
         'id': stockId,
-        'product_variant_id': baseUnit.id, // Using the base unit ID in the variant ID column
+        'product_variant_id': variantId, 
         'total_pieces': initialBaseStock,
         'total_cartons': 0,
         'reserved_pieces': 0,
@@ -232,7 +303,7 @@ class ProductRepository {
       if (initialBaseStock > 0) {
         await txn.insert('stock_movements', {
           'id': 'mov_${DateTime.now().microsecondsSinceEpoch}',
-          'product_variant_id': baseUnit.id,
+          'product_variant_id': variantId,
           'movement_type': 'IN',
           'quantity_change': initialBaseStock,
           'quantity_before': 0,
@@ -361,7 +432,23 @@ class ProductRepository {
         }
       }
 
-      // 4. Update Stock Level (using baseUnit.id)
+      // Mirror price updates to primary variant
+      final variants = await txn.query('product_variants', where: 'product_id = ? AND is_active = 1', whereArgs: [productId]);
+      String primaryVariantId = baseUnit.id;
+      if (variants.isNotEmpty) {
+        primaryVariantId = variants.first['id'] as String;
+        await txn.update('product_variants', {
+          'cost_price': baseUnit.costPrice,
+          'retail_price': baseUnit.retailPrice,
+          'wholesale_price': baseUnit.wholesalePrice,
+          'mrp': baseUnit.mrp,
+          'barcode': baseUnit.barcode,
+          'qr_code': baseUnit.qrCode,
+          'updated_at': now,
+        }, where: 'id = ?', whereArgs: [primaryVariantId]);
+      }
+
+      // 4. Update Stock Level
       final sUpdates = <String, dynamic>{'updated_at': now};
       if (manualBaseStockAdjust != null) {
         sUpdates['total_pieces'] = manualBaseStockAdjust;
@@ -372,7 +459,7 @@ class ProductRepository {
       }
 
       if (sUpdates.length > 1) {
-        final stocks = await txn.query('stock_levels', where: 'product_variant_id = ?', whereArgs: [baseUnit.id]);
+        final stocks = await txn.query('stock_levels', where: 'product_variant_id = ?', whereArgs: [primaryVariantId]);
         int prevStock = 0;
         
         if (stocks.isNotEmpty) {
@@ -386,7 +473,7 @@ class ProductRepository {
            final int diff = manualBaseStockAdjust - prevStock;
            await txn.insert('stock_movements', {
              'id': 'mov_${DateTime.now().microsecondsSinceEpoch}',
-             'product_variant_id': baseUnit.id,
+             'product_variant_id': primaryVariantId,
              'movement_type': diff > 0 ? 'ADJUSTMENT' : 'OUT',
              'quantity_change': diff,
              'quantity_before': prevStock,
@@ -396,7 +483,7 @@ class ProductRepository {
            });
         }
 
-        await txn.update('stock_levels', sUpdates, where: 'product_variant_id = ?', whereArgs: [baseUnit.id]);
+        await txn.update('stock_levels', sUpdates, where: 'product_variant_id = ?', whereArgs: [primaryVariantId]);
       }
     });
   }
@@ -590,24 +677,44 @@ class ProductRepository {
       SELECT 
         p.*,
         c.name as category_name,
-        COALESCE(MIN(v.retail_price), MIN(u.retail_price), 0) as min_price,
-        COALESCE(MAX(v.retail_price), MAX(u.retail_price), 0) as max_price,
-        COALESCE(MIN(v.cost_price), MIN(u.cost_price), 0) as cost_price,
-        COALESCE(MIN(v.wholesale_price), MIN(u.wholesale_price), 0) as wholesale_price,
-        COALESCE(MIN(v.mrp), MIN(u.mrp), 0) as mrp,
-        COALESCE(MAX(v.barcode), MAX(u.barcode)) as barcode,
-        COALESCE(MAX(v.qr_code), MAX(u.qr_code)) as qr_code,
-        COALESCE(SUM(sv.available_pieces), SUM(su.available_pieces), 0) as total_stock,
-        COALESCE(MAX(sv.low_stock_threshold), MAX(su.low_stock_threshold), 10) as low_stock_threshold,
-        COALESCE(MAX(sv.is_low_stock_warning), MAX(su.is_low_stock_warning), 0) as is_low_stock_warning
+        COALESCE(
+          (SELECT MIN(retail_price) FROM product_variants WHERE product_id = p.id AND is_active = 1),
+          (SELECT MIN(retail_price) FROM product_units WHERE product_id = p.id AND is_active = 1),
+          0
+        ) as min_price,
+        COALESCE(
+          (SELECT MAX(retail_price) FROM product_variants WHERE product_id = p.id AND is_active = 1),
+          (SELECT MAX(retail_price) FROM product_units WHERE product_id = p.id AND is_active = 1),
+          0
+        ) as max_price,
+        (SELECT MIN(cost_price) FROM product_variants WHERE product_id = p.id AND is_active = 1) as cost_price,
+        (SELECT MIN(wholesale_price) FROM product_variants WHERE product_id = p.id AND is_active = 1) as wholesale_price,
+        (SELECT MIN(mrp) FROM product_variants WHERE product_id = p.id AND is_active = 1) as mrp,
+        COALESCE(
+          (SELECT barcode FROM product_variants WHERE product_id = p.id AND is_active = 1 LIMIT 1),
+          (SELECT barcode FROM product_units WHERE product_id = p.id AND is_active = 1 LIMIT 1)
+        ) as barcode,
+        COALESCE(
+          (SELECT qr_code FROM product_variants WHERE product_id = p.id AND is_active = 1 LIMIT 1),
+          (SELECT qr_code FROM product_units WHERE product_id = p.id AND is_active = 1 LIMIT 1)
+        ) as qr_code,
+        COALESCE(
+          (SELECT SUM(available_pieces) FROM stock_levels WHERE product_variant_id IN (SELECT id FROM product_variants WHERE product_id = p.id AND is_active = 1)),
+          (SELECT SUM(available_pieces) FROM stock_levels WHERE product_variant_id IN (SELECT id FROM product_units WHERE product_id = p.id AND is_active = 1)),
+          0
+        ) as total_stock,
+        COALESCE(
+          (SELECT MAX(low_stock_threshold) FROM stock_levels WHERE product_variant_id IN (SELECT id FROM product_variants WHERE product_id = p.id AND is_active = 1)),
+          (SELECT MAX(low_stock_threshold) FROM stock_levels WHERE product_variant_id IN (SELECT id FROM product_units WHERE product_id = p.id AND is_active = 1)),
+          10
+        ) as low_stock_threshold,
+        COALESCE(
+          (SELECT MAX(is_low_stock_warning) FROM stock_levels WHERE product_variant_id IN (SELECT id FROM product_variants WHERE product_id = p.id AND is_active = 1)),
+          (SELECT MAX(is_low_stock_warning) FROM stock_levels WHERE product_variant_id IN (SELECT id FROM product_units WHERE product_id = p.id AND is_active = 1)),
+          0
+        ) as is_low_stock_warning
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
-      -- Try to get data from variants (classic mode)
-      LEFT JOIN product_variants v ON p.id = v.product_id AND v.is_active = 1
-      LEFT JOIN stock_levels sv ON v.id = sv.product_variant_id
-      -- Try to get data from units (UOM mode)
-      LEFT JOIN product_units u ON p.id = u.product_id AND u.is_active = 1
-      LEFT JOIN stock_levels su ON u.id = su.product_variant_id
       WHERE p.is_active = 1
     ''';
 
@@ -654,7 +761,23 @@ class ProductRepository {
 
     final result = await _db.rawQuery(query, args);
     
+    // Fetch all units for these products in one go to optimize
+    final productIds = result.map((r) => r['id'] as String).toList();
+    Map<String, List<ProductUnit>> unitMap = {};
+    if (productIds.isNotEmpty) {
+      final unitResults = await _db.query(
+        'product_units',
+        where: 'product_id IN (${productIds.map((_) => '?').join(',')}) AND is_active = 1',
+        whereArgs: productIds,
+      );
+      for (var unitJson in unitResults) {
+        final unit = ProductUnit.fromJson(unitJson);
+        unitMap.putIfAbsent(unit.productId, () => []).add(unit);
+      }
+    }
+
     return result.map((row) {
+      final productId = row['id'] as String;
       final product = Product.fromJson(row);
       return ProductSummary(
         product: product,
@@ -667,6 +790,7 @@ class ProductRepository {
         barcode: row['barcode'] as String?,
         qrCode: row['qr_code'] as String?,
         totalStock: (row['total_stock'] as num?)?.toInt() ?? 0,
+        units: unitMap[productId] ?? [],
         lowStockThreshold: (row['low_stock_threshold'] as num?)?.toInt() ?? 10,
         isLowStockWarning: (row['is_low_stock_warning'] as int?) == 1,
       );
@@ -675,19 +799,27 @@ class ProductRepository {
 
   // Get product with all variants
   Future<Map<String, dynamic>?> getProductWithVariants(String productId) async {
-    final productResult = await _db.query(
-      'products',
-      where: 'id = ?',
-      whereArgs: [productId],
+    final cleanId = productId.trim();
+    final productResult = await _db.rawQuery(
+      'SELECT * FROM products WHERE id = ? COLLATE NOCASE',
+      [cleanId],
     );
 
     if (productResult.isEmpty) return null;
 
-    final variants = await _db.query(
-      'product_variants',
-      where: 'product_id = ?',
-      whereArgs: [productId],
+    var variants = await _db.rawQuery(
+      'SELECT * FROM product_variants WHERE product_id = ? COLLATE NOCASE',
+      [cleanId],
     );
+
+    // AUTO-REPAIR: If zero variants, create a default one and re-query
+    if (variants.isEmpty) {
+      await getPrimaryVariantId(cleanId); // Triggers repair
+      variants = await _db.rawQuery(
+        'SELECT * FROM product_variants WHERE product_id = ? COLLATE NOCASE',
+        [cleanId],
+      );
+    }
 
     return {
       'product': Product.fromJson(productResult.first),

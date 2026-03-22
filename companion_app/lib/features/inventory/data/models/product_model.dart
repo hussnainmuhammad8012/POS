@@ -1,3 +1,5 @@
+import 'product_unit_model.dart';
+
 class Product {
   final String id;
   final String categoryId;
@@ -14,6 +16,7 @@ class Product {
   final double price;
   final String? barcode;
   final String? qrCode;
+  final List<ProductUnit> units;
   
   Product({
     required this.id,
@@ -31,6 +34,7 @@ class Product {
     this.price = 0.0,
     this.barcode,
     this.qrCode,
+    this.units = const [],
   });
 
   factory Product.fromJson(Map<String, dynamic> json) => Product(
@@ -49,6 +53,9 @@ class Product {
     price: (json['price'] as num?)?.toDouble() ?? 0.0,
     barcode: json['barcode'],
     qrCode: json['qr_code'],
+    units: json['units'] != null 
+        ? (json['units'] as List).map((u) => ProductUnit.fromJson(u)).toList()
+        : [],
   );
 
   Map<String, dynamic> toJson() => {
@@ -67,5 +74,6 @@ class Product {
     'price': price,
     'barcode': barcode,
     'qr_code': qrCode,
+    'units': units.map((u) => u.toJson()).toList(),
   };
 }

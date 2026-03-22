@@ -89,7 +89,16 @@ class UtilityStorePosApp extends StatelessWidget {
         
         // Providers
         ChangeNotifierProvider(create: (_) => DataSyncService()),
-        ChangeNotifierProvider(create: (context) => PosProvider(transactionRepo, context.read<DataSyncService>())),
+        ChangeNotifierProvider(create: (_) {
+          final s = SettingsProvider(prefs);
+          s.checkAndPerformAutoBackup(); // Daily auto-backup check
+          return s;
+        }),
+        ChangeNotifierProvider(create: (context) => PosProvider(
+          transactionRepo, 
+          context.read<SettingsProvider>(),
+          context.read<DataSyncService>(),
+        )),
         ChangeNotifierProvider(
           create: (context) => InventoryProvider(
             categoryRepository: categoryRepo,
@@ -121,12 +130,7 @@ class UtilityStorePosApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(create: (_) => TransactionsProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
-        ChangeNotifierProvider(create: (_) {
-          final s = SettingsProvider(prefs);
-          s.checkAndPerformAutoBackup(); // Daily auto-backup check
-          return s;
-        }),
-        ChangeNotifierProvider(        create: (context) {
+        ChangeNotifierProvider(create: (context) {
           final p = NotificationProvider(context.read<NotificationRepository>());
           p.checkOverdueCredits(); // Trigger check on start
           p.checkSupplierOverdueDues(); // Trigger supplier due check on start

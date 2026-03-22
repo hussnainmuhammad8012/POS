@@ -44,6 +44,7 @@ class SettingsProvider extends ChangeNotifier {
 
   // UOM Settings
   bool get enableUomSystem => _prefs.getBool('enable_uom_system') ?? false;
+  bool get prorateUomRemainders => _prefs.getBool('prorate_uom_remainders') ?? false;
 
   final _backupService = DatabaseBackupService();
 
@@ -187,6 +188,11 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> setUomSystemEnabled(bool enabled) async {
     await _prefs.setBool('enable_uom_system', enabled);
+    notifyListeners();
+  }
+
+  Future<void> setProrateUomRemainders(bool enabled) async {
+    await _prefs.setBool('prorate_uom_remainders', enabled);
     notifyListeners();
   }
 }
