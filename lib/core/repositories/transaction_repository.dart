@@ -20,6 +20,7 @@ class TransactionRepository {
         'customer_id': transaction.customerId,
         'total_amount': transaction.totalAmount,
         'discount': transaction.discount,
+        'discount_percent': transaction.discountPercent,
         'tax': transaction.tax,
         'final_amount': transaction.finalAmount,
         'cash_paid': transaction.cashPaid,
@@ -39,6 +40,8 @@ class TransactionRepository {
           'price_at_time': item.priceAtTime,
           'cost_at_time': item.costAtTime,
           'subtotal': item.subtotal,
+          'discount': item.discount,
+          'discount_percent': item.discountPercent,
           'unit_id': item.unitId,       // UOM: null for classic items
           'unit_name': item.unitName,   // UOM: null for classic items
         });
@@ -117,6 +120,7 @@ class TransactionRepository {
         paymentMethod: transaction.paymentMethod,
         paymentStatus: transaction.paymentStatus,
         createdAt: transaction.createdAt,
+        discountPercent: transaction.discountPercent,
       );
     });
   }
@@ -135,6 +139,8 @@ class TransactionRepository {
   Future<List<Map<String, Object?>>> getItemsForTransaction(String txId) {
     return _db.rawQuery('''
       SELECT ti.*, 
+             ti.discount as item_discount,
+             ti.discount_percent as item_discount_percent,
              COALESCE(p1.name, p2.name) as product_name,
              COALESCE(p1.base_sku, p2.base_sku) as product_sku,
              COALESCE(pv.variant_name, pu.unit_name) as variant_name
@@ -220,6 +226,7 @@ class TransactionRepository {
       customerName: row['customer_name'] as String?,
       totalAmount: (row['total_amount'] as num).toDouble(),
       discount: (row['discount'] as num).toDouble(),
+      discountPercent: (row['discount_percent'] as num?)?.toDouble() ?? 0.0,
       tax: (row['tax'] as num).toDouble(),
       finalAmount: (row['final_amount'] as num).toDouble(),
       cashPaid: (row['cash_paid'] as num?)?.toDouble() ?? 0.0,

@@ -247,8 +247,88 @@ class _StoreInfoPanel extends StatelessWidget {
                   ],
                 ),
               ],
+              const SizedBox(height: 32),
+              const Divider(),
+              _buildDiscountSettings(context, settings),
             ],
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDiscountSettings(BuildContext context, SettingsProvider settings) {
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        const SizedBox(height: 16),
+        _buildSettingRow(
+          context,
+          icon: LucideIcons.percent,
+          title: 'Allow Discounts',
+          subtitle: 'Enable item-wise and global discounts in the Point of Sale.',
+          value: settings.allowDiscounts,
+          onChanged: (val) => settings.setAllowDiscounts(val),
+        ),
+        if (settings.allowDiscounts) ...[
+          const SizedBox(height: 16),
+          _buildSettingRow(
+            context,
+            icon: LucideIcons.calculator,
+            title: 'Calculate Discount in Percentage',
+            subtitle: 'Enter and display discounts as percentages (e.g., 10%)',
+            value: settings.calculatePercentageDiscount,
+            onChanged: (val) => settings.setCalculatePercentageDiscount(val),
+          ),
+          if (settings.enableUomSystem) ...[
+            const SizedBox(height: 16),
+            _buildSettingRow(
+              context,
+              icon: LucideIcons.tags,
+              title: 'Treat UOM Price Gap as Discount',
+              subtitle: 'Show bulk unit price difference as a discount on receipts',
+              value: settings.treatUomPriceGapAsDiscount,
+              onChanged: (val) => settings.setTreatUomPriceGapAsDiscount(val),
+            ),
+          ],
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSettingRow(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required Function(bool) onChanged,
+  }) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: theme.primaryColor.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: theme.primaryColor, size: 20),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text(subtitle, style: TextStyle(color: theme.colorScheme.secondary, fontSize: 13)),
+            ],
+          ),
+        ),
+        Switch(
+          value: value,
+          activeColor: theme.primaryColor,
+          onChanged: onChanged,
         ),
       ],
     );

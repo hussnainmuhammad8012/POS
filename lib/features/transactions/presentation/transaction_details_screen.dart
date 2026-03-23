@@ -267,6 +267,11 @@ class TransactionDetailsScreen extends StatelessWidget {
                                 'x ${currencyFormat.format(price)}',
                                 style: TextStyle(color: theme.hintColor, fontSize: 11),
                               ),
+                              if (item['item_discount'] != null && (item['item_discount'] as num) > 0)
+                                Text(
+                                  '${(item['item_discount_percent'] as num?)?.toStringAsFixed(1) ?? "0.0"}% (-${currencyFormat.format((item['item_discount'] as num).toDouble())})',
+                                  style: const TextStyle(color: AppColors.SUCCESS, fontSize: 10, fontWeight: FontWeight.bold),
+                                ),
                             ],
                           ),
                           const SizedBox(width: 24),
@@ -300,9 +305,13 @@ class TransactionDetailsScreen extends StatelessWidget {
             ],
           ),
           const Divider(height: 32),
-          _buildSummaryRow('Subtotal', currencyFormat.format(transaction.totalAmount)),
+          _buildSummaryRow('Gross Total', currencyFormat.format(transaction.totalAmount)),
           if (transaction.discount > 0)
-            _buildSummaryRow('Discount', '- ${currencyFormat.format(transaction.discount)}', color: AppColors.SUCCESS),
+            _buildSummaryRow(
+              'Total Discount (${transaction.discountPercent.toStringAsFixed(1)}%)', 
+              '- ${currencyFormat.format(transaction.discount)}', 
+              color: AppColors.SUCCESS
+            ),
           if (transaction.tax > 0)
             _buildSummaryRow('Tax', '+ ${currencyFormat.format(transaction.tax)}'),
           const Divider(height: 32),

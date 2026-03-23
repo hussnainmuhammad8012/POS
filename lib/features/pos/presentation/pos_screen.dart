@@ -165,9 +165,11 @@ class _PosScreenState extends State<PosScreen> {
                               const SizedBox(width: 48), // Icon space
                               const SizedBox(width: 20),
                               Expanded(flex: 4, child: Text('PRODUCT', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.bold))),
-                              Expanded(flex: 2, child: Text('PRICE', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.bold))),
-                              Expanded(flex: 3, child: Center(child: Text('QUANTITY', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.bold)))),
-                              Expanded(flex: 2, child: Align(alignment: Alignment.centerRight, child: Text('TOTAL', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.bold)))),
+                               Expanded(flex: 2, child: Text('PRICE', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.bold))),
+                               if (context.read<SettingsProvider>().allowDiscounts)
+                                  Expanded(flex: 2, child: Center(child: Text('DISC.', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.bold)))),
+                               Expanded(flex: 3, child: Center(child: Text('QUANTITY', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.bold)))),
+                               Expanded(flex: 2, child: Align(alignment: Alignment.centerRight, child: Text('TOTAL', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.bold)))),
                               const SizedBox(width: 48), // Action space
                             ],
                           ),
@@ -271,10 +273,47 @@ class _PosScreenState extends State<PosScreen> {
   }
 }
 
-class _ModernCartRow extends StatelessWidget {
+class _ModernCartRow extends StatefulWidget {
   final CartItem item;
 
   const _ModernCartRow({required this.item});
+
+  @override
+  State<_ModernCartRow> createState() => _ModernCartRowState();
+}
+
+class _ModernCartRowState extends State<_ModernCartRow> {
+  late TextEditingController _discountController;
+
+  @override
+  void initState() {
+    super.initState();
+    _discountController = TextEditingController(text: _getDiscountText());
+  }
+
+  @override
+  void didUpdateWidget(_ModernCartRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final newText = _getDiscountText();
+    if (_discountController.text != newText && !FocusScope.of(context).hasFocus) {
+      _discountController.text = newText;
+    }
+  }
+
+  String _getDiscountText() {
+    final isPercent = context.read<SettingsProvider>().calculatePercentageDiscount;
+    if (isPercent) {
+      return widget.item.unitDiscountPercent > 0 ? widget.item.unitDiscountPercent.toStringAsFixed(1) : '';
+    } else {
+      return widget.item.unitDiscount > 0 ? widget.item.unitDiscount.toStringAsFixed(0) : '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _discountController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -302,15 +341,17 @@ class _ModernCartRow extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
                   children: [
-                    Text(
-                      item.productName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                    Flexible(
+                      child: Text(
+                        widget.item.productName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      '#${item.productSku}',
+                      '#${widget.item.productSku}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Theme.of(context).hintColor,
                         fontSize: 10,
@@ -319,14 +360,14 @@ class _ModernCartRow extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (item.isUomItem && item.productUnits.isNotEmpty)
+                if (widget.item.isUomItem && widget.item.productUnits.isNotEmpty)
                   AppUomSelector(
-                    item: item,
-                    onSelected: (unit) => pos.changeItemUnit(item.id, unit),
+                    item: widget.item,
+                    onSelected: (unit) => pos.changeItemUnit(widget.item.id, unit),
                   )
-                else if (item.variantName.isNotEmpty)
+                else if (widget.item.variantName.isNotEmpty)
                   Text(
-                    item.variantName,
+                    widget.item.variantName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall,
@@ -338,13 +379,41 @@ class _ModernCartRow extends StatelessWidget {
           Expanded(
             flex: 2,
             child: Text(
-              'Rs ${item.unitPrice.toStringAsFixed(2)}',
+              'Rs ${widget.item.unitPrice.toStringAsFixed(2)}',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w500,
                 color: Theme.of(context).colorScheme.secondary,
               ),
             ),
           ),
+          // Discount Input
+          if (context.read<SettingsProvider>().allowDiscounts)
+            Expanded(
+              flex: 2,
+              child: Center(
+                child: SizedBox(
+                  width: 70,
+                  height: 40,
+                  child: TextField(
+                    textAlign: TextAlign.center,
+                    decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      hintText: '0',
+                      prefixText: context.read<SettingsProvider>().calculatePercentageDiscount ? null : 'Rs ',
+                      suffixText: context.read<SettingsProvider>().calculatePercentageDiscount ? '%' : null,
+                    ),
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(fontSize: 13),
+                    controller: _discountController,
+                    onChanged: (v) {
+                      final discount = double.tryParse(v) ?? 0.0;
+                      pos.setItemDiscount(widget.item.variantId, discount);
+                    },
+                  ),
+                ),
+              ),
+            ),
           // Quantity Controls
           Expanded(
             flex: 3,
@@ -360,20 +429,20 @@ class _ModernCartRow extends StatelessWidget {
                   children: [
                     _QuantityButton(
                       icon: LucideIcons.minus,
-                      onTap: () => pos.decrementQuantity(item.variantId),
+                      onTap: () => pos.decrementQuantity(widget.item.variantId),
                     ),
                     Container(
                       width: 40,
                       alignment: Alignment.center,
                       child: Text(
-                        item.quantity.toString(),
+                        widget.item.quantity.toString(),
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                       ),
                     ),
                     _QuantityButton(
                       icon: LucideIcons.plus,
                       onTap: () {
-                        pos.incrementQuantity(item.variantId);
+                        pos.incrementQuantity(widget.item.variantId);
                         if (pos.error != null) {
                           AppToast.show(
                             context,
@@ -395,7 +464,7 @@ class _ModernCartRow extends StatelessWidget {
             child: Align(
               alignment: Alignment.centerRight,
               child: Text(
-                'Rs ${item.subtotal.toStringAsFixed(2)}',
+                'Rs ${widget.item.subtotal.toStringAsFixed(2)}',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: Theme.of(context).primaryColor,
                   fontWeight: FontWeight.bold,
@@ -406,7 +475,7 @@ class _ModernCartRow extends StatelessWidget {
           const SizedBox(width: 20),
           IconButton(
             icon: const Icon(LucideIcons.x, color: Colors.grey, size: 18),
-            onPressed: () => pos.removeFromCart(item.variantId),
+            onPressed: () => pos.removeFromCart(widget.item.variantId),
             visualDensity: VisualDensity.compact,
             tooltip: 'Remove',
           ),
@@ -439,8 +508,47 @@ class _QuantityButton extends StatelessWidget {
   }
 }
 
-class _CheckoutSummary extends StatelessWidget {
+class _CheckoutSummary extends StatefulWidget {
   const _CheckoutSummary();
+
+  @override
+  State<_CheckoutSummary> createState() => _CheckoutSummaryState();
+}
+
+class _CheckoutSummaryState extends State<_CheckoutSummary> {
+  late TextEditingController _billDiscountController;
+
+  @override
+  void initState() {
+    super.initState();
+    _billDiscountController = TextEditingController(text: _getBillDiscountText());
+  }
+
+  @override
+  void didUpdateWidget(_CheckoutSummary oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final newText = _getBillDiscountText();
+    // Only update the text if it's different and NOT focused
+    if (_billDiscountController.text != newText && !FocusScope.of(context).hasFocus) {
+      _billDiscountController.text = newText;
+    }
+  }
+
+  String _getBillDiscountText() {
+    final pos = context.read<PosProvider>();
+    final isPercent = context.read<SettingsProvider>().calculatePercentageDiscount;
+    if (isPercent) {
+      return pos.billDiscountPercent > 0 ? pos.billDiscountPercent.toStringAsFixed(1) : '';
+    } else {
+      return pos.discountAmount > 0 ? pos.discountAmount.toStringAsFixed(2) : '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _billDiscountController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -464,6 +572,36 @@ class _CheckoutSummary extends StatelessWidget {
               Text('Rs ${pos.taxAmount.toStringAsFixed(2)}'),
             ],
           ),
+          if (context.read<SettingsProvider>().allowDiscounts) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Bill Discount'),
+                SizedBox(
+                  width: 100,
+                  height: 35,
+                  child: TextField(
+                    textAlign: TextAlign.right,
+                    decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      hintText: '0.00',
+                      prefixText: context.read<SettingsProvider>().calculatePercentageDiscount ? null : 'Rs ',
+                      suffixText: context.read<SettingsProvider>().calculatePercentageDiscount ? '%' : null,
+                    ),
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                    controller: _billDiscountController,
+                    onChanged: (v) {
+                      final discount = double.tryParse(v) ?? 0.0;
+                      pos.setDiscountAmount(discount);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -159,6 +159,7 @@ class Transaction {
   final String? customerName;
   final double totalAmount;
   final double discount;
+  final double discountPercent; // Percentage discount for the whole bill
   final double tax;
   final double finalAmount;
   final double cashPaid;
@@ -174,6 +175,7 @@ class Transaction {
     this.customerName,
     required this.totalAmount,
     this.discount = 0.0,
+    this.discountPercent = 0.0,
     this.tax = 0.0,
     required this.finalAmount,
     this.cashPaid = 0.0,
@@ -190,6 +192,7 @@ class Transaction {
     String? customerName,
     double? totalAmount,
     double? discount,
+    double? discountPercent,
     double? tax,
     double? finalAmount,
     double? cashPaid,
@@ -205,6 +208,7 @@ class Transaction {
       customerName: customerName ?? this.customerName,
       totalAmount: totalAmount ?? this.totalAmount,
       discount: discount ?? this.discount,
+      discountPercent: discountPercent ?? this.discountPercent,
       tax: tax ?? this.tax,
       finalAmount: finalAmount ?? this.finalAmount,
       cashPaid: cashPaid ?? this.cashPaid,
@@ -248,6 +252,8 @@ class TransactionItem {
   final double priceAtTime;
   final double? costAtTime;
   final double subtotal;
+  final double discount;   // Per-item discount
+  final double discountPercent; // New field
   final String? unitId;     // UOM: which unit was sold
   final String? unitName;   // UOM: human-readable unit name for receipt
 
@@ -259,9 +265,39 @@ class TransactionItem {
     required this.priceAtTime,
     this.costAtTime,
     required this.subtotal,
+    this.discount = 0.0,
+    this.discountPercent = 0.0,
     this.unitId,
     this.unitName,
   });
+
+  TransactionItem copyWith({
+    String? id,
+    String? transactionId,
+    String? variantId,
+    int? quantity,
+    double? priceAtTime,
+    double? costAtTime,
+    double? subtotal,
+    double? discount,
+    double? discountPercent,
+    String? unitId,
+    String? unitName,
+  }) {
+    return TransactionItem(
+      id: id ?? this.id,
+      transactionId: transactionId ?? this.transactionId,
+      variantId: variantId ?? this.variantId,
+      quantity: quantity ?? this.quantity,
+      priceAtTime: priceAtTime ?? this.priceAtTime,
+      costAtTime: costAtTime ?? this.costAtTime,
+      subtotal: subtotal ?? this.subtotal,
+      discount: discount ?? this.discount,
+      discountPercent: discountPercent ?? this.discountPercent,
+      unitId: unitId ?? this.unitId,
+      unitName: unitName ?? this.unitName,
+    );
+  }
 }
 
 @immutable

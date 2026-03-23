@@ -23,11 +23,13 @@ import 'migrations/migration_v10.dart';
 import 'migrations/migration_v11.dart';
 import 'migrations/migration_v12.dart';
 import 'migrations/migration_v13.dart';
+import 'migrations/migration_v14.dart';
+import 'migrations/migration_v15.dart';
 
 /// Centralized SQLite database initialization and access.
 class AppDatabase {
   static const String _databaseName = 'utility_store_pos.db';
-  static const int _databaseVersion = 13; // Increment to 13 for Stock Movement Units
+  static const int _databaseVersion = 15; 
 
   static final AppDatabase instance = AppDatabase._();
 
@@ -72,6 +74,8 @@ class AppDatabase {
           await migrateToV11(db);
           await migrateToV12(db);
           await migrateToV13(db);
+          await migrateToV14(db);
+          await migrateToV15(db);
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) {
@@ -109,6 +113,12 @@ class AppDatabase {
           }
           if (oldVersion < 13) {
             await migrateToV13(db);
+          }
+          if (oldVersion < 14) {
+            await migrateToV14(db);
+          }
+          if (oldVersion < 15) {
+            await migrateToV15(db);
           }
         },
       ),

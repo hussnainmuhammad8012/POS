@@ -1,5 +1,6 @@
 // lib/features/pos/application/pos_provider.dart
 import 'package:flutter/foundation.dart' hide Category, Transaction;
+import 'package:intl/intl.dart';
 import '../../../core/models/entities.dart' hide Product; 
 import '../../inventory/data/repositories/product_repository.dart';
 import '../../inventory/data/models/product_model.dart';
@@ -21,6 +22,7 @@ class PosProvider extends ChangeNotifier {
   dynamic _selectedCustomer; 
   String _paymentMethod = 'CASH'; 
   double _discountAmount = 0;
+  double _billDiscountPercent = 0; // New state for UI
   double _taxPercentage = 0;
   
   // UI State
@@ -38,6 +40,7 @@ class PosProvider extends ChangeNotifier {
   dynamic get selectedCustomer => _selectedCustomer;
   String get paymentMethod => _paymentMethod;
   double get discountAmount => _discountAmount;
+  double get billDiscountPercent => _billDiscountPercent;
   double get taxPercentage => _taxPercentage;
   int get bulkQuantity => _bulkQuantity;
   bool get isWholesale => _isWholesale;
@@ -80,9 +83,14 @@ class PosProvider extends ChangeNotifier {
             final baseUnit = item.productUnits.where((u) => u.conversionRate == 1).firstOrNull;
             final cost = baseUnit?.costPrice ?? 0.0;
             if (item.unitPrice != proratedPrice) {
+              double newDiscount = item.unitDiscount;
+              if (_settingsProvider.calculatePercentageDiscount) {
+                newDiscount = proratedPrice * (item.unitDiscountPercent / 100);
+              }
               _cartItems[i] = item.copyWith(
                 unitPrice: proratedPrice,
                 profitMargin: proratedPrice - cost,
+                unitDiscount: newDiscount,
               );
             }
           }
@@ -95,10 +103,15 @@ class PosProvider extends ChangeNotifier {
              if (baseUnit != null) {
                final stdPrice = _isWholesale ? (baseUnit.wholesalePrice ?? baseUnit.retailPrice) : baseUnit.retailPrice;
                if (item.unitPrice != stdPrice) {
-                 _cartItems[i] = item.copyWith(
-                   unitPrice: stdPrice,
-                   profitMargin: stdPrice - baseUnit.costPrice,
-                 );
+                  double newDiscount = item.unitDiscount;
+                  if (_settingsProvider.calculatePercentageDiscount) {
+                    newDiscount = stdPrice * (item.unitDiscountPercent / 100);
+                  }
+                  _cartItems[i] = item.copyWith(
+                    unitPrice: stdPrice,
+                    profitMargin: stdPrice - baseUnit.costPrice,
+                    unitDiscount: newDiscount,
+                  );
                }
              }
           }
@@ -115,10 +128,15 @@ class PosProvider extends ChangeNotifier {
          if (baseUnit != null) {
            final stdPrice = _isWholesale ? (baseUnit.wholesalePrice ?? baseUnit.retailPrice) : baseUnit.retailPrice;
            if (item.unitPrice != stdPrice) {
-             _cartItems[i] = item.copyWith(
-               unitPrice: stdPrice,
-               profitMargin: stdPrice - baseUnit.costPrice,
-             );
+              double newDiscount = item.unitDiscount;
+              if (_settingsProvider.calculatePercentageDiscount) {
+                newDiscount = stdPrice * (item.unitDiscountPercent / 100);
+              }
+              _cartItems[i] = item.copyWith(
+                unitPrice: stdPrice,
+                profitMargin: stdPrice - baseUnit.costPrice,
+                unitDiscount: newDiscount,
+              );
            }
          }
       }
@@ -127,7 +145,10 @@ class PosProvider extends ChangeNotifier {
 
   // Calculations
   double get subtotal =>
-      _cartItems.fold(0, (sum, item) => sum + (item.quantity * item.unitPrice));
+      _cartItems.fold(0, (sum, item) => sum + item.subtotal);
+
+  double get totalItemDiscount =>
+      _cartItems.fold(0, (sum, item) => sum + item.totalDiscount);
 
   double get taxAmount => subtotal * (_taxPercentage / 100);
 
@@ -138,6 +159,11 @@ class PosProvider extends ChangeNotifier {
   int get itemCount => _cartItems.length;
 
   // UI Helpers
+  String get subtotalFormatted => NumberFormat.currency(symbol: 'Rs ', decimalDigits: 2).format(subtotal);
+  String get totalFormatted => NumberFormat.currency(symbol: 'Rs ', decimalDigits: 2).format(totalAmount);
+  String get taxFormatted => NumberFormat.currency(symbol: 'Rs ', decimalDigits: 2).format(taxAmount);
+  String get discountFormatted => NumberFormat.currency(symbol: 'Rs ', decimalDigits: 2).format(_discountAmount + totalItemDiscount);
+
   void setBulkQuantity(int quantity) {
     _bulkQuantity = quantity;
     notifyListeners();
@@ -224,6 +250,7 @@ class PosProvider extends ChangeNotifier {
         unitId: isUomEnabled ? variant.id : null,
         unitName: isUomEnabled ? (variant.variantName ?? 'Piece') : null,
         baseVariantId: isUomEnabled ? variant.id : null,
+        unitDiscountPercent: 0.0,
       );
 
       return _error == null;
@@ -265,9 +292,25 @@ class PosProvider extends ChangeNotifier {
         return false;
       }
 
-      final unitPrice = _isWholesale
+      double unitPrice = _isWholesale
           ? (unit.wholesalePrice ?? unit.retailPrice)
           : unit.retailPrice;
+
+      double unitDiscount = 0;
+      double unitDiscountPercent = 0;
+      if (_settingsProvider.treatUomPriceGapAsDiscount) {
+        final basePrice = _isWholesale 
+            ? (baseUnit.wholesalePrice ?? baseUnit.retailPrice) 
+            : baseUnit.retailPrice;
+        final expectedBulkPrice = basePrice * unit.conversionRate;
+        if (expectedBulkPrice > unitPrice) {
+          unitDiscount = (expectedBulkPrice - unitPrice);
+          unitDiscountPercent = expectedBulkPrice > 0 ? (unitDiscount / expectedBulkPrice) * 100 : 0.0;
+          unitPrice = expectedBulkPrice;
+        }
+      }
+
+      double unitDiscountPercentVal = unitDiscountPercent;
 
       // Use a composite key for identifying UOM items in the cart
       final cartKey = '${unit.productId}__${unit.id}';
@@ -296,12 +339,14 @@ class PosProvider extends ChangeNotifier {
           unitPrice: unitPrice,
           quantity: _bulkQuantity,
           profitMargin: unitPrice - unit.costPrice,
+          unitDiscount: unitDiscount,
           availableStock: availableBaseStock ~/ unit.conversionRate,
           // UOM-specific fields
           unitId: unit.id,
           unitName: unit.unitName,
           conversionRate: unit.conversionRate,
-          baseVariantId: baseUnit.id,
+          baseVariantId: primaryVariantId ?? baseUnit.id,
+          unitDiscountPercent: unitDiscountPercentVal,
           productUnits: isUomEnabled ? await repository.getUnitsByProductId(unit.productId) : [],
         ));
       }
@@ -326,6 +371,8 @@ class PosProvider extends ChangeNotifier {
     required int quantity,
     String? cartonId,
     double profitMargin = 0,
+    double unitDiscount = 0,
+    double unitDiscountPercent = 0,
     required int availableStock,
     // Optional UOM fields
     String? unitId,
@@ -361,6 +408,8 @@ class PosProvider extends ChangeNotifier {
             quantity: quantity,
             cartonId: cartonId,
             profitMargin: profitMargin,
+            unitDiscount: unitDiscount,
+            unitDiscountPercent: unitDiscountPercent,
             availableStock: availableStock,
             unitId: unitId,
             unitName: unitName,
@@ -385,9 +434,27 @@ class PosProvider extends ChangeNotifier {
       // Calculate new pricing
       // Only pieces (conversionRate 1) respect the wholesale toggle
       final useWholesale = _isWholesale && newUnit.conversionRate == 1;
-      final unitPrice = useWholesale 
+      double unitPrice = useWholesale 
           ? (newUnit.wholesalePrice ?? newUnit.retailPrice) 
           : newUnit.retailPrice;
+
+      double unitDiscount = 0;
+      double unitDiscountPercent = 0;
+      if (_settingsProvider.treatUomPriceGapAsDiscount) {
+        final baseUnit = item.productUnits.where((u) => u.conversionRate == 1).firstOrNull;
+        if (baseUnit != null) {
+          final basePrice = _isWholesale 
+              ? (baseUnit.wholesalePrice ?? baseUnit.retailPrice) 
+              : baseUnit.retailPrice;
+          final expectedBulkPrice = basePrice * newUnit.conversionRate;
+          if (expectedBulkPrice > unitPrice) {
+            unitDiscount = (expectedBulkPrice - unitPrice);
+            unitDiscountPercent = expectedBulkPrice > 0 ? (unitDiscount / expectedBulkPrice) * 100 : 0.0;
+            unitPrice = expectedBulkPrice;
+          }
+        }
+      }
+
 
       _cartItems[index] = item.copyWith(
         unitId: newUnit.id,
@@ -396,6 +463,8 @@ class PosProvider extends ChangeNotifier {
         unitPrice: unitPrice,
         variantName: newUnit.unitName,
         profitMargin: unitPrice - newUnit.costPrice,
+        unitDiscount: unitDiscount,
+        unitDiscountPercent: unitDiscountPercent,
       );
       
       notifyListeners();
@@ -446,7 +515,27 @@ class PosProvider extends ChangeNotifier {
                 unitPrice: unitPrice,
                 variantName: unit.unitName,
                 profitMargin: unitPrice - unit.costPrice,
+                unitDiscount: 0, 
               );
+              
+              if (_settingsProvider.treatUomPriceGapAsDiscount) {
+                 final baseUnit = item.productUnits.where((u) => u.conversionRate == 1).firstOrNull;
+                 if (baseUnit != null) {
+                    final basePrice = _isWholesale 
+                        ? (baseUnit.wholesalePrice ?? baseUnit.retailPrice) 
+                        : baseUnit.retailPrice;
+                    final expectedBulkPrice = basePrice * unit.conversionRate;
+                    if (expectedBulkPrice > unitPrice) {
+                      final uDisc = (expectedBulkPrice - unitPrice);
+                      final uPercent = (uDisc / expectedBulkPrice) * 100;
+                      _cartItems[index] = _cartItems[index].copyWith(
+                        unitPrice: expectedBulkPrice,
+                        unitDiscount: uDisc,
+                        unitDiscountPercent: uPercent,
+                      );
+                    }
+                 }
+              }
             } else {
               // Mixed quantities: 6 pieces become 1 Pet + remainder 2 pieces stay here
               _cartItems.add(CartItem(
@@ -464,7 +553,28 @@ class PosProvider extends ChangeNotifier {
                 conversionRate: unit.conversionRate,
                 baseVariantId: item.baseVariantId,
                 productUnits: item.productUnits,
+                unitDiscount: 0,
               ));
+
+              if (_settingsProvider.treatUomPriceGapAsDiscount) {
+                 final baseUnit = item.productUnits.where((u) => u.conversionRate == 1).firstOrNull;
+                 if (baseUnit != null) {
+                    final basePrice = _isWholesale 
+                        ? (baseUnit.wholesalePrice ?? baseUnit.retailPrice) 
+                        : baseUnit.retailPrice;
+                    final expectedBulkPrice = basePrice * unit.conversionRate;
+                    if (expectedBulkPrice > unitPrice) {
+                      final uDisc = (expectedBulkPrice - unitPrice);
+                      final uPercent = (uDisc / expectedBulkPrice) * 100;
+                      final lastIdx = _cartItems.length - 1;
+                      _cartItems[lastIdx] = _cartItems[lastIdx].copyWith(
+                        unitPrice: expectedBulkPrice,
+                        unitDiscount: uDisc,
+                        unitDiscountPercent: uPercent,
+                      );
+                    }
+                 }
+              }
               // Update current piece row to just the remainder
               _cartItems[index].quantity = remainder;
             }
@@ -560,6 +670,7 @@ class PosProvider extends ChangeNotifier {
     _selectedCustomer = null;
     _paymentMethod = 'CASH';
     _discountAmount = 0;
+    _billDiscountPercent = 0;
     _bulkQuantity = 1;
     notifyListeners();
   }
@@ -571,9 +682,41 @@ class PosProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setDiscountAmount(double amount) {
-    _discountAmount = amount;
+  void setDiscountAmount(double value) {
+    if (_settingsProvider.calculatePercentageDiscount) {
+      _billDiscountPercent = value;
+      // interpreted as percentage of subtotal (before global discount)
+      final sub = _cartItems.fold(0.0, (sum, item) => sum + (item.unitPrice * item.quantity));
+      _discountAmount = sub * (value / 100);
+    } else {
+      _billDiscountPercent = 0;
+      _discountAmount = value;
+    }
     notifyListeners();
+  }
+
+  void setItemDiscount(String variantId, double value) {
+    final index = _cartItems.indexWhere((item) => item.variantId == variantId);
+    if (index >= 0) {
+      double absoluteDiscount = value;
+      double percentage = 0;
+      
+      if (_settingsProvider.calculatePercentageDiscount) {
+        percentage = value;
+        absoluteDiscount = _cartItems[index].unitPrice * (value / 100);
+      } else {
+        absoluteDiscount = value;
+        if (_cartItems[index].unitPrice > 0) {
+          percentage = (value / _cartItems[index].unitPrice) * 100;
+        }
+      }
+
+      _cartItems[index] = _cartItems[index].copyWith(
+        unitDiscount: absoluteDiscount,
+        unitDiscountPercent: percentage,
+      );
+      notifyListeners();
+    }
   }
 
   // Checkout
@@ -598,12 +741,18 @@ class PosProvider extends ChangeNotifier {
       final transactionId = 'txn_${DateTime.now().microsecondsSinceEpoch}';
       final invoiceNumber = 'INV-${DateTime.now().millisecondsSinceEpoch}';
       
+      final grossTotal = _cartItems.fold(0.0, (sum, item) => sum + (item.unitPrice * item.quantity));
+      final totalDiscount = totalItemDiscount + _discountAmount;
+      final discountPercent = grossTotal > 0 ? (totalDiscount / grossTotal) * 100 : 0.0;
+
       final tx = Transaction(
         id: transactionId,
         invoiceNumber: invoiceNumber,
         customerId: _selectedCustomer?.id,
-        totalAmount: subtotal,
-        discount: _discountAmount,
+        customerName: _selectedCustomer?.name,
+        totalAmount: grossTotal,
+        discount: totalDiscount,
+        discountPercent: discountPercent,
         tax: taxAmount,
         finalAmount: totalAmount,
         cashPaid: cashPaid ?? totalAmount,
@@ -624,6 +773,8 @@ class PosProvider extends ChangeNotifier {
           priceAtTime: item.unitPrice,
           costAtTime: item.unitPrice - item.profitMargin,
           subtotal: item.subtotal,
+          discount: item.totalDiscount,
+          discountPercent: item.unitDiscountPercent,
           unitId: item.unitId,
           unitName: item.unitName ?? item.variantName,
         );

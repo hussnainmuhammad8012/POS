@@ -11,6 +11,8 @@ class CartItem {
   final String? cartonId;
   final double profitMargin;
   final int availableStock;
+  final double unitDiscount; // Discount per unit
+  final double unitDiscountPercent; // Store entered percentage
   
   // UOM-specific fields (null for classic items)
   final String? unitId;
@@ -30,6 +32,8 @@ class CartItem {
     this.cartonId,
     required this.profitMargin,
     required this.availableStock,
+    this.unitDiscount = 0.0,
+    this.unitDiscountPercent = 0.0,
     this.unitId,
     this.unitName,
     this.conversionRate = 1,
@@ -39,7 +43,9 @@ class CartItem {
 
   bool get isUomItem => unitId != null;
 
-  double get subtotal => unitPrice * quantity;
+  double get subtotal => ((unitPrice - unitDiscount) * quantity);
+  
+  double get totalDiscount => unitDiscount * quantity;
   
   /// The total number of base units this cart item will consume from stock.
   int get baseUnitEquivalent => quantity * conversionRate;
@@ -53,6 +59,8 @@ class CartItem {
     int? quantity,
     String? variantName,
     double? profitMargin,
+    double? unitDiscount,
+    double? unitDiscountPercent,
   }) {
     return CartItem(
       id: id,
@@ -65,6 +73,8 @@ class CartItem {
       cartonId: cartonId,
       profitMargin: profitMargin ?? this.profitMargin,
       availableStock: availableStock,
+      unitDiscount: unitDiscount ?? this.unitDiscount,
+      unitDiscountPercent: unitDiscountPercent ?? this.unitDiscountPercent,
       unitId: unitId ?? this.unitId,
       unitName: unitName ?? this.unitName,
       conversionRate: conversionRate ?? this.conversionRate,

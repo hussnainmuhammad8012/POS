@@ -46,6 +46,11 @@ class SettingsProvider extends ChangeNotifier {
   bool get enableUomSystem => _prefs.getBool('enable_uom_system') ?? false;
   bool get prorateUomRemainders => _prefs.getBool('prorate_uom_remainders') ?? false;
 
+  // Discount Settings
+  bool get allowDiscounts => _prefs.getBool('allow_discounts') ?? false;
+  bool get calculatePercentageDiscount => _prefs.getBool('calculate_percentage_discount') ?? false;
+  bool get treatUomPriceGapAsDiscount => _prefs.getBool('treat_uom_price_gap_as_discount') ?? false;
+
   final _backupService = DatabaseBackupService();
 
   // Setters
@@ -193,6 +198,21 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> setProrateUomRemainders(bool enabled) async {
     await _prefs.setBool('prorate_uom_remainders', enabled);
+    notifyListeners();
+  }
+
+  Future<void> setAllowDiscounts(bool enabled) async {
+    await _prefs.setBool('allow_discounts', enabled);
+    notifyListeners();
+  }
+
+  Future<void> setCalculatePercentageDiscount(bool enabled) async {
+    await _prefs.setBool('calculate_percentage_discount', enabled);
+    notifyListeners();
+  }
+
+  Future<void> setTreatUomPriceGapAsDiscount(bool enabled) async {
+    await _prefs.setBool('treat_uom_price_gap_as_discount', enabled);
     notifyListeners();
   }
 }

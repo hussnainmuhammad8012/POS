@@ -17,6 +17,7 @@ import 'package:pasteboard/pasteboard.dart';
 
 import '../../../settings/application/settings_provider.dart';
 import '../../../../core/models/entities.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/toast_notification.dart';
 import '../../application/pos_provider.dart';
 import 'package:utility_store_pos/features/pos/data/models/cart_item.dart';
@@ -282,6 +283,18 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
                           ),
                         ],
                       ),
+                      if (item.unitDiscount > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2, left: 2),
+                          child: Text(
+                            'Discount: ${item.unitDiscountPercent.toStringAsFixed(1)}% (-${_currencyFormat.format(item.totalDiscount)})',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: AppColors.SUCCESS,
+                              fontSize: 9,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -291,11 +304,14 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
 
           const Divider(height: 32),
           
-          _buildTotalRow('Subtotal', widget.transaction.totalAmount),
+          _buildTotalRow('Gross Total', widget.transaction.totalAmount),
           if (widget.transaction.tax > 0)
             _buildTotalRow('Tax', widget.transaction.tax),
           if (widget.transaction.discount > 0)
-            _buildTotalRow('Discount', -widget.transaction.discount),
+            _buildTotalRow(
+               'Total Discount (${widget.transaction.discountPercent.toStringAsFixed(1)}%)', 
+               -widget.transaction.discount
+            ),
             
           const SizedBox(height: 8),
           Row(
@@ -311,6 +327,26 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
               ),
             ],
           ),
+          if (widget.transaction.discount > 0) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.SUCCESS.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Center(
+                child: Text(
+                  'YOU SAVED: ${_currencyFormat.format(widget.transaction.discount)}',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.SUCCESS,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+              ),
+            ),
+          ],
           if (widget.transaction.creditAmount > 0) ...[
             const Divider(height: 32),
             _buildTotalRow('Paid in Cash', widget.transaction.cashPaid),
@@ -450,6 +486,11 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
                         '  ${item.quantity} ${item.unitName ?? item.variantName} x ${_currencyFormat.format(item.unitPrice)}',
                         style: const pw.TextStyle(fontSize: 8),
                       ),
+                      if (item.unitDiscount > 0)
+                        pw.Text(
+                          '  Discount: ${item.unitDiscountPercent.toStringAsFixed(1)}% (-${_currencyFormat.format(item.totalDiscount)})',
+                          style: pw.TextStyle(fontSize: 7, color: PdfColors.green),
+                        ),
                     ],
                   ),
                 );
@@ -458,7 +499,7 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('Subtotal:', style: const pw.TextStyle(fontSize: 10)),
+                  pw.Text('Gross Total:', style: const pw.TextStyle(fontSize: 10)),
                   pw.Text(_currencyFormat.format(widget.transaction.totalAmount), style: const pw.TextStyle(fontSize: 10)),
                 ],
               ),
@@ -474,10 +515,17 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text('Discount:', style: const pw.TextStyle(fontSize: 10)),
+                    pw.Text('Total Discount (${widget.transaction.discountPercent.toStringAsFixed(1)}%):', style: const pw.TextStyle(fontSize: 10)),
                     pw.Text(_currencyFormat.format(-widget.transaction.discount), style: const pw.TextStyle(fontSize: 10)),
                   ],
                 ),
+               if (widget.transaction.discount > 0) ...[
+                pw.SizedBox(height: 5),
+                 pw.Center(
+                  child: pw.Text('YOU SAVED: ${_currencyFormat.format(widget.transaction.discount)}', 
+                    style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.green)),
+                ),
+              ],
               pw.SizedBox(height: 5),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
