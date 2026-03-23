@@ -163,7 +163,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
         ],
       ),
       content: Container(
-        width: 650,
+        width: 700,
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(context).size.height * 0.75,
         ),
@@ -761,7 +761,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Expanded(
-                      flex: 2,
+                      flex: 5,
                       child: CustomTextField(
                         controller: _lowStockThresholdController,
                         label: 'Low Stock Alert',
@@ -772,14 +772,15 @@ class _AddProductDialogState extends State<AddProductDialog> {
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      flex: 1,
+                      flex: 3,
                       child: DropdownButtonFormField<double>(
                         value: _thresholdConversionRate,
                         decoration: InputDecoration(
                           labelText: 'Unit',
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
                         ),
+                        isExpanded: true,
                         items: [
                           DropdownMenuItem(value: 1.0, child: Text(_unitController.text.isNotEmpty ? _unitController.text : 'Base Unit', overflow: TextOverflow.ellipsis)),
                           ..._multiplierUnits.map((u) => DropdownMenuItem(value: u.conversionRate.toDouble(), child: Text(u.unitName, overflow: TextOverflow.ellipsis))),

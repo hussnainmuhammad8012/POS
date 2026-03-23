@@ -158,15 +158,21 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                 ),
                               ),
                               const SizedBox(width: 24),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(selectedCustomer.name, style: Theme.of(context).textTheme.displayMedium),
-                                  const SizedBox(height: 4),
-                                  Text('Customer since ${selectedCustomer.createdAt.toString().split(' ')[0]}',
-                                    style: TextStyle(color: Theme.of(context).colorScheme.secondary),
-                                  ),
-                                ],
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      selectedCustomer.name,
+                                      style: Theme.of(context).textTheme.displayMedium,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text('Customer since ${selectedCustomer.createdAt.toString().split(' ')[0]}',
+                                      style: TextStyle(color: Theme.of(context).colorScheme.secondary),
+                                    ),
+                                  ],
+                                ),
                               ),
                               const Spacer(),
                               OutlinedButton.icon(

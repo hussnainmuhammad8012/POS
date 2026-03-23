@@ -251,7 +251,8 @@ class PosProvider extends ChangeNotifier {
         return false;
       }
 
-      final stockLevel = await repository.getStockLevelByVariantId(baseUnit.id);
+      final primaryVariantId = await repository.getPrimaryVariantId(unit.productId);
+      final stockLevel = await repository.getStockLevelByVariantId(primaryVariantId ?? baseUnit.id);
       final availableBaseStock = stockLevel?.availablePieces ?? 0;
 
       // Each unit of this UOM "consumes" conversionRate base stock
