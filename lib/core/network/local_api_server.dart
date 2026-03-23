@@ -178,6 +178,8 @@ class LocalApiServer {
         'timestamp': DateTime.now().toIso8601String(),
         'appName': _settingsProvider?.storeName ?? 'Gravity POS',
         'isUomEnabled': _settingsProvider?.enableUomSystem ?? false,
+        'isTaxEnabled': _settingsProvider?.enableTaxSystem ?? false,
+        'taxRate': _settingsProvider?.taxRate ?? 0.0,
       }));
     });
     
@@ -313,6 +315,7 @@ class LocalApiServer {
               retailPrice: (data['retailPrice'] as num?)?.toDouble() ?? 0.0,
               wholesalePrice: (data['wholesalePrice'] as num?)?.toDouble(),
               mrp: (data['mrp'] as num?)?.toDouble(),
+              taxRate: (data['taxRate'] as num?)?.toDouble() ?? 0.0,
               initialStock: (data['initialStock'] as num?)?.toInt() ?? 0,
               lowStockThreshold: (data['lowStockThreshold'] as num?)?.toInt() ?? 10,
             );

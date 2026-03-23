@@ -51,8 +51,38 @@ class PosProvider extends ChangeNotifier {
   void notifyListeners() {
     if (!_isProcessing) {
       _recalculateProratedRemainders();
+      _recalculateAllTaxes();
     }
     super.notifyListeners();
+  }
+
+  void _recalculateAllTaxes() {
+    for (int i = 0; i < _cartItems.length; i++) {
+      final item = _cartItems[i];
+      final itemTax = _calculateItemTax(
+        item.unitPrice, 
+        item.unitDiscount, 
+        item.taxRate, 
+        item.quantity
+      );
+      if (item.taxAmount != itemTax) {
+        _cartItems[i] = item.copyWith(taxAmount: itemTax);
+      }
+    }
+  }
+
+  double _calculateItemTax(double unitPrice, double unitDiscount, double taxRate, int quantity) {
+    if (!_settingsProvider.enableTaxSystem || taxRate <= 0) return 0.0;
+
+    final double priceAfterDiscount = (unitPrice - unitDiscount) * quantity;
+    
+    if (_settingsProvider.taxInclusive) {
+      // Inclusive: Tax = Price - (Price / (1 + Rate/100))
+      return priceAfterDiscount - (priceAfterDiscount / (1 + taxRate / 100));
+    } else {
+      // Exclusive: Tax = Price * (Rate / 100)
+      return priceAfterDiscount * (taxRate / 100);
+    }
   }
 
   void _recalculateProratedRemainders() {
@@ -150,9 +180,18 @@ class PosProvider extends ChangeNotifier {
   double get totalItemDiscount =>
       _cartItems.fold(0, (sum, item) => sum + item.totalDiscount);
 
-  double get taxAmount => subtotal * (_taxPercentage / 100);
+  double get totalTaxAmount =>
+      _cartItems.fold(0, (sum, item) => sum + item.taxAmount);
 
-  double get totalAmount => subtotal + taxAmount - _discountAmount;
+  double get totalAmount {
+    if (_settingsProvider.taxInclusive) {
+      // Subtotal already includes tax
+      return subtotal - _discountAmount;
+    } else {
+      // Add tax on top
+      return subtotal + totalTaxAmount - _discountAmount;
+    }
+  }
 
   double get total => totalAmount;
 
@@ -161,7 +200,7 @@ class PosProvider extends ChangeNotifier {
   // UI Helpers
   String get subtotalFormatted => NumberFormat.currency(symbol: 'Rs ', decimalDigits: 2).format(subtotal);
   String get totalFormatted => NumberFormat.currency(symbol: 'Rs ', decimalDigits: 2).format(totalAmount);
-  String get taxFormatted => NumberFormat.currency(symbol: 'Rs ', decimalDigits: 2).format(taxAmount);
+  String get taxFormatted => NumberFormat.currency(symbol: 'Rs ', decimalDigits: 2).format(totalTaxAmount);
   String get discountFormatted => NumberFormat.currency(symbol: 'Rs ', decimalDigits: 2).format(_discountAmount + totalItemDiscount);
 
   void setBulkQuantity(int quantity) {
@@ -250,6 +289,7 @@ class PosProvider extends ChangeNotifier {
         unitId: isUomEnabled ? variant.id : null,
         unitName: isUomEnabled ? (variant.variantName ?? 'Piece') : null,
         baseVariantId: isUomEnabled ? variant.id : null,
+        taxRate: productUnit?.taxRate ?? 0.0, // Use tax rate from unit if barcode matched unit
         unitDiscountPercent: 0.0,
       );
 
@@ -347,6 +387,8 @@ class PosProvider extends ChangeNotifier {
           conversionRate: unit.conversionRate,
           baseVariantId: primaryVariantId ?? baseUnit.id,
           unitDiscountPercent: unitDiscountPercentVal,
+          taxRate: unit.taxRate, // Pass tax rate from unit
+          taxAmount: _calculateItemTax(unitPrice, unitDiscount, unit.taxRate, _bulkQuantity),
           productUnits: isUomEnabled ? await repository.getUnitsByProductId(unit.productId) : [],
         ));
       }
@@ -379,6 +421,7 @@ class PosProvider extends ChangeNotifier {
     String? unitName,
     int conversionRate = 1,
     String? baseVariantId,
+    double taxRate = 0, // New parameter
     List<ProductUnit> productUnits = const [],
   }) {
     final existingIndex =
@@ -415,6 +458,8 @@ class PosProvider extends ChangeNotifier {
             unitName: unitName,
             conversionRate: conversionRate,
             baseVariantId: baseVariantId,
+            taxRate: taxRate,
+            taxAmount: _calculateItemTax(unitPrice, unitDiscount, taxRate, quantity),
             productUnits: productUnits,
           ),
         );
@@ -753,7 +798,8 @@ class PosProvider extends ChangeNotifier {
         totalAmount: grossTotal,
         discount: totalDiscount,
         discountPercent: discountPercent,
-        tax: taxAmount,
+        tax: totalTaxAmount,
+        isTaxInclusive: _settingsProvider.taxInclusive,
         finalAmount: totalAmount,
         cashPaid: cashPaid ?? totalAmount,
         creditAmount: creditAmount ?? 0.0,
@@ -775,6 +821,8 @@ class PosProvider extends ChangeNotifier {
           subtotal: item.subtotal,
           discount: item.totalDiscount,
           discountPercent: item.unitDiscountPercent,
+          taxRate: item.taxRate,
+          taxAmount: item.taxAmount,
           unitId: item.unitId,
           unitName: item.unitName ?? item.variantName,
         );

@@ -295,6 +295,18 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
                             ),
                           ),
                         ),
+                      if (item.taxAmount > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2, left: 2),
+                          child: Text(
+                            'Tax (${item.taxRate.toStringAsFixed(1)}%): +${_currencyFormat.format(item.taxAmount)}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.orange.shade700,
+                              fontSize: 9,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -306,7 +318,10 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
           
           _buildTotalRow('Gross Total', widget.transaction.totalAmount),
           if (widget.transaction.tax > 0)
-            _buildTotalRow('Tax', widget.transaction.tax),
+            _buildTotalRow(
+              widget.transaction.isTaxInclusive ? 'Tax (Inclusive)' : 'Tax (Exclusive)', 
+              widget.transaction.tax
+            ),
           if (widget.transaction.discount > 0)
             _buildTotalRow(
                'Total Discount (${widget.transaction.discountPercent.toStringAsFixed(1)}%)', 
@@ -491,6 +506,11 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
                           '  Discount: ${item.unitDiscountPercent.toStringAsFixed(1)}% (-${_currencyFormat.format(item.totalDiscount)})',
                           style: pw.TextStyle(fontSize: 7, color: PdfColors.green),
                         ),
+                      if (item.taxAmount > 0)
+                        pw.Text(
+                          '  Tax (${item.taxRate.toStringAsFixed(1)}%): +${_currencyFormat.format(item.taxAmount)}',
+                          style: pw.TextStyle(fontSize: 7, color: PdfColors.orange),
+                        ),
                     ],
                   ),
                 );
@@ -507,7 +527,10 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text('Tax:', style: const pw.TextStyle(fontSize: 10)),
+                    pw.Text(
+                      widget.transaction.isTaxInclusive ? 'Tax (Incl.):' : 'Tax (Excl.):', 
+                      style: const pw.TextStyle(fontSize: 10)
+                    ),
                     pw.Text(_currencyFormat.format(widget.transaction.tax), style: const pw.TextStyle(fontSize: 10)),
                   ],
                 ),

@@ -15,6 +15,8 @@ class SettingsProvider extends ChangeNotifier {
   String get storeAddress => _prefs.getString('store_address') ?? '123 Main Street';
   String get storePhone => _prefs.getString('store_phone') ?? '+92 300 1234567';
   double get taxRate => _prefs.getDouble('tax_rate') ?? 18.0;
+  bool get enableTaxSystem => _prefs.getBool('enable_tax_system') ?? false;
+  bool get taxInclusive => _prefs.getBool('tax_inclusive') ?? false;
 
   // Receipt Options
   String get receiptCustomMessage => _prefs.getString('receipt_custom_message') ?? 'Thank you for shopping with us!';
@@ -213,6 +215,16 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> setTreatUomPriceGapAsDiscount(bool enabled) async {
     await _prefs.setBool('treat_uom_price_gap_as_discount', enabled);
+    notifyListeners();
+  }
+
+  Future<void> setTaxSystemEnabled(bool enabled) async {
+    await _prefs.setBool('enable_tax_system', enabled);
+    notifyListeners();
+  }
+
+  Future<void> setTaxInclusive(bool enabled) async {
+    await _prefs.setBool('tax_inclusive', enabled);
     notifyListeners();
   }
 }

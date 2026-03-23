@@ -180,6 +180,7 @@ class InventoryProvider extends ChangeNotifier {
     double? mrp,
     String? barcode,
     String? qrCode,
+    double? taxRate,
     int? initialStock,
     int? lowStockThreshold,
   }) async {
@@ -189,7 +190,7 @@ class InventoryProvider extends ChangeNotifier {
         description: description, mainImagePath: mainImagePath, unitType: unitType,
         supplierId: supplierId,
         costPrice: costPrice, retailPrice: retailPrice, wholesalePrice: wholesalePrice,
-        mrp: mrp, barcode: barcode, qrCode: qrCode, initialStock: initialStock, lowStockThreshold: lowStockThreshold,
+        mrp: mrp, barcode: barcode, qrCode: qrCode, taxRate: taxRate, initialStock: initialStock, lowStockThreshold: lowStockThreshold,
       );
       await loadProducts();
     } catch (e) {
@@ -209,6 +210,7 @@ class InventoryProvider extends ChangeNotifier {
     required double retailPrice,
     double? wholesalePrice,
     double? mrp,
+    double taxRate = 0,
     String? variantImagePath,
     int initialStock = 0,
     int lowStockThreshold = 10,
@@ -224,6 +226,7 @@ class InventoryProvider extends ChangeNotifier {
         retailPrice: retailPrice,
         wholesalePrice: wholesalePrice,
         mrp: mrp,
+        taxRate: taxRate,
         variantImagePath: variantImagePath,
         initialStock: initialStock,
         lowStockThreshold: lowStockThreshold,

@@ -51,6 +51,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
   final _retailPriceController = TextEditingController();
   final _wholesalePriceController = TextEditingController();
   final _mrpController = TextEditingController();
+  final _taxRateController = TextEditingController(); // For base unit
 
   // Step 3 (Multipliers): List of UOMs mapped locally
   List<ProductUnit> _multiplierUnits = [];
@@ -102,6 +103,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
            _mrpController.text = baseUnit.mrp?.toString() ?? '';
            _barcodeController.text = baseUnit.barcode ?? '';
            _qrController.text = baseUnit.qrCode ?? '';
+           _taxRateController.text = baseUnit.taxRate.toString();
            
            setState(() {
              _multiplierUnits = units.where((u) => !u.isBaseUnit).toList();
@@ -575,6 +577,16 @@ class _AddProductDialogState extends State<AddProductDialog> {
             ),
           ],
         ),
+        if (context.read<SettingsProvider>().enableTaxSystem) ...[
+          const SizedBox(height: 16),
+          CustomTextField(
+            controller: _taxRateController,
+            label: 'Tax Rate (%)',
+            hint: 'e.g. 5.0',
+            prefixIcon: LucideIcons.percent,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          ),
+        ],
       ],
     );
   }
@@ -648,6 +660,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
     final qrCtrl = TextEditingController();
     final costCtrl = TextEditingController();
     final retailCtrl = TextEditingController();
+    final taxCtrl = TextEditingController(text: context.read<SettingsProvider>().taxRate.toString());
 
     showDialog(
       context: context,
@@ -690,6 +703,10 @@ class _AddProductDialogState extends State<AddProductDialog> {
                 CustomTextField(controller: costCtrl, label: 'Cost Price', keyboardType: TextInputType.number, prefixIcon: LucideIcons.arrowDownCircle),
                 const SizedBox(height: 12),
                 CustomTextField(controller: retailCtrl, label: 'Retail Price', keyboardType: TextInputType.number, prefixIcon: LucideIcons.arrowUpCircle),
+                if (context.read<SettingsProvider>().enableTaxSystem) ...[
+                  const SizedBox(height: 12),
+                  CustomTextField(controller: taxCtrl, label: 'Tax Rate (%)', keyboardType: const TextInputType.numberWithOptions(decimal: true), prefixIcon: LucideIcons.percent),
+                ],
               ],
             ),
           ),
@@ -717,6 +734,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
                     qrCode: qrCtrl.text.isEmpty ? null : qrCtrl.text,
                     costPrice: double.parse(costCtrl.text),
                     retailPrice: double.parse(retailCtrl.text),
+                    taxRate: double.tryParse(taxCtrl.text) ?? 0.0,
                     isActive: true,
                     createdAt: DateTime.now(),
                     updatedAt: DateTime.now(),

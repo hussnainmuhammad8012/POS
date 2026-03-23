@@ -168,14 +168,9 @@ class _StoreInfoPanel extends StatelessWidget {
                 initialValue: settings.storePhone,
                 onChanged: (v) => settings.updateStoreInfo(phone: v),
               ),
-              const SizedBox(height: 24),
-              const SizedBox(height: 24),
-              CustomTextField(
-                label: 'Tax Rate (%)',
-                initialValue: settings.taxRate.toString(),
-                keyboardType: TextInputType.number,
-                onChanged: (v) => settings.updateStoreInfo(tax: double.tryParse(v)),
-              ),
+              const SizedBox(height: 32),
+              const Divider(),
+              _buildTaxSettings(context, settings),
               const SizedBox(height: 32),
               const Divider(),
               const SizedBox(height: 16),
@@ -253,6 +248,47 @@ class _StoreInfoPanel extends StatelessWidget {
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildTaxSettings(BuildContext context, SettingsProvider settings) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+         _buildSettingRow(
+          context,
+          icon: LucideIcons.receipt,
+          title: 'Enable Tax System',
+          subtitle: 'Enable tax calculations for items and transactions.',
+          value: settings.enableTaxSystem,
+          onChanged: (val) => settings.setTaxSystemEnabled(val),
+        ),
+        if (settings.enableTaxSystem) ...[
+          const SizedBox(height: 16),
+          _buildSettingRow(
+            context,
+            icon: LucideIcons.info,
+            title: 'Prices Include Tax (Inclusive)',
+            subtitle: 'Toggle ON if your retail prices already include tax.',
+            value: settings.taxInclusive,
+            onChanged: (val) => settings.setTaxInclusive(val),
+          ),
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.only(left: 48),
+            child: SizedBox(
+              width: 300,
+              child: CustomTextField(
+                label: 'Default Global Tax Rate (%)',
+                initialValue: settings.taxRate.toString(),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (v) => settings.updateStoreInfo(tax: double.tryParse(v)),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }

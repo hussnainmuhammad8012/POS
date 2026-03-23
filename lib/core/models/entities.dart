@@ -161,6 +161,7 @@ class Transaction {
   final double discount;
   final double discountPercent; // Percentage discount for the whole bill
   final double tax;
+  final bool isTaxInclusive;
   final double finalAmount;
   final double cashPaid;
   final double creditAmount;
@@ -177,6 +178,7 @@ class Transaction {
     this.discount = 0.0,
     this.discountPercent = 0.0,
     this.tax = 0.0,
+    this.isTaxInclusive = false,
     required this.finalAmount,
     this.cashPaid = 0.0,
     this.creditAmount = 0.0,
@@ -194,6 +196,7 @@ class Transaction {
     double? discount,
     double? discountPercent,
     double? tax,
+    bool? isTaxInclusive,
     double? finalAmount,
     double? cashPaid,
     double? creditAmount,
@@ -210,6 +213,7 @@ class Transaction {
       discount: discount ?? this.discount,
       discountPercent: discountPercent ?? this.discountPercent,
       tax: tax ?? this.tax,
+      isTaxInclusive: isTaxInclusive ?? this.isTaxInclusive,
       finalAmount: finalAmount ?? this.finalAmount,
       cashPaid: cashPaid ?? this.cashPaid,
       creditAmount: creditAmount ?? this.creditAmount,
@@ -253,7 +257,9 @@ class TransactionItem {
   final double? costAtTime;
   final double subtotal;
   final double discount;   // Per-item discount
-  final double discountPercent; // New field
+  final double discountPercent; 
+  final double taxRate;    // Per-item tax rate
+  final double taxAmount;  // Calculated tax amount
   final String? unitId;     // UOM: which unit was sold
   final String? unitName;   // UOM: human-readable unit name for receipt
 
@@ -267,6 +273,8 @@ class TransactionItem {
     required this.subtotal,
     this.discount = 0.0,
     this.discountPercent = 0.0,
+    this.taxRate = 0.0,
+    this.taxAmount = 0.0,
     this.unitId,
     this.unitName,
   });
@@ -281,6 +289,8 @@ class TransactionItem {
     double? subtotal,
     double? discount,
     double? discountPercent,
+    double? taxRate,
+    double? taxAmount,
     String? unitId,
     String? unitName,
   }) {
@@ -294,6 +304,8 @@ class TransactionItem {
       subtotal: subtotal ?? this.subtotal,
       discount: discount ?? this.discount,
       discountPercent: discountPercent ?? this.discountPercent,
+      taxRate: taxRate ?? this.taxRate,
+      taxAmount: taxAmount ?? this.taxAmount,
       unitId: unitId ?? this.unitId,
       unitName: unitName ?? this.unitName,
     );

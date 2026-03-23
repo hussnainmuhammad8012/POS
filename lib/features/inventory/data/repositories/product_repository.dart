@@ -55,6 +55,7 @@ class ProductRepository {
     required double retailPrice,
     double? wholesalePrice,
     double? mrp,
+    double taxRate = 0,
     int initialStock = 0,
     int lowStockThreshold = 10,
   }) async {
@@ -89,6 +90,7 @@ class ProductRepository {
         'retail_price': retailPrice,
         'wholesale_price': wholesalePrice,
         'mrp': mrp,
+        'tax_rate': taxRate,
         'is_active': 1,
         'created_at': now,
         'updated_at': now,
@@ -240,6 +242,7 @@ class ProductRepository {
         'retail_price': baseUnit.retailPrice,
         'wholesale_price': baseUnit.wholesalePrice,
         'mrp': baseUnit.mrp,
+        'tax_rate': baseUnit.taxRate,
         'is_active': 1,
         'created_at': now,
         'updated_at': now,
@@ -259,6 +262,7 @@ class ProductRepository {
           'retail_price': unit.retailPrice,
           'wholesale_price': unit.wholesalePrice,
           'mrp': unit.mrp,
+          'tax_rate': unit.taxRate,
           'is_active': 1,
           'created_at': now,
           'updated_at': now,
@@ -276,6 +280,7 @@ class ProductRepository {
         'retail_price': baseUnit.retailPrice,
         'wholesale_price': baseUnit.wholesalePrice,
         'mrp': baseUnit.mrp,
+        'tax_rate': baseUnit.taxRate,
         'barcode': baseUnit.barcode,
         'qr_code': baseUnit.qrCode,
         'is_active': 1,
@@ -385,6 +390,7 @@ class ProductRepository {
         'retail_price': baseUnit.retailPrice,
         'wholesale_price': baseUnit.wholesalePrice,
         'mrp': baseUnit.mrp,
+        'tax_rate': baseUnit.taxRate,
         'updated_at': now,
       }, where: 'id = ?', whereArgs: [baseUnit.id]);
 
@@ -409,6 +415,7 @@ class ProductRepository {
             'retail_price': unit.retailPrice,
             'wholesale_price': unit.wholesalePrice,
             'mrp': unit.mrp,
+            'tax_rate': unit.taxRate,
             'is_active': 1,
             'updated_at': now,
           }, where: 'id = ?', whereArgs: [unit.id]);
@@ -425,6 +432,7 @@ class ProductRepository {
             'retail_price': unit.retailPrice,
             'wholesale_price': unit.wholesalePrice,
             'mrp': unit.mrp,
+            'tax_rate': unit.taxRate,
             'is_active': 1,
             'created_at': now,
             'updated_at': now,
@@ -442,6 +450,7 @@ class ProductRepository {
           'retail_price': baseUnit.retailPrice,
           'wholesale_price': baseUnit.wholesalePrice,
           'mrp': baseUnit.mrp,
+          'tax_rate': baseUnit.taxRate,
           'barcode': baseUnit.barcode,
           'qr_code': baseUnit.qrCode,
           'updated_at': now,
@@ -507,6 +516,7 @@ class ProductRepository {
     double? mrp,
     String? barcode,
     String? qrCode,
+    double? taxRate,
     int? initialStock,
     int? lowStockThreshold,
   }) async {
@@ -543,6 +553,7 @@ class ProductRepository {
         if (retailPrice != null) vUpdates['retail_price'] = retailPrice;
         if (wholesalePrice != null) vUpdates['wholesale_price'] = wholesalePrice;
         if (mrp != null) vUpdates['mrp'] = mrp;
+        if (taxRate != null) vUpdates['tax_rate'] = taxRate;
         if (barcode != null) vUpdates['barcode'] = barcode;
         if (qrCode != null) vUpdates['qr_code'] = qrCode;
 
@@ -605,6 +616,7 @@ class ProductRepository {
     required double retailPrice,
     double? wholesalePrice,
     double? mrp,
+    double taxRate = 0,
     String? variantImagePath,
     int initialStock = 0,
     int lowStockThreshold = 10,
@@ -622,6 +634,7 @@ class ProductRepository {
       'wholesale_price': wholesalePrice,
       'mrp': mrp,
       'variant_image_path': variantImagePath,
+      'tax_rate': taxRate,
       'is_active': 1,
       'created_at': DateTime.now().toIso8601String(),
       'updated_at': DateTime.now().toIso8601String(),

@@ -11,6 +11,7 @@ class ProductUnit {
   final double retailPrice;
   final double? wholesalePrice;
   final double? mrp;
+  final double taxRate;
   final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -27,6 +28,7 @@ class ProductUnit {
     required this.retailPrice,
     this.wholesalePrice,
     this.mrp,
+    this.taxRate = 0.0,
     required this.isActive,
     required this.createdAt,
     required this.updatedAt,
@@ -46,6 +48,7 @@ class ProductUnit {
             ? (json['wholesale_price'] as num).toDouble()
             : null,
         mrp: json['mrp'] != null ? (json['mrp'] as num).toDouble() : null,
+        taxRate: (json['tax_rate'] as num?)?.toDouble() ?? 0.0,
         isActive: json['is_active'] == 1,
         createdAt: DateTime.parse(json['created_at']),
         updatedAt: DateTime.parse(json['updated_at']),
@@ -63,6 +66,7 @@ class ProductUnit {
         'retail_price': retailPrice,
         'wholesale_price': wholesalePrice,
         'mrp': mrp,
+        'tax_rate': taxRate,
         'is_active': isActive ? 1 : 0,
         'created_at': createdAt.toIso8601String(),
         'updated_at': updatedAt.toIso8601String(),

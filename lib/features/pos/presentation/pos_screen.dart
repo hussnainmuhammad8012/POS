@@ -564,13 +564,22 @@ class _CheckoutSummaryState extends State<_CheckoutSummary> {
               Text('Rs ${pos.subtotal.toStringAsFixed(2)}'),
             ],
           ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Tax'),
-              Text('Rs ${pos.taxAmount.toStringAsFixed(2)}'),
-            ],
+          Consumer<SettingsProvider>(
+            builder: (context, settings, _) {
+              if (!settings.enableTaxSystem || pos.totalTaxAmount == 0) return const SizedBox.shrink();
+              return Column(
+                children: [
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(settings.taxInclusive ? 'Tax (Incl.)' : 'Tax (Excl.)'),
+                      Text('Rs ${pos.totalTaxAmount.toStringAsFixed(2)}'),
+                    ],
+                  ),
+                ],
+              );
+            }
           ),
           if (context.read<SettingsProvider>().allowDiscounts) ...[
             const SizedBox(height: 8),

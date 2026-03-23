@@ -40,6 +40,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
   final _wholesalePriceController = TextEditingController();
   final _mrpController = TextEditingController();
   final _qrController = TextEditingController();
+  final _taxRateController = TextEditingController();
   bool _qrManuallyEdited = false;
   bool _isAutoGeneratingQr = false;
 
@@ -56,6 +57,12 @@ class _AddProductDialogState extends State<AddProductDialog> {
     _nameController.addListener(_onNameChanged);
     _skuController.addListener(_onSkuChanged);
     _qrController.addListener(_onQrChanged);
+    
+    // Initialize tax rate from provider
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = context.read<InventoryProvider>();
+      _taxRateController.text = provider.defaultTaxRate.toString();
+    });
   }
 
   @override
@@ -73,6 +80,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
     _wholesalePriceController.dispose();
     _mrpController.dispose();
     _qrController.dispose();
+    _taxRateController.dispose();
     _initialStockController.dispose();
     _lowStockThresholdController.dispose();
     super.dispose();
@@ -540,6 +548,16 @@ class _AddProductDialogState extends State<AddProductDialog> {
             ),
           ],
         ),
+        if (context.read<InventoryProvider>().isTaxEnabled) ...[
+          const SizedBox(height: 16),
+          CustomTextField(
+            controller: _taxRateController,
+            label: 'Tax Rate (%)',
+            hint: 'e.g. 18.0',
+            prefixIcon: LucideIcons.percent,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          ),
+        ],
       ],
     );
   }
@@ -638,10 +656,14 @@ class _AddProductDialogState extends State<AddProductDialog> {
     final retailCtrl = TextEditingController();
     final barcodeCtrl = TextEditingController();
     final qrCtrl = TextEditingController();
+    final provider = context.read<InventoryProvider>();
+    final isTaxEnabled = provider.isTaxEnabled;
+    final defaultTaxRate = provider.defaultTaxRate;
+    final taxCtrl = TextEditingController(text: defaultTaxRate.toString());
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('Add Multiplier Unit'),
         content: SingleChildScrollView(
           child: Column(
@@ -720,11 +742,20 @@ class _AddProductDialogState extends State<AddProductDialog> {
                   ),
                 ],
               ),
+              if (isTaxEnabled) ...[
+                const SizedBox(height: 12),
+                CustomTextField(
+                  controller: taxCtrl,
+                  label: 'Tax Rate (%)',
+                  prefixIcon: LucideIcons.percent,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                ),
+              ],
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
               if (nameCtrl.text.isEmpty || rateCtrl.text.isEmpty || retailCtrl.text.isEmpty) return;
@@ -739,12 +770,13 @@ class _AddProductDialogState extends State<AddProductDialog> {
                   qrCode: qrCtrl.text.isEmpty ? null : qrCtrl.text,
                   costPrice: double.tryParse(costCtrl.text) ?? 0,
                   retailPrice: double.parse(retailCtrl.text),
+                  taxRate: double.tryParse(taxCtrl.text) ?? 0.0,
                   isActive: true,
                   createdAt: DateTime.now(),
                   updatedAt: DateTime.now(),
                 ));
               });
-              Navigator.pop(context);
+              Navigator.pop(dialogCtx);
             },
             child: const Text('Add'),
           ),
@@ -908,6 +940,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
         retailPrice: double.parse(_retailPriceController.text),
         wholesalePrice: double.tryParse(_wholesalePriceController.text),
         mrp: double.tryParse(_mrpController.text),
+        taxRate: double.tryParse(_taxRateController.text) ?? 0.0,
         initialStock: (int.tryParse(_initialStockController.text) ?? 0) * _thresholdConversionRate.round(),
         lowStockThreshold: (int.tryParse(_lowStockThresholdController.text) ?? 10) * _thresholdConversionRate.round(),
         qrCode: _qrController.text.isEmpty ? null : _qrController.text,
@@ -924,6 +957,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
             retailPrice: double.parse(_retailPriceController.text),
             wholesalePrice: double.tryParse(_wholesalePriceController.text),
             mrp: double.tryParse(_mrpController.text),
+            taxRate: double.tryParse(_taxRateController.text) ?? 0.0,
             isActive: true,
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),

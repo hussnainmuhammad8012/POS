@@ -13,6 +13,8 @@ class CartItem {
   final int availableStock;
   final double unitDiscount; // Discount per unit
   final double unitDiscountPercent; // Store entered percentage
+  final double taxRate;   // Tax rate per unit
+  final double taxAmount; // Total tax for this item
   
   // UOM-specific fields (null for classic items)
   final String? unitId;
@@ -34,6 +36,8 @@ class CartItem {
     required this.availableStock,
     this.unitDiscount = 0.0,
     this.unitDiscountPercent = 0.0,
+    this.taxRate = 0.0,
+    this.taxAmount = 0.0,
     this.unitId,
     this.unitName,
     this.conversionRate = 1,
@@ -61,6 +65,8 @@ class CartItem {
     double? profitMargin,
     double? unitDiscount,
     double? unitDiscountPercent,
+    double? taxRate,
+    double? taxAmount,
   }) {
     return CartItem(
       id: id,
@@ -75,6 +81,8 @@ class CartItem {
       availableStock: availableStock,
       unitDiscount: unitDiscount ?? this.unitDiscount,
       unitDiscountPercent: unitDiscountPercent ?? this.unitDiscountPercent,
+      taxRate: taxRate ?? this.taxRate,
+      taxAmount: taxAmount ?? this.taxAmount,
       unitId: unitId ?? this.unitId,
       unitName: unitName ?? this.unitName,
       conversionRate: conversionRate ?? this.conversionRate,

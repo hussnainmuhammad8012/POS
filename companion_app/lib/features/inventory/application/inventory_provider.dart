@@ -15,12 +15,16 @@ class InventoryProvider extends ChangeNotifier {
   List<Supplier> _suppliers = [];
   bool _isLoading = false;
   bool _isUomEnabled = true;
+  bool _isTaxEnabled = false;
+  double _defaultTaxRate = 0.0;
 
   List<Product> get products => _products;
   List<Category> get categories => _categories;
   List<Supplier> get suppliers => _suppliers;
   bool get isLoading => _isLoading;
   bool get isUomEnabled => _isUomEnabled;
+  bool get isTaxEnabled => _isTaxEnabled;
+  double get defaultTaxRate => _defaultTaxRate;
 
   InventoryProvider({required this.serverIp, required this.accessToken}) {
     fetchInventory();
@@ -39,6 +43,8 @@ class InventoryProvider extends ChangeNotifier {
       if (pingRes.statusCode == 200) {
         final pingData = jsonDecode(pingRes.body);
         _isUomEnabled = pingData['isUomEnabled'] ?? false;
+        _isTaxEnabled = pingData['isTaxEnabled'] ?? false;
+        _defaultTaxRate = (pingData['taxRate'] as num?)?.toDouble() ?? 0.0;
       }
 
       final prodRes = await http.get(Uri.parse('$baseUrl/products'), headers: headers);
@@ -149,6 +155,7 @@ class InventoryProvider extends ChangeNotifier {
     required double retailPrice,
     double? wholesalePrice,
     double? mrp,
+    double taxRate = 0.0,
     int initialStock = 0,
     int lowStockThreshold = 10,
     String? qrCode,
@@ -174,6 +181,7 @@ class InventoryProvider extends ChangeNotifier {
           'retailPrice': retailPrice,
           'wholesalePrice': wholesalePrice,
           'mrp': mrp,
+          'taxRate': taxRate,
           'initialStock': initialStock,
           'lowStockThreshold': lowStockThreshold,
           'units': units.map((u) => u.toJson()).toList(),

@@ -22,6 +22,7 @@ class TransactionRepository {
         'discount': transaction.discount,
         'discount_percent': transaction.discountPercent,
         'tax': transaction.tax,
+        'is_tax_inclusive': transaction.isTaxInclusive ? 1 : 0,
         'final_amount': transaction.finalAmount,
         'cash_paid': transaction.cashPaid,
         'credit_amount': transaction.creditAmount,
@@ -42,6 +43,8 @@ class TransactionRepository {
           'subtotal': item.subtotal,
           'discount': item.discount,
           'discount_percent': item.discountPercent,
+          'tax_rate': item.taxRate,
+          'tax_amount': item.taxAmount,
           'unit_id': item.unitId,       // UOM: null for classic items
           'unit_name': item.unitName,   // UOM: null for classic items
         });
@@ -114,6 +117,7 @@ class TransactionRepository {
         totalAmount: transaction.totalAmount,
         discount: transaction.discount,
         tax: transaction.tax,
+        isTaxInclusive: transaction.isTaxInclusive,
         finalAmount: transaction.finalAmount,
         cashPaid: transaction.cashPaid,
         creditAmount: transaction.creditAmount,
@@ -228,6 +232,7 @@ class TransactionRepository {
       discount: (row['discount'] as num).toDouble(),
       discountPercent: (row['discount_percent'] as num?)?.toDouble() ?? 0.0,
       tax: (row['tax'] as num).toDouble(),
+      isTaxInclusive: row['is_tax_inclusive'] == 1,
       finalAmount: (row['final_amount'] as num).toDouble(),
       cashPaid: (row['cash_paid'] as num?)?.toDouble() ?? 0.0,
       creditAmount: (row['credit_amount'] as num?)?.toDouble() ?? 0.0,

@@ -11,6 +11,7 @@ class ProductVariant {
   final double? mrp;
   final String? variantImagePath;
   final bool isActive;
+  final double taxRate;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -25,6 +26,7 @@ class ProductVariant {
     this.wholesalePrice,
     this.mrp,
     this.variantImagePath,
+    this.taxRate = 0.0,
     required this.isActive,
     required this.createdAt,
     required this.updatedAt,
@@ -62,6 +64,7 @@ class ProductVariant {
       : null,
     mrp: json['mrp'] != null ? (json['mrp'] as num).toDouble() : null,
     variantImagePath: json['variant_image_path'],
+    taxRate: (json['tax_rate'] as num?)?.toDouble() ?? 0.0,
     isActive: json['is_active'] == 1,
     createdAt: DateTime.parse(json['created_at']),
     updatedAt: DateTime.parse(json['updated_at']),
@@ -78,6 +81,7 @@ class ProductVariant {
     'wholesale_price': wholesalePrice,
     'mrp': mrp,
     'variant_image_path': variantImagePath,
+    'tax_rate': taxRate,
     'is_active': isActive ? 1 : 0,
     'created_at': createdAt.toIso8601String(),
     'updated_at': updatedAt.toIso8601String(),
