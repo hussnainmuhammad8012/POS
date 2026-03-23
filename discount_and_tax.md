@@ -56,6 +56,13 @@ The tax system is fully implemented and integrated into the POS.
 - `transaction_items.tax_rate`, `transaction_items.tax_amount` — tax per line item
 - `transactions.total_tax` (aliased as `tax`), `transactions.is_tax_inclusive`
 
+### 2.6. Companion App Integration
+- **Settings Sync:** The Companion App automatically synchronizes its UI based on the Desktop's tax settings. It fetches `isTaxEnabled` and `defaultTaxRate` via the server's `/ping` endpoint.
+- **Product Management:** When adding or managing products on the companion app:
+    - Tax fields are dynamically displayed only when the tax system is enabled.
+    - Users can set specific tax rates for both the **Base Unit** and any **Multiplier Units (UOM)**.
+- **Server Communication:** The Companion App passes these tax rates to the Desktop API, ensuring the central database is updated correctly with the specified values.
+
 ## 3. Data Integrity
 - All discounts and taxes are preserved in the database for accurate historical reporting.
 - Recalculations happen in real-time within `PosProvider` using `_recalculateAllTaxes()`.
