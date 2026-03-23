@@ -165,7 +165,6 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                     Text(
                                       selectedCustomer.name,
                                       style: Theme.of(context).textTheme.displayMedium,
-                                      overflow: TextOverflow.ellipsis,
                                     ),
                                     const SizedBox(height: 4),
                                     Text('Customer since ${selectedCustomer.createdAt.toString().split(' ')[0]}',
@@ -174,23 +173,23 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                   ],
                                 ),
                               ),
-                              const Spacer(),
-                              OutlinedButton.icon(
+                              IconButton(
                                 onPressed: () {
                                   showDialog(
                                     context: context,
                                     builder: (context) => AddCustomerDialog(initialCustomer: selectedCustomer),
                                   );
                                 },
-                                icon: const Icon(LucideIcons.edit3, size: 16),
-                                label: const Text('Edit'),
+                                icon: const Icon(LucideIcons.edit3, size: 20),
+                                tooltip: 'Edit',
+                                color: theme.primaryColor,
                               ),
-                              const SizedBox(width: 8),
-                              OutlinedButton.icon(
+                              const SizedBox(width: 4),
+                              IconButton(
                                 onPressed: () => _confirmDelete(context, selectedCustomer),
-                                icon: const Icon(LucideIcons.trash2, size: 16),
-                                label: const Text('Delete'),
-                                style: OutlinedButton.styleFrom(foregroundColor: AppColors.DANGER),
+                                icon: const Icon(LucideIcons.trash2, size: 20),
+                                tooltip: 'Delete',
+                                color: AppColors.DANGER,
                               ),
                             ],
                           ),
