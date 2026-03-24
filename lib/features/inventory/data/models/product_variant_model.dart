@@ -70,6 +70,8 @@ class ProductVariant {
     updatedAt: DateTime.parse(json['updated_at']),
   );
 
+  factory ProductVariant.fromMap(Map<String, dynamic> map) => ProductVariant.fromJson(map);
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'product_id': productId,

@@ -11,6 +11,7 @@ import '../../features/inventory/data/repositories/carton_repository.dart';
 import '../../features/analytics/data/analytics_repository.dart';
 import '../repositories/transaction_repository.dart';
 import '../models/entities.dart';
+import '../repositories/customer_repository.dart';
 import '../../features/inventory/data/models/product_unit_model.dart';
 import '../../features/inventory/data/models/product_model.dart';
 import '../../features/settings/application/settings_provider.dart';
@@ -37,8 +38,10 @@ class LocalApiServer {
   CartonRepository? _cartonRepository;
   SupplierRepository? _supplierRepository;
   AnalyticsRepository? _analyticsRepository;
-  TransactionRepository? _transactionRepository;
+   TransactionRepository? _transactionRepository;
+  CustomerRepository? _customersRepository;
   SettingsProvider? _settingsProvider;
+  String? _activePosCompanionId; // Tracks the single active mobile POS device-id
   FCMService? _fcmService;
   DataSyncService? _dataSyncService;
   AuthService? _authService;
@@ -58,6 +61,7 @@ class LocalApiServer {
     required SupplierRepository supplierRepository,
     required AnalyticsRepository analyticsRepository,
     required TransactionRepository transactionRepository,
+    required CustomerRepository customersRepository,
     required SettingsProvider settingsProvider,
     required FCMService fcmService,
     required DataSyncService dataSyncService,
@@ -69,6 +73,7 @@ class LocalApiServer {
     _supplierRepository = supplierRepository;
     _analyticsRepository = analyticsRepository;
     _transactionRepository = transactionRepository;
+    _customersRepository = customersRepository;
     _settingsProvider = settingsProvider;
     _fcmService = fcmService;
     _dataSyncService = dataSyncService;
@@ -179,6 +184,7 @@ class LocalApiServer {
         'appName': _settingsProvider?.storeName ?? 'Gravity POS',
         'isUomEnabled': _settingsProvider?.enableUomSystem ?? false,
         'isTaxEnabled': _settingsProvider?.enableTaxSystem ?? false,
+        'taxInclusive': _settingsProvider?.taxInclusive ?? false,
         'taxRate': _settingsProvider?.taxRate ?? 0.0,
       }));
     });
@@ -186,6 +192,190 @@ class LocalApiServer {
     // AUTH ROUTES
     router.post('/auth/login', _login);
     
+    // ── NEW POS ENDPOINTS ──
+    router.post('/pos/logout', (Request request) async {
+       _activePosCompanionId = null;
+       return Response.ok(jsonEncode({'status': 'ok'}));
+    });
+
+    router.get('/pos/product-lookup/<barcode>', (Request request, String barcode) async {
+      final isUomEnabled = _settingsProvider?.enableUomSystem ?? false;
+      final unit = await _productRepository?.getUnitByBarcode(barcode);
+      if (unit != null) {
+        if (isUomEnabled || unit.conversionRate == 1) {
+          final prodData = await _productRepository?.getProductWithVariants(unit.productId);
+          return Response.ok(jsonEncode({
+            'type': 'unit',
+            'productId': unit.productId,
+            'unit': unit.toJson(),
+            'productName': prodData?['product']?.name,
+            'productSku': prodData?['product']?.baseSku,
+            'units': isUomEnabled ? (await _productRepository?.getUnitsByProductId(unit.productId))?.map((u) => u.toJson()).toList() : [],
+          }));
+        }
+      }
+
+      final variant = await _productRepository?.getVariantByBarcode(barcode);
+      if (variant != null) {
+        final prodData = await _productRepository?.getProductWithVariants(variant.productId);
+        return Response.ok(jsonEncode({
+          'type': 'variant',
+          'productId': variant.productId,
+          'variant': variant.toJson(),
+          'productName': prodData?['product']?.name,
+          'productSku': prodData?['product']?.baseSku,
+          'units': isUomEnabled ? (await _productRepository?.getUnitsByProductId(variant.productId))?.map((u) => u.toJson()).toList() : [],
+        }));
+      }
+      return Response.notFound(jsonEncode({'error': 'Product not found'}));
+    });
+
+    router.post('/pos/cart/reserve', (Request request) async {
+      final data = jsonDecode(await request.readAsString());
+      await _productRepository?.reserveStock(
+        variantId: data['variantId'],
+        quantity: data['quantity'],
+        deviceId: data['deviceId'],
+      );
+      _dataSyncService?.notifyMobileUpdate();
+      return Response.ok(jsonEncode({'status': 'ok'}));
+    });
+
+    router.post('/pos/cart/release', (Request request) async {
+      final data = jsonDecode(await request.readAsString());
+      await _productRepository?.releaseStock(
+        deviceId: data['deviceId'],
+        variantId: data['variantId'],
+        quantity: data['quantity'],
+      );
+      _dataSyncService?.notifyMobileUpdate();
+      return Response.ok(jsonEncode({'status': 'ok'}));
+    });
+
+    router.get('/settings/payment-methods', (Request request) async {
+      final methods = _settingsProvider?.paymentMethods ?? ['CASH', 'JAZZCASH', 'BANK'];
+      return Response.ok(jsonEncode(methods));
+    });
+
+    router.get('/settings/pos-config', (Request request) async {
+      return Response.ok(jsonEncode({
+        'enableUomSystem': _settingsProvider?.enableUomSystem ?? true,
+        'allowDiscounts': _settingsProvider?.allowDiscounts ?? true,
+        'calculatePercentageDiscount': _settingsProvider?.calculatePercentageDiscount ?? false,
+        'treatUomPriceGapAsDiscount': _settingsProvider?.treatUomPriceGapAsDiscount ?? false,
+        'prorateUomRemainders': _settingsProvider?.prorateUomRemainders ?? false,
+        'enableTax': _settingsProvider?.enableTaxSystem ?? false,
+        'taxInclusive': _settingsProvider?.taxInclusive ?? false,
+        'taxRate': _settingsProvider?.taxRate ?? 0.0,
+        'storeName': _settingsProvider?.storeName ?? 'Utility Store',
+        'storeAddress': _settingsProvider?.storeAddress ?? '',
+        'storePhone': _settingsProvider?.storePhone ?? '',
+        'receiptCustomMessage': _settingsProvider?.receiptCustomMessage ?? 'Thank you for shopping!',
+      }));
+    });
+
+    router.post('/pos/cart/clear', (Request request) async {
+      final data = jsonDecode(await request.readAsString());
+      await _productRepository?.releaseStock(deviceId: data['deviceId']);
+      _dataSyncService?.notifyMobileUpdate();
+      return Response.ok(jsonEncode({'status': 'ok'}));
+    });
+
+    router.post('/pos/checkout', (Request request) async {
+      final data = jsonDecode(await request.readAsString());
+      final List<dynamic> itemsData = data['items'];
+      final deviceId = data['deviceId'];
+
+      try {
+        final String invoiceNumber = data['invoice'] ?? 'INV-MOB-${DateTime.now().millisecondsSinceEpoch}';
+        final String txId = 'txn_${DateTime.now().millisecondsSinceEpoch}';
+
+        final List<TransactionItem> items = [];
+        for (final item in itemsData) {
+          String variantId = item['variantId'].toString();
+          final productId = item['productId']?.toString();
+          print('SERVER: Processing item variantId=$variantId, productId=$productId');
+          
+          if (productId != null && productId.isNotEmpty) {
+             final resolvedBaseId = await _productRepository?.getPrimaryVariantId(productId);
+             if (resolvedBaseId != null) {
+               print('SERVER: Resolved productId $productId to primary variant $resolvedBaseId');
+               variantId = resolvedBaseId;
+             }
+          } else if (variantId.contains('__')) {
+             final pId = variantId.split('__').first;
+             final resolvedBaseId = await _productRepository?.getPrimaryVariantId(pId);
+             if (resolvedBaseId != null) {
+               print('SERVER: Resolved composite variantId $variantId (pId $pId) to primary variant $resolvedBaseId');
+               variantId = resolvedBaseId;
+             }
+          }
+
+          final variant = await _productRepository?.getVariantById(variantId);
+          if (variant == null) {
+            print('SERVER WARNING: Variant $variantId NOT FOUND in database!');
+          }
+
+          items.add(TransactionItem(
+            transactionId: txId,
+            variantId: variantId,
+            quantity: (item['quantity'] as num).toInt(),
+            priceAtTime: (item['unitPrice'] as num).toDouble(),
+            costAtTime: variant?.costPrice ?? 0,
+            subtotal: (item['total'] as num).toDouble(),
+            discount: (item['discount'] as num?)?.toDouble() ?? 0,
+            discountPercent: 0,
+            taxRate: 0,
+            taxAmount: 0,
+            unitId: item['unitId'],
+            unitName: item['unitName'],
+          ));
+        }
+        
+        final tx = Transaction(
+          id: txId,
+          invoiceNumber: invoiceNumber,
+          customerId: data['customerId'],
+          totalAmount: (data['subtotal'] as num).toDouble(),
+          discount: (data['discount'] as num).toDouble(),
+          tax: 0,
+          isTaxInclusive: true,
+          finalAmount: (data['total'] as num).toDouble(),
+          cashPaid: (data['cashPaid'] as num).toDouble(),
+          creditAmount: (data['creditAmount'] as num).toDouble(),
+          paymentMethod: data['paymentMethod'] ?? 'CASH',
+          paymentStatus: (data['creditAmount'] as num) > 0 ? 'PARTIAL' : 'COMPLETED',
+          createdAt: DateTime.now(),
+        );
+
+        final result = await _transactionRepository?.insertTransaction(
+          transaction: tx,
+          items: items,
+          dueDate: data['dueDate'] != null ? DateTime.parse(data['dueDate']) : null,
+        );
+
+        // ALWAYS release reservations after checkout
+        if (deviceId != null) {
+          await _productRepository?.releaseStock(deviceId: deviceId);
+        }
+
+        _dataSyncService?.notifyMobileUpdate();
+        
+        return Response.ok(jsonEncode({
+          'status': 'ok', 
+          'invoice': invoiceNumber,
+          'id': result?.id,
+        }));
+      } catch (e) {
+        print('[SERVER] Checkout Error: $e');
+        return Response.internalServerError(body: jsonEncode({'error': e.toString()}));
+      }
+    });
+    router.get('/inventory/customers', (Request request) async {
+      final customers = await _customersRepository?.getAll() ?? [];
+      return Response.ok(jsonEncode(customers.map((c) => c.toMap()).toList()));
+    });
+
     // INVENTORY ROUTES
     router.get('/inventory/products', _getProducts);
     router.post('/inventory/products', _createProduct);
@@ -274,6 +464,7 @@ class LocalApiServer {
       'updated_at': s.product.updatedAt.toIso8601String(),
       'current_stock': s.totalStock,
       'price': s.minPrice,
+      'base_variant_id': s.primaryVariantId,
       'barcode': s.barcode ?? s.product.baseSku,
       'qr_code': s.qrCode ?? s.barcode ?? s.product.baseSku,
       'units': s.units.map((u) => u.toJson()).toList(),
@@ -379,6 +570,8 @@ class LocalApiServer {
     final data = jsonDecode(body);
     final username = data['username'];
     final password = data['password'];
+    final String? deviceId = data['deviceId']; // Optional, only for POS mode
+    final bool isPosAttempt = data['requestPos'] == true;
     final remoteIp = (request.context['shelf.io.connection_info'] as HttpConnectionInfo?)?.remoteAddress.address;
 
     print('[SERVER] Login attempt for user: $username from IP: $remoteIp');
@@ -388,6 +581,13 @@ class LocalApiServer {
     final user = await _authService!.login(username, password);
     
     if (user != null) {
+      if (isPosAttempt) {
+         if (_activePosCompanionId != null && _activePosCompanionId != deviceId) {
+           return Response.forbidden(jsonEncode({'error': 'Another mobile POS is already active'}));
+         }
+         _activePosCompanionId = deviceId;
+      }
+
       // Save FCM Token if provided
       final fcmToken = data['fcmToken'];
       if (fcmToken != null && _settingsProvider != null) {
@@ -424,9 +624,11 @@ class LocalApiServer {
         quantityChange: data['quantity_change'],
         reason: data['reason'] ?? 'Companion App Update',
       );
-      
-      // 3. Notify Sync
-      _dataSyncService?.notifyMobileUpdate();
+        
+      // 3. Notify Sync with a small delay to ensure DB commit is visible to other providers
+      Future.delayed(const Duration(milliseconds: 100), () {
+        _dataSyncService?.notifyMobileUpdate();
+      });
       
       return Response.ok(jsonEncode({'status': 'success'}));
     } catch (e) {

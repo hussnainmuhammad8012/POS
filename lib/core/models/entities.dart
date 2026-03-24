@@ -149,6 +149,21 @@ class Customer {
       createdAt: createdAt ?? this.createdAt,
     );
   }
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'name': name,
+    'phone': phone,
+    'whatsapp_number': whatsappNumber,
+    'address': address,
+    'email': email,
+    'loyalty_points': loyaltyPoints,
+    'total_spent': totalSpent,
+    'current_credit': currentCredit,
+    'credit_limit': creditLimit,
+    'last_purchase_date': lastPurchaseDate?.toIso8601String(),
+    'created_at': createdAt.toIso8601String(),
+  };
 }
 
 @immutable

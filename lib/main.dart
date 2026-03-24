@@ -128,7 +128,11 @@ class UtilityStorePosApp extends StatelessWidget {
             syncService: context.read<DataSyncService>(),
           ),
         ),
-        ChangeNotifierProvider(create: (_) => TransactionsProvider()),
+        ChangeNotifierProvider(
+          create: (context) => TransactionsProvider(
+            syncService: context.read<DataSyncService>(),
+          ),
+        ),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (context) {
           final p = NotificationProvider(context.read<NotificationRepository>());
@@ -204,6 +208,7 @@ class _AppBootstrapperState extends State<_AppBootstrapper> with TrayListener {
       supplierRepository: context.read<SupplierRepository>(),
       analyticsRepository: AnalyticsRepository(),
       transactionRepository: widget.transactionRepo,
+      customersRepository: context.read<CustomerRepository>(),
       settingsProvider: settings,
       fcmService: fcmService,
       dataSyncService: context.read<DataSyncService>(),

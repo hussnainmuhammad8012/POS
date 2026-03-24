@@ -12,6 +12,8 @@ import 'features/inventory/presentation/screens/inventory_screen.dart';
 import 'features/dashboard/application/dashboard_provider.dart';
 import 'features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'features/auth/presentation/screens/selection_screen.dart';
+import 'features/pos/application/pos_provider.dart';
+import 'features/pos/presentation/screens/pos_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -79,6 +81,21 @@ class CompanionApp extends StatelessWidget {
                 accessToken: auth.accessToken!,
               ),
               child: const DashboardScreen(),
+            );
+          }
+
+          // 4. Path C: POS
+          if (auth.currentMode == AppMode.pos) {
+            if (!auth.isPaired) return const PairingScreen();
+            if (!auth.isLoggedIn) return const LoginScreen();
+            
+            return ChangeNotifierProvider(
+              create: (_) => PosProvider(
+                authProvider: auth,
+                serverIp: auth.serverIp!,
+                accessToken: auth.accessToken!,
+              ),
+              child: const PosScreen(),
             );
           }
 

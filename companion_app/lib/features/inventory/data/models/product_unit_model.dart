@@ -13,6 +13,7 @@ class ProductUnit {
   final double? mrp;
   final double taxRate;
   final bool isActive;
+  final String? baseVariantId;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -30,6 +31,7 @@ class ProductUnit {
     this.mrp,
     this.taxRate = 0.0,
     required this.isActive,
+    this.baseVariantId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -50,6 +52,7 @@ class ProductUnit {
         mrp: json['mrp'] != null ? (json['mrp'] as num).toDouble() : null,
         taxRate: (json['tax_rate'] as num?)?.toDouble() ?? 0.0,
         isActive: json['is_active'] == 1 || json['is_active'] == true,
+        baseVariantId: json['base_variant_id'] ?? json['base_variantId'],
         createdAt: DateTime.parse(json['created_at']),
         updatedAt: DateTime.parse(json['updated_at']),
       );

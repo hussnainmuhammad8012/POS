@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/services/data_sync_service.dart';
 import '../../../core/models/entities.dart';
 import '../../../core/repositories/transaction_repository.dart';
 
@@ -6,6 +7,7 @@ enum TransactionFilter { today, last7Days, lastMonth, custom }
 
 class TransactionsProvider extends ChangeNotifier {
   final TransactionRepository _repository = TransactionRepository();
+  final DataSyncService? _syncService;
 
   List<Transaction> _transactions = [];
   bool _isLoading = false;
@@ -25,8 +27,20 @@ class TransactionsProvider extends ChangeNotifier {
   DateTimeRange? get customRange => _customRange;
   String? get selectedPaymentMethod => _selectedPaymentMethod;
 
-  TransactionsProvider() {
+  TransactionsProvider({DataSyncService? syncService}) : _syncService = syncService {
     loadTransactions();
+    _syncService?.addListener(_onSyncUpdate);
+  }
+
+  void _onSyncUpdate() {
+    print('TransactionsProvider: Sync update detected, reloading...');
+    loadTransactions();
+  }
+
+  @override
+  void dispose() {
+    _syncService?.removeListener(_onSyncUpdate);
+    super.dispose();
   }
 
   Future<void> loadTransactions() async {

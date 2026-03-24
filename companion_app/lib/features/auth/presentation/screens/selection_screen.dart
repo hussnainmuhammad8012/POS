@@ -62,6 +62,18 @@ class SelectionScreen extends StatelessWidget {
                             context.read<AuthProvider>().setAppMode(AppMode.admin);
                           },
                         ),
+                      if (!auth.isLoggedIn || auth.canAccessPos) const SizedBox(height: 20),
+                      if (!auth.isLoggedIn || auth.canAccessPos)
+                        _buildSelectionCard(
+                          context,
+                          title: 'Point of Sale',
+                          subtitle: 'Quick barcode scanning & checkout',
+                          icon: LucideIcons.shoppingCart,
+                          color: AppColors.STAR_PRIMARY,
+                          onTap: () {
+                            context.read<AuthProvider>().setAppMode(AppMode.pos);
+                          },
+                        ),
                       if (auth.isLoggedIn && !auth.canAccessInventory && !auth.canAccessAnalytics)
                         const Center(
                           child: Text(

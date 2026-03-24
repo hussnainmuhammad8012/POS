@@ -122,7 +122,7 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: _isSharing ? null : _handleShareWhatsApp,
+                      onPressed: _isSharing ? null : _handleShareReceipt,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         backgroundColor: const Color(0xFF25D366), // WhatsApp Green
@@ -130,8 +130,8 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
                       ),
                       icon: _isSharing 
                           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(LucideIcons.messageCircle),
-                      label: const Text('WhatsApp'),
+                          : const Icon(LucideIcons.share2),
+                      label: const Text('Share PDF'),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -611,70 +611,23 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
     }
   }
 
-  Future<void> _handleShareWhatsApp() async {
+  Future<void> _handleShareReceipt() async {
     setState(() => _isSharing = true);
     try {
-      // Capture the receipt details as an image
-      final imageBytes = await _screenshotController.capture(
-        delay: const Duration(milliseconds: 100),
-        pixelRatio: 2.0, 
+      final pdfBytes = await _generatePdf();
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/Receipt_${widget.transaction.invoiceNumber}.pdf');
+      await file.writeAsBytes(pdfBytes);
+
+      // Open System Share Dialog
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Store Receipt - Invoice #${widget.transaction.invoiceNumber}',
       );
-      
-      if (imageBytes == null) throw Exception('Failed to generate receipt image.');
 
-      // WhatsApp Desktop doesn't support direct image attachments via URL.
-      // So we copy the image to the clipboard, and open WhatsApp directly. 
-      // The user just has to press Ctrl+V to paste the image.
-      await Pasteboard.writeImage(imageBytes);
-
-      // Close the receipt dialog immediately after capturing
       if (mounted) {
         Navigator.pop(context);
       }
-
-      // Open WhatsApp directly using the protocol
-      final encodedMessage = Uri.encodeComponent(
-        'Here is today\'s purchase slip.'
-      );
-      
-      final uri = Uri.parse('whatsapp://send?text=$encodedMessage');
-      
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri);
-        
-        if (mounted) {
-           AppToast.show(
-             context, 
-             title: 'Copied to Clipboard!', 
-             message: 'Press Ctrl+V in WhatsApp to paste the receipt.',
-             type: ToastType.success,
-           );
-        }
-      } else {
-        // Fallback to web WhatsApp specifically
-        final webUri = Uri.parse('https://wa.me/?text=$encodedMessage');
-        if (await canLaunchUrl(webUri)) {
-          await launchUrl(webUri);
-          if (mounted) {
-             AppToast.show(
-               context, 
-               title: 'Copied to Clipboard!', 
-               message: 'Press Ctrl+V in WhatsApp to paste the receipt.',
-               type: ToastType.success,
-             );
-          }
-        } else {
-          // If all else fails, fallback to native share sheet as a backup
-          final tempDir = await getTemporaryDirectory();
-          final file = File('${tempDir.path}/receipt_${widget.transaction.invoiceNumber}.png');
-          await file.writeAsBytes(imageBytes);
-          await Share.shareXFiles(
-            [XFile(file.path)],
-            text: 'Store Receipt - Invoice #${widget.transaction.invoiceNumber}',
-          );
-        }
-      }
-
     } catch (e) {
       if (mounted) {
         AppToast.show(

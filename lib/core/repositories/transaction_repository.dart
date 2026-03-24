@@ -49,9 +49,19 @@ class TransactionRepository {
           'unit_name': item.unitName,   // UOM: null for classic items
         });
 
+        // Safety Check: Ensure enough stock exists before deducting
+        final currentStockRows = await txn.query('stock_levels', columns: ['available_pieces'], where: 'product_variant_id = ?', whereArgs: [item.variantId]);
+        if (currentStockRows.isNotEmpty) {
+          final currentAvailable = (currentStockRows.first['available_pieces'] as num).toInt();
+          if (currentAvailable < item.quantity) {
+             throw Exception('Insufficient stock for variant ${item.variantId}. Available: $currentAvailable, Required: ${item.quantity}');
+          }
+        }
+
         // Decrease stock in the new V2 schema (stock_levels)
         final nowStr = DateTime.now().toIso8601String();
-        await txn.rawUpdate(
+        String currentVariantId = item.variantId;
+        int updateResult = await txn.rawUpdate(
           '''
           UPDATE stock_levels 
           SET available_pieces = available_pieces - ?, 
@@ -59,18 +69,50 @@ class TransactionRepository {
               updated_at = ? 
           WHERE product_variant_id = ?
           ''',
-          [item.quantity, item.quantity, nowStr, item.variantId],
+          [item.quantity, item.quantity, nowStr, currentVariantId],
         );
 
+        if (updateResult == 0 && currentVariantId.contains('__')) {
+          // Robust Fallback: If composite ID (mobile format) wasn't found, 
+          // extract the product ID and target the primary variant directly.
+          final pid = currentVariantId.split('__').first;
+          print('DB Fallback: Resolving primary variant for product $pid...');
+          
+          final vResults = await txn.query('product_variants', 
+            columns: ['id'], 
+            where: 'product_id = ? AND is_active = 1', 
+            whereArgs: [pid], 
+            limit: 1
+          );
+
+          if (vResults.isNotEmpty) {
+            final primaryId = vResults.first['id'] as String;
+            print('DB Fallback: Redirecting deduction to primary variant $primaryId');
+            currentVariantId = primaryId; // Update for subsequent checks/logs
+            updateResult = await txn.rawUpdate(
+              '''
+              UPDATE stock_levels 
+              SET available_pieces = available_pieces - ?, 
+                  total_pieces = total_pieces - ?,
+                  updated_at = ? 
+              WHERE product_variant_id = ?
+              ''',
+              [item.quantity, item.quantity, nowStr, currentVariantId],
+            );
+          }
+        }
+        
+        print('DB: Update result for $currentVariantId: $updateResult row(s) affected');
+
         // Fetch the threshold to re-evalute low_stock_warning boolean
-        final stockLevels = await txn.query('stock_levels', where: 'product_variant_id = ?', whereArgs: [item.variantId]);
+        final stockLevels = await txn.query('stock_levels', where: 'product_variant_id = ?', whereArgs: [currentVariantId]);
         if (stockLevels.isNotEmpty) {
            final stockMap = stockLevels.first;
            final int available = (stockMap['available_pieces'] as num).toInt();
            final int threshold = (stockMap['low_stock_threshold'] as num).toInt();
            
            if (available <= threshold) {
-              await txn.update('stock_levels', {'is_low_stock_warning': 1}, where: 'product_variant_id = ?', whereArgs: [item.variantId]);
+              await txn.update('stock_levels', {'is_low_stock_warning': 1}, where: 'product_variant_id = ?', whereArgs: [currentVariantId]);
            }
         }
 
@@ -78,10 +120,10 @@ class TransactionRepository {
         final movementId = 'mov_${DateTime.now().microsecondsSinceEpoch}';
         await txn.insert('stock_movements', {
           'id': movementId,
-          'product_variant_id': item.variantId,
+          'product_variant_id': currentVariantId,
           'movement_type': 'OUT',
           'quantity_change': -item.quantity,
-          'quantity_before': 0, // In a robust system, fetch before update. Leaving 0 for simplicity here as it's not currently queried.
+          'quantity_before': 0, 
           'quantity_after': 0,
           'reason': 'Sale / Checkout',
           'reference_id': txId,

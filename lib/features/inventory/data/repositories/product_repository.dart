@@ -195,6 +195,12 @@ class ProductRepository {
     return null;
   }
 
+  Future<ProductVariant?> getVariantById(String id) async {
+    final results = await _db.query('product_variants', where: 'id = ?', whereArgs: [id]);
+    if (results.isEmpty) return null;
+    return ProductVariant.fromMap(results.first);
+  }
+
   /// ==========================================
   /// MULTI-UOM SPECIFIC METHODS
   /// ==========================================
@@ -725,7 +731,8 @@ class ProductRepository {
           (SELECT MAX(is_low_stock_warning) FROM stock_levels WHERE product_variant_id IN (SELECT id FROM product_variants WHERE product_id = p.id AND is_active = 1)),
           (SELECT MAX(is_low_stock_warning) FROM stock_levels WHERE product_variant_id IN (SELECT id FROM product_units WHERE product_id = p.id AND is_active = 1)),
           0
-        ) as is_low_stock_warning
+        ) as is_low_stock_warning,
+        (SELECT id FROM product_variants WHERE product_id = p.id AND is_active = 1 LIMIT 1) as primary_variant_id
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
       WHERE p.is_active = 1
@@ -804,6 +811,7 @@ class ProductRepository {
         qrCode: row['qr_code'] as String?,
         totalStock: (row['total_stock'] as num?)?.toInt() ?? 0,
         units: unitMap[productId] ?? [],
+        primaryVariantId: row['primary_variant_id'] as String?,
         lowStockThreshold: (row['low_stock_threshold'] as num?)?.toInt() ?? 10,
         isLowStockWarning: (row['is_low_stock_warning'] as int?) == 1,
       );
@@ -899,14 +907,96 @@ class ProductRepository {
 
   // Get stock level by variant ID
   Future<StockLevel?> getStockLevelByVariantId(String variantId) async {
-    final result = await _db.query(
+    final rows = await _db.query(
       'stock_levels',
       where: 'product_variant_id = ?',
       whereArgs: [variantId],
     );
+    if (rows.isEmpty) return null;
+    final row = rows.first;
+    
+    // Available to sell = actual available - currently reserved in mobile carts
+    final int reserved = (row['reserved_pieces'] as num?)?.toInt() ?? 0;
+    final int available = (row['available_pieces'] as num).toInt();
 
-    if (result.isEmpty) return null;
-    return StockLevel.fromJson(result.first);
+    return StockLevel(
+      id: row['id'] as String,
+      productVariantId: row['product_variant_id'] as String,
+      availablePieces: (available - reserved).clamp(0, available),
+      totalPieces: (row['total_pieces'] as num).toInt(),
+      totalCartons: (row['total_cartons'] as num?)?.toInt() ?? 0,
+      reservedPieces: reserved,
+      lowStockThreshold: (row['low_stock_threshold'] as num).toInt(),
+      reorderPoint: (row['reorder_point'] as num?)?.toInt() ?? 10,
+      isLowStockWarning: row['is_low_stock_warning'] == 1,
+      createdAt: DateTime.parse(row['created_at'] as String),
+      updatedAt: DateTime.parse(row['updated_at'] as String),
+    );
+  }
+
+  Future<void> reserveStock({
+    required String variantId,
+    required int quantity,
+    required String deviceId,
+  }) async {
+    await _db.transaction((txn) async {
+      // 1. Update stock_levels
+      await txn.rawUpdate(
+        'UPDATE stock_levels SET reserved_pieces = reserved_pieces + ? WHERE product_variant_id = ?',
+        [quantity, variantId],
+      );
+
+      // 2. Track reservation
+      await txn.insert('mobile_cart_reservations', {
+        'id': 'res_${DateTime.now().microsecondsSinceEpoch}',
+        'device_id': deviceId,
+        'product_variant_id': variantId,
+        'quantity': quantity,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    });
+  }
+
+  Future<void> releaseStock({
+    required String deviceId,
+    String? variantId,
+    int? quantity,
+  }) async {
+    await _db.transaction((txn) async {
+      if (variantId != null && quantity != null) {
+        // Release specific amount
+        await txn.rawUpdate(
+          'UPDATE stock_levels SET reserved_pieces = reserved_pieces - ? WHERE product_variant_id = ?',
+          [quantity, variantId],
+        );
+        // Find and remove matching reservation record (oldest first)
+        final res = await txn.query(
+          'mobile_cart_reservations',
+          where: 'device_id = ? AND product_variant_id = ?',
+          whereArgs: [deviceId, variantId],
+          limit: 1,
+        );
+        if (res.isNotEmpty) {
+           await txn.delete('mobile_cart_reservations', where: 'id = ?', whereArgs: [res.first['id']]);
+        }
+      } else {
+        // Release all for device (Void Cart)
+        final reservations = await txn.query(
+          'mobile_cart_reservations',
+          where: 'device_id = ?',
+          whereArgs: [deviceId],
+        );
+        for (final res in reservations) {
+          final vId = res['product_variant_id'] as String;
+          final qty = res['quantity'] as int;
+          await txn.rawUpdate(
+            'UPDATE stock_levels SET reserved_pieces = reserved_pieces - ? WHERE product_variant_id = ?',
+            [qty, vId],
+          );
+        }
+        await txn.delete('mobile_cart_reservations', where: 'device_id = ?', whereArgs: [deviceId]);
+      }
+    });
   }
 
   // Private helper to create stock level

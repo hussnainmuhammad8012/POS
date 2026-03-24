@@ -13,6 +13,7 @@ class ProductSummary {
   final String? qrCode;
   final int totalStock;
   final List<ProductUnit> units;
+  final String? primaryVariantId;
   final int lowStockThreshold;
   final bool isLowStockWarning;
 
@@ -28,6 +29,7 @@ class ProductSummary {
     this.qrCode,
     required this.totalStock,
     this.units = const [],
+    this.primaryVariantId,
     required this.lowStockThreshold,
     required this.isLowStockWarning,
   });

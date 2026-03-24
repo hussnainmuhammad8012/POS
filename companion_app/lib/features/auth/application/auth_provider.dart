@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import '../../../core/models/auth_models.dart';
 
-enum AppMode { selection, inventory, admin }
+enum AppMode { selection, inventory, admin, pos }
 
 class AuthProvider extends ChangeNotifier {
   String? _serverIp;
@@ -29,6 +29,7 @@ class AuthProvider extends ChangeNotifier {
   bool get canAccessInventory => _role == 'admin' || (_permissions?.canAccessInventory ?? false);
   bool get canAccessAnalytics => _role == 'admin' || (_permissions?.canAccessAnalytics ?? false);
   bool get canAccessSuppliers => _role == 'admin' || (_permissions?.canAccessSuppliers ?? false);
+  bool get canAccessPos => _role == 'admin' || _role == 'pos_user' || (_permissions?.canAccessInventory ?? false); // Assuming POS users usually have inventory access or similar
 
   AuthProvider() {
     _loadSettings();
