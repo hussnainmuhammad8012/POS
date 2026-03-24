@@ -338,11 +338,12 @@ class ProductRepository {
     return results.map((e) => ProductUnit.fromJson(e)).toList();
   }
 
+  /// Looks up a product unit by any identifying code (barcode, QR code, or unit-specific SKU).
   Future<ProductUnit?> getUnitByBarcode(String barcode) async {
     final result = await _db.query(
       'product_units',
-      where: 'barcode = ? AND is_active = 1',
-      whereArgs: [barcode],
+      where: '(barcode = ? OR qr_code = ?) AND is_active = 1',
+      whereArgs: [barcode, barcode],
     );
     if (result.isEmpty) return null;
     return ProductUnit.fromJson(result.first);
@@ -848,12 +849,12 @@ class ProductRepository {
     };
   }
 
-  // Get variant by barcode
+  /// Looks up a product variant by any identifying code (barcode, QR code, or SKU).
   Future<ProductVariant?> getVariantByBarcode(String barcode) async {
     final result = await _db.query(
       'product_variants',
-      where: 'barcode = ? AND is_active = 1',
-      whereArgs: [barcode],
+      where: '(barcode = ? OR qr_code = ? OR sku = ?) AND is_active = 1',
+      whereArgs: [barcode, barcode, barcode],
     );
 
     if (result.isEmpty) return null;

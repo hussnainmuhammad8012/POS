@@ -20,6 +20,7 @@ class PosScreen extends StatefulWidget {
 
 class _PosScreenState extends State<PosScreen> {
   final PosPdfService _pdfService = PosPdfService();
+  Offset? _fabPosition;
 
   @override
   void initState() {
@@ -54,58 +55,11 @@ class _PosScreenState extends State<PosScreen> {
             const SizedBox(width: 8),
           ],
         ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PosScannerPage(
-                onScan: (code) async {
-                  final result = await pos.addToCartByBarcode(code);
-                  if (!context.mounted) return;
-                  
-                  String message = '';
-                  Color color = Colors.black87;
-                  
-                  switch (result) {
-                    case 'SUCCESS':
-                      message = 'Item added to cart';
-                      color = Colors.green;
-                      break;
-                    case 'RE_SYNCED':
-                      message = 'Server Connection Refreshed!';
-                      color = Colors.blue;
-                      break;
-                    case 'AUTH_ERROR':
-                      message = 'Session Expired! Please re-scan Server QR.';
-                      color = Colors.orange;
-                      break;
-                    case 'INVALID_SYNC_QR':
-                      message = 'Invalid Sync QR Code';
-                      color = Colors.red;
-                      break;
-                    default:
-                      message = pos.error ?? 'Product not found';
-                      color = Colors.red;
-                  }
-                  
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(message, style: const TextStyle(color: Colors.white)),
-                      backgroundColor: color,
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-          backgroundColor: AppColors.STAR_PRIMARY,
-          elevation: 4,
-          child: const Icon(LucideIcons.scanLine, color: Colors.white),
-        ),
-        body: Column(
+        body: Stack(
           children: [
-              // Top Controls: Mode, Bulk Qty, Customer
+            Column(
+              children: [
+                // Top Controls: Mode, Bulk Qty, Customer
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
@@ -168,11 +122,85 @@ class _PosScreenState extends State<PosScreen> {
 
             // Summary Panel
             _buildSummaryPanel(context, pos),
+              ],
+            ),
+            Positioned(
+              left: _fabPosition?.dx ?? (MediaQuery.of(context).size.width - 80),
+              top: _fabPosition?.dy ?? (MediaQuery.of(context).size.height - 250),
+              child: Draggable(
+                feedback: _buildScannerFab(context, pos, isFeedback: true),
+                childWhenDragging: Container(),
+                onDragEnd: (details) {
+                  setState(() {
+                    _fabPosition = details.offset;
+                    final size = MediaQuery.of(context).size;
+                    double x = _fabPosition!.dx.clamp(0.0, size.width - 60);
+                    double y = _fabPosition!.dy.clamp(0.0, size.height - 180);
+                    _fabPosition = Offset(x, y);
+                  });
+                },
+                child: _buildScannerFab(context, pos),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
+
+  Widget _buildScannerFab(BuildContext context, PosProvider pos, {bool isFeedback = false}) {
+    return FloatingActionButton(
+      onPressed: isFeedback ? null : () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PosScannerPage(
+            onScan: (code) async {
+              final result = await pos.addToCartByBarcode(code);
+              if (!context.mounted) return;
+              
+              String message = '';
+              Color color = Colors.black87;
+              
+              switch (result) {
+                case 'SUCCESS':
+                  message = 'Item added to cart';
+                  color = Colors.green;
+                  break;
+                case 'RE_SYNCED':
+                  message = 'Server Connection Refreshed!';
+                  color = Colors.blue;
+                  break;
+                case 'AUTH_ERROR':
+                  message = 'Session Expired! Please re-scan Server QR.';
+                  color = Colors.orange;
+                  break;
+                case 'INVALID_SYNC_QR':
+                  message = 'Invalid Sync QR Code';
+                  color = Colors.red;
+                  break;
+                default:
+                  message = pos.error ?? 'Product not found';
+                  color = Colors.red;
+              }
+              
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(message, style: const TextStyle(color: Colors.white)),
+                  backgroundColor: color,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+      backgroundColor: isFeedback ? AppColors.STAR_PRIMARY.withOpacity(0.5) : AppColors.STAR_PRIMARY,
+      elevation: isFeedback ? 8 : 4,
+      child: const Icon(LucideIcons.scanLine, color: Colors.white),
+    );
+  }
+
+
 
   Widget _buildEmptyState(BuildContext context) {
     return Center(

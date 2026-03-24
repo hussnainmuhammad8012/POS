@@ -9,6 +9,7 @@ import '../../application/inventory_provider.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../../../../core/widgets/app_dropdown.dart';
 import '../../../../core/widgets/toast_notification.dart';
+import '../../../../core/utils/code_generator.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/product_summary_model.dart';
 import '../../data/models/product_unit_model.dart';
@@ -830,22 +831,13 @@ class _AddProductDialogState extends State<AddProductDialog> {
   }
 
   void _generateInternalBarcode(TextEditingController ctrl) {
-    final random = math.Random();
-    String code = '';
-    for (int i = 0; i < 12; i++) {
-      code += random.nextInt(10).toString();
-    }
+    final code = CodeGenerator.generateInternalBarcode();
     setState(() => ctrl.text = code);
     AppToast.show(context, title: 'Barcode Generated', message: 'Internal barcode $code created.', type: ToastType.success);
   }
 
   void _generateInternalQr(TextEditingController ctrl) {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    final random = math.Random();
-    String code = '';
-    for (int i = 0; i < 8; i++) {
-      code += chars[random.nextInt(chars.length)];
-    }
+    final code = CodeGenerator.generateInternalQrCode();
     setState(() => ctrl.text = code);
     AppToast.show(context, title: 'QR Data Generated', message: 'Internal QR code $code created.', type: ToastType.success);
   }

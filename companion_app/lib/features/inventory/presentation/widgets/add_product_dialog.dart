@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:companion_app/core/theme/app_theme.dart';
+import '../../../../core/utils/code_generator.dart';
 import 'package:companion_app/core/widgets/custom_text_field.dart';
 import 'package:companion_app/core/widgets/app_dropdown.dart';
 import 'package:companion_app/features/inventory/application/inventory_provider.dart';
@@ -114,11 +115,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
   }
 
   void _generateInternalBarcode() {
-    final random = math.Random();
-    String code = '';
-    for (int i = 0; i < 12; i++) {
-      code += random.nextInt(10).toString();
-    }
+    final code = CodeGenerator.generateInternalBarcode();
     setState(() {
       _barcodeController.text = code;
     });
@@ -126,12 +123,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
 
   void _generateInternalQr() {
     _isAutoGeneratingQr = true;
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    final random = math.Random();
-    String code = '';
-    for (int i = 0; i < 8; i++) {
-      code += chars[random.nextInt(chars.length)];
-    }
+    final code = CodeGenerator.generateInternalQrCode();
     setState(() {
       _qrController.text = code;
       _qrManuallyEdited = false;
@@ -445,7 +437,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
                 ),
                 onPressed: () {
                   setState(() {
-                    _barcodeController.text = 'BAR-${DateTime.now().millisecondsSinceEpoch}';
+                    _barcodeController.text = CodeGenerator.generateInternalBarcode();
                   });
                 },
                 child: const Icon(LucideIcons.refreshCw),
@@ -704,7 +696,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
                       padding: const EdgeInsets.all(12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    onPressed: () => barcodeCtrl.text = 'BAR-${DateTime.now().millisecondsSinceEpoch}',
+                    onPressed: () => barcodeCtrl.text = CodeGenerator.generateInternalBarcode(),
                     child: const Icon(LucideIcons.refreshCw, size: 20),
                   ),
                 ],
@@ -737,7 +729,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
                       padding: const EdgeInsets.all(12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    onPressed: () => qrCtrl.text = 'QR-${DateTime.now().microsecondsSinceEpoch}',
+                    onPressed: () => qrCtrl.text = CodeGenerator.generateInternalQrCode(),
                     child: const Icon(LucideIcons.refreshCw, size: 20),
                   ),
                 ],

@@ -199,6 +199,7 @@ class LocalApiServer {
     });
 
     router.get('/pos/product-lookup/<barcode>', (Request request, String barcode) async {
+      print('[SERVER] POS Lookup for code: $barcode');
       final isUomEnabled = _settingsProvider?.enableUomSystem ?? false;
       final unit = await _productRepository?.getUnitByBarcode(barcode);
       if (unit != null) {
