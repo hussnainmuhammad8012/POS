@@ -19,6 +19,7 @@ import '../../../settings/application/settings_provider.dart';
 import '../../../../core/models/entities.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/toast_notification.dart';
+import '../../../../core/repositories/customer_repository.dart';
 import '../../application/pos_provider.dart';
 import 'package:utility_store_pos/features/pos/data/models/cart_item.dart';
 
@@ -41,6 +42,28 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
   bool _isPrinting = false;
   bool _isSharing = false;
   final ScreenshotController _screenshotController = ScreenshotController();
+  Customer? _customer;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCustomer();
+  }
+
+  Future<void> _fetchCustomer() async {
+    if (widget.transaction.customerId != null) {
+      try {
+        final repo = context.read<CustomerRepository>();
+        final customers = await repo.getAll();
+        final match = customers.where((c) => c.id == widget.transaction.customerId).toList();
+        if (match.isNotEmpty) {
+          setState(() => _customer = match.first);
+        }
+      } catch (e) {
+        debugPrint('Error fetching customer for invoice: $e');
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -105,44 +128,57 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
               decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: theme.dividerColor)),
               ),
-              child: Row(
+              child: Column(
                 children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _isPrinting ? null : _handlePrint,
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                   Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _isPrinting ? null : _handlePrint,
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          icon: _isPrinting 
+                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Icon(LucideIcons.printer),
+                          label: const Text('Print Receipt'),
+                        ),
                       ),
-                      icon: _isPrinting 
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(LucideIcons.printer),
-                      label: const Text('Print Receipt'),
-                    ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _isSharing ? null : _handleWhatsAppShare,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            backgroundColor: const Color(0xFF25D366), // WhatsApp Green
+                            foregroundColor: Colors.white,
+                          ),
+                          icon: _isSharing 
+                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : const Icon(LucideIcons.messageCircle),
+                          label: const Text('WhatsApp Share'),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _isSharing ? null : _handleShareReceipt,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: const Color(0xFF25D366), // WhatsApp Green
-                        foregroundColor: Colors.white,
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton.icon(
+                          onPressed: _isSharing ? null : _handleShareReceipt,
+                          icon: const Icon(LucideIcons.share2, size: 18),
+                          label: const Text('Other Share'),
+                        ),
                       ),
-                      icon: _isSharing 
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(LucideIcons.share2),
-                      label: const Text('Share PDF'),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Close'),
+                        ),
                       ),
-                      child: const Text('No Receipt'),
-                    ),
+                    ],
                   ),
                 ],
               ),
@@ -607,6 +643,62 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
     } finally {
       if (mounted) {
         setState(() => _isPrinting = false);
+      }
+    }
+  }
+
+  Future<void> _handleWhatsAppShare() async {
+    setState(() => _isSharing = true);
+    try {
+      // 1. Capture the receipt as a high-quality image
+      final Uint8List? image = await _screenshotController.capture(
+        pixelRatio: 2.0, // High definition
+      );
+      
+      if (image == null) throw Exception('Failed to capture receipt image');
+
+      // 2. Copy image to clipboard
+      await Pasteboard.writeImage(image);
+
+      // 3. Launch WhatsApp
+      final phone = _customer?.whatsappNumber ?? _customer?.phone;
+      final invoice = widget.transaction.invoiceNumber;
+      final total = _currencyFormat.format(widget.transaction.finalAmount);
+      
+      final message = 'Receipt for Invoice #$invoice\nTotal: $total\n(Image copied to clipboard. Press Ctrl+V to paste)';
+      
+      final cleanPhone = phone?.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
+      final appUrl = 'whatsapp://send?phone=$cleanPhone&text=${Uri.encodeComponent(message)}';
+      final webUrl = 'https://wa.me/$cleanPhone?text=${Uri.encodeComponent(message)}';
+
+      if (await canLaunchUrl(Uri.parse(appUrl))) {
+        await launchUrl(Uri.parse(appUrl));
+      } else {
+        await launchUrl(Uri.parse(webUrl), mode: LaunchMode.externalApplication);
+      }
+
+      if (mounted) {
+        AppToast.show(
+          context, 
+          title: 'Receipt Copied!', 
+          message: 'Image is in clipboard. Press Ctrl+V in WhatsApp to send.',
+          type: ToastType.success,
+        );
+        // Optional: close dialog after success like companion app
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.show(
+          context, 
+          title: 'Share Failed', 
+          message: e.toString(),
+          type: ToastType.error,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSharing = false);
       }
     }
   }
