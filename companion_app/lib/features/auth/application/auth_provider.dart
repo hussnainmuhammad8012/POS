@@ -2,7 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../../core/models/auth_models.dart';
+import '../../../../main.dart' show navigatorKey;
+import '../../../../core/widgets/update_dialog.dart';
 
 enum AppMode { selection, inventory, admin, pos }
 
@@ -17,8 +20,16 @@ class AuthProvider extends ChangeNotifier {
   UserPermissions? _permissions;
 
   static const String _globalBaseUrl = 'https://rairoyalscodebackend-production.up.railway.app/api';
-  static const String APP_VERSION = '1.0.0';
+  
+  static Future<String> getAppVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    return packageInfo.version;
+  }
+  String _appVersion = '1.0.0';
+  String get appVersion => _appVersion;
+
   Map<String, dynamic>? _updateInfo;
+  bool _updateDialogShown = false;
 
   String? get serverIp => _serverIp;
   String? get accessToken => _accessToken;
@@ -29,6 +40,12 @@ class AuthProvider extends ChangeNotifier {
   String? get role => _role;
   UserPermissions? get permissions => _permissions;
   Map<String, dynamic>? get updateInfo => _updateInfo;
+  bool get updateDialogShown => _updateDialogShown;
+
+  void markUpdateDialogShown() {
+    _updateDialogShown = true;
+    notifyListeners();
+  }
 
   // Specific Permission Getters
   bool get canAccessInventory => _role == 'admin' || (_permissions?.canAccessInventory ?? false);
@@ -37,7 +54,13 @@ class AuthProvider extends ChangeNotifier {
   bool get canAccessPos => _role == 'admin' || _role == 'pos_user' || (_permissions?.canAccessInventory ?? false); // Assuming POS users usually have inventory access or similar
 
   AuthProvider() {
+    _initVersion();
     _loadSettings();
+  }
+
+  Future<void> _initVersion() async {
+    _appVersion = await getAppVersion();
+    notifyListeners();
   }
 
   Future<void> _loadSettings() async {
@@ -48,37 +71,92 @@ class AuthProvider extends ChangeNotifier {
     _isPaired = _serverIp != null && _accessToken != null;
     notifyListeners();
     
-    // Check for remote APK updates on startup
-    checkRemoteUpdate();
+    // Auto-check on startup REMOVED per user request to save server resources
+    // checkRemoteUpdate(); 
   }
 
-  Future<void> checkRemoteUpdate() async {
+  Future<void> checkRemoteUpdate({bool isManual = false}) async {
     try {
+      // 1. Try LOCAL PC first if paired (Proxy/Cache mode)
+      if (_serverIp != null) {
+        try {
+          debugPrint('[UPDATE] Checking local PC at $_serverIp...');
+          final localResponse = await http.get(
+            Uri.parse('http://$_serverIp/update-info'),
+            headers: {'Authorization': 'Bearer $_accessToken'},
+          ).timeout(const Duration(seconds: 5));
+
+          if (localResponse.statusCode == 200) {
+            final localData = jsonDecode(localResponse.body);
+            if (localData['updateInfo'] != null) {
+              _updateInfo = localData['updateInfo'];
+              debugPrint('[UPDATE] Got cached update from PC: $_updateInfo');
+              if (_updateInfo!['available'] == true && !_updateDialogShown) {
+                _showGlobalUpdateDialog();
+              }
+              notifyListeners();
+              return; // Success via Proxy
+            }
+          }
+        } catch (e) {
+          debugPrint('[UPDATE] Local PC update check failed (offline?): $e');
+        }
+      }
+
+      // 2. Only hit global backend if manual or if local check failed/skipped
+      if (!isManual && _updateInfo != null) return; 
+
       final prefs = await SharedPreferences.getInstance();
       final licenseKey = prefs.getString('license_key');
-      // For companion app, we might need a separate license key or use the same as desktop's paired one
-      // For now, if no license key is found, we can't check specific updates, 
-      // but we could allow a public update check if targetClients is empty.
       
+      debugPrint('[UPDATE] Hitting global backend (Railway)...');
       final response = await http.post(
         Uri.parse('$_globalBaseUrl/verify-license'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'licenseKey': licenseKey ?? 'COMPANION-GUEST', // Fallback for update check
-          'deviceId': 'COMPANION-${DateTime.now().millisecondsSinceEpoch}', // Placeholder for now
-          'currentVersion': APP_VERSION,
+          'licenseKey': licenseKey ?? 'COMPANION-GUEST',
+          'deviceId': 'COMPANION-DEVICE',
+          'currentVersion': _appVersion,
           'platform': 'android'
         }),
-      ).timeout(const Duration(seconds: 7));
+      ).timeout(const Duration(seconds: 120)); // Robust 2-min timeout
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         _updateInfo = data['updateInfo'];
+        debugPrint('[UPDATE CHECK] Success: $_updateInfo');
+        
+        if (_updateInfo != null && _updateInfo!['available'] == true && !_updateDialogShown) {
+          _showGlobalUpdateDialog();
+        }
+        
         notifyListeners();
       }
     } catch (e) {
       debugPrint('Remote update check failed: $e');
     }
+  }
+
+  void _showGlobalUpdateDialog() {
+    if (_updateDialogShown || _updateInfo == null) return;
+    
+    final context = navigatorKey.currentContext;
+    if (context == null) {
+      debugPrint('[UPDATE] Navigator context not ready. Will retry...');
+      return;
+    }
+
+    _updateDialogShown = true;
+    showDialog(
+      context: context,
+      barrierDismissible: !(_updateInfo!['isCritical'] ?? false),
+      builder: (context) => MobileUpdateDialog(
+        version: _updateInfo!['version'],
+        url: _updateInfo!['url'],
+        releaseNotes: _updateInfo!['releaseNotes'],
+        isCritical: _updateInfo!['isCritical'] ?? false,
+      ),
+    );
   }
 
   Future<bool> pairWithServer(String qrData, {Function(String status)? onProgress}) async {
@@ -153,6 +231,7 @@ class AuthProvider extends ChangeNotifier {
 
       if (found) {
         onProgress?.call('Connected successfully!');
+        checkRemoteUpdate(); // Trigger check after pairing
         return true;
       }
       
@@ -203,6 +282,7 @@ class AuthProvider extends ChangeNotifier {
         if (responseData['permissions'] != null) {
           _permissions = UserPermissions.fromMap(responseData['permissions']);
         }
+        checkRemoteUpdate(); // Trigger check after login
         notifyListeners();
         return true;
       } else if (response.statusCode == 401 || response.statusCode == 403) {

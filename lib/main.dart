@@ -214,6 +214,7 @@ class _AppBootstrapperState extends State<_AppBootstrapper> with TrayListener {
       fcmService: fcmService,
       dataSyncService: context.read<DataSyncService>(),
       authService: AuthService(),
+      desktopAuthProvider: auth,
     );
 
     if (settings.isServerEnabled) {
@@ -324,23 +325,6 @@ class _AppBootstrapperState extends State<_AppBootstrapper> with TrayListener {
                 return const LoginScreen();
               }
               
-              // Check for available updates
-              if (auth.updateInfo != null && auth.updateInfo!['available'] == true) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  // Only show if not already showing (optional check)
-                  showDialog(
-                    context: context,
-                    barrierDismissible: !(auth.updateInfo!['isCritical'] ?? false),
-                    builder: (context) => UpdateDialog(
-                      version: auth.updateInfo!['version'],
-                      url: auth.updateInfo!['url'],
-                      releaseNotes: auth.updateInfo!['releaseNotes'],
-                      isCritical: auth.updateInfo!['isCritical'] ?? false,
-                    ),
-                  );
-                });
-              }
-
               return const NavShell();
             },
           ),

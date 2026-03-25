@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/models/auth_models.dart';
@@ -10,7 +11,11 @@ class AuthService {
 
   // Points to our RaiRoyals Management Website API
   static const String _baseUrl = 'https://rairoyalscodebackend-production.up.railway.app/api';
-  static const String APP_VERSION = '1.0.1';
+  
+  Future<String> getAppVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    return packageInfo.version;
+  }
   
   Future<UserAccount?> login(String username, String password) async {
     final List<Map<String, dynamic>> maps = await _db.query(
@@ -84,8 +89,9 @@ class AuthService {
         body: jsonEncode({
           'licenseKey': key,
           'deviceId': deviceId,
-          'currentVersion': APP_VERSION,
-          'platform': 'windows'
+          'currentVersion': await getAppVersion(),
+          'platform': 'windows',
+          'checkUpdate': true // Activation always checks for initial update
         }),
       ).timeout(const Duration(seconds: 10));
 
@@ -125,42 +131,41 @@ class AuthService {
     );
   }
 
-  Future<Map<String, dynamic>> checkLicenseStatus() async {
+  Future<Map<String, dynamic>> checkLicenseStatus({bool checkUpdate = false, String? platform}) async {
     try {
-      // 1. Try to see if we have a staged 'next_license_key' from an update
+      // Check for a staged 'next_license_key' from a prior update
       final List<Map<String, dynamic>> nextKeyMaps = await _db.query('settings', where: 'key = ?', whereArgs: ['next_license_key']);
-      String? nextKey = nextKeyMaps.isNotEmpty ? nextKeyMaps.first['value'] as String : null;
-      
+      final String? nextKey = nextKeyMaps.isNotEmpty ? nextKeyMaps.first['value'] as String : null;
+
       final String? currentKey = await getLicenseKey();
-      
-      // We prioritize activation of the 'nextKey' if it exists (Updated Version first run)
       final String? licenseKey = nextKey ?? currentKey;
 
-      if (licenseKey == null) {
+      if (licenseKey == null && platform == null) {
         return {
           'valid': false,
           'needsActivation': true,
           'message': 'License Key Required',
         };
       }
-      
+
       final String deviceId = await _getDeviceId();
       
       final response = await http.post(
         Uri.parse('$_baseUrl/verify-license'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'licenseKey': licenseKey,
+          'licenseKey': licenseKey ?? 'GUEST',
           'deviceId': deviceId,
-          'currentVersion': APP_VERSION,
-          'platform': 'windows'
+          'currentVersion': await getAppVersion(),
+          'platform': platform ?? 'windows',
+          'checkUpdate': checkUpdate
         }),
       ).timeout(const Duration(seconds: 7));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         
-        // If we used a 'nextKey' and it's valid, perform the rotation locally
+        // If we used a 'nextKey' and it's valid, perform key rotation locally
         if (data['valid'] == true && nextKey != null) {
           await _db.insert(
             'settings',
@@ -170,7 +175,7 @@ class AuthService {
           await _db.delete('settings', where: 'key = ?', whereArgs: ['next_license_key']);
         }
 
-        // If a nextLicenseKey is provided for a future update, we should store it
+        // If a nextLicenseKey is provided for a future update, store it
         if (data['updateInfo'] != null && data['updateInfo']['nextLicenseKey'] != null) {
           await _db.insert(
             'settings',
@@ -187,7 +192,6 @@ class AuthService {
         'status': 'offline',
       };
     } catch (e) {
-      // If we have a key saved, allow offline access for testing
       final key = await getLicenseKey();
       return {
         'valid': key != null,

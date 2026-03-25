@@ -20,6 +20,7 @@ import '../services/fcm_service.dart';
 import '../services/data_sync_service.dart';
 import '../../features/auth/application/auth_service.dart';
 import '../../core/models/auth_models.dart';
+import '../../features/auth/application/auth_provider.dart' as desktop_auth;
 
 /// Local HTTP server for Companion App
 /// Runs on background isolate (handled via app initialization)
@@ -45,6 +46,7 @@ class LocalApiServer {
   FCMService? _fcmService;
   DataSyncService? _dataSyncService;
   AuthService? _authService;
+  desktop_auth.AuthProvider? _desktopAuthProvider;
   String? _localIp;
   List<String> _localIps = [];
 
@@ -66,6 +68,7 @@ class LocalApiServer {
     required FCMService fcmService,
     required DataSyncService dataSyncService,
     AuthService? authService,
+    desktop_auth.AuthProvider? desktopAuthProvider,
   }) {
     _productRepository = productRepository;
     _categoryRepository = categoryRepository;
@@ -78,6 +81,7 @@ class LocalApiServer {
     _fcmService = fcmService;
     _dataSyncService = dataSyncService;
     _authService = authService ?? AuthService();
+    _desktopAuthProvider = desktopAuthProvider;
   }
 
   /// Start server on available port (default 8080)
@@ -390,8 +394,14 @@ class LocalApiServer {
     router.get('/analytics/summary', _getAnalyticsSummary);
     
     // SYNC/REPORT ROUTES
-    router.post('/reports/on-demand', _triggerOnDemandReport);
-    
+    // UPDATE INFO (Caches from Desktop)
+    router.get('/update-info', (Request request) async {
+       return Response.ok(jsonEncode({
+         'updateInfo': _desktopAuthProvider?.androidUpdateInfo, // Give Android info to phone
+         'desktopVersion': desktop_auth.AuthProvider.SUPPORTED_VERSION,
+       }));
+    });
+
     return router;
   }
   

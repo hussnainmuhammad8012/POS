@@ -20,6 +20,7 @@ import '../theme/app_theme.dart';
 import '../application/navigation_provider.dart';
 import '../application/global_search_provider.dart';
 import '../../features/auth/application/auth_provider.dart';
+import '../../core/widgets/update_dialog.dart';
 
 class NavShell extends StatelessWidget {
   static const routeName = '/';
@@ -581,13 +582,49 @@ class _TopHeaderBarState extends State<_TopHeaderBar> {
                 const SizedBox(width: 16),
                 PopupMenuButton<String>(
                   offset: const Offset(0, 48),
-                  onSelected: (value) {
+                  onSelected: (value) async {
                     if (value == 'logout') {
                       context.read<AuthProvider>().logout();
+                    } else if (value == 'update') {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Checking for updates...'), duration: Duration(seconds: 2))
+                      );
+                      final auth = context.read<AuthProvider>();
+                      await auth.checkUpdate();
+                      
+                      if (auth.updateInfo != null && auth.updateInfo!['available'] == true) {
+                        if (!context.mounted) return;
+                        showDialog(
+                          context: context,
+                          barrierDismissible: !(auth.updateInfo!['isCritical'] ?? false),
+                          builder: (context) => UpdateDialog(
+                            version: auth.updateInfo!['version'],
+                            url: auth.updateInfo!['url'],
+                            releaseNotes: auth.updateInfo!['releaseNotes'],
+                            isCritical: auth.updateInfo!['isCritical'] ?? false,
+                          ),
+                        );
+                      } else {
+                         if (!context.mounted) return;
+                         ScaffoldMessenger.of(context).showSnackBar(
+                           const SnackBar(content: Text('Your application is up to date!'))
+                         );
+                      }
                     }
                   },
                   itemBuilder: (context) => [
-                     PopupMenuItem(
+                    const PopupMenuItem(
+                      value: 'update',
+                      child: Row(
+                        children: [
+                          Icon(LucideIcons.refreshCw, size: 16, color: AppColors.STAR_PRIMARY),
+                          SizedBox(width: 12),
+                          Text('Check for Updates'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuDivider(height: 1),
+                    const PopupMenuItem(
                       value: 'logout',
                       child: Row(
                         children: [

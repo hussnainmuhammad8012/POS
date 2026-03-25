@@ -4,9 +4,14 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/theme/app_theme.dart';
 import 'package:companion_app/features/auth/application/auth_provider.dart';
 
-class SelectionScreen extends StatelessWidget {
+class SelectionScreen extends StatefulWidget {
   const SelectionScreen({super.key});
 
+  @override
+  State<SelectionScreen> createState() => _SelectionScreenState();
+}
+
+class _SelectionScreenState extends State<SelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -82,6 +87,37 @@ class SelectionScreen extends StatelessWidget {
                             style: TextStyle(color: AppColors.DANGER),
                           ),
                         ),
+                    ],
+                  );
+                },
+              ),
+
+              // Version & Manual Update
+              const SizedBox(height: 30),
+              Consumer<AuthProvider>(
+                builder: (context, auth, _) {
+                  return Column(
+                    children: [
+                      Text(
+                        'Version ${auth.appVersion}',
+                        style: const TextStyle(color: AppColors.STAR_TEXT_SECONDARY, fontSize: 12),
+                      ),
+                      TextButton.icon(
+                        onPressed: () async {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Checking for updates... please wait'), duration: Duration(seconds: 2))
+                          );
+                          await auth.checkRemoteUpdate(isManual: true);
+                          if (auth.updateInfo == null || auth.updateInfo!['available'] != true) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('App is already up to date'))
+                            );
+                          }
+                        },
+                        icon: const Icon(LucideIcons.refreshCw, size: 14, color: AppColors.STAR_PRIMARY),
+                        label: const Text('Check for Updates', style: TextStyle(color: AppColors.STAR_PRIMARY, fontSize: 12)),
+                      ),
                     ],
                   );
                 },

@@ -16,6 +16,8 @@ import 'features/pos/application/pos_provider.dart';
 import 'features/pos/presentation/screens/pos_screen.dart';
 import 'core/widgets/update_dialog.dart';
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -44,27 +46,12 @@ class CompanionApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'POS Companion',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.starAdminTheme,
       home: Consumer<AuthProvider>(
         builder: (context, auth, _) {
-          // Check for available updates from global backend
-          if (auth.updateInfo != null && auth.updateInfo!['available'] == true) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              showDialog(
-                context: context,
-                barrierDismissible: !(auth.updateInfo!['isCritical'] ?? false),
-                builder: (context) => MobileUpdateDialog(
-                  version: auth.updateInfo!['version'],
-                  url: auth.updateInfo!['url'],
-                  releaseNotes: auth.updateInfo!['releaseNotes'],
-                  isCritical: auth.updateInfo!['isCritical'] ?? false,
-                ),
-              );
-            });
-          }
-
           // 1. Initial Selection
           if (auth.currentMode == AppMode.selection) {
             return const SelectionScreen();
@@ -86,9 +73,6 @@ class CompanionApp extends StatelessWidget {
 
           // 3. Path B: Admin
           if (auth.currentMode == AppMode.admin) {
-            // Admin path also needs pairing to talk to PC if local, 
-            // but for "9PM Report" it might just be the login screen if already setup.
-            // For now, let's require pairing or assume setup is done.
             if (!auth.isPaired) return const PairingScreen();
             if (!auth.isLoggedIn) return const LoginScreen();
             

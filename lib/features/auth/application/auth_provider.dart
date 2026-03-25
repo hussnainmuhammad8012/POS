@@ -3,6 +3,7 @@ import '../../../core/models/auth_models.dart';
 import 'auth_service.dart';
 
 class AuthProvider extends ChangeNotifier {
+  static const String SUPPORTED_VERSION = '1.0.1';
   final AuthService _authService = AuthService();
   
   UserAccount? _currentUser;
@@ -25,6 +26,9 @@ class AuthProvider extends ChangeNotifier {
 
   Map<String, dynamic>? _updateInfo;
   Map<String, dynamic>? get updateInfo => _updateInfo;
+
+  Map<String, dynamic>? _androidUpdateInfo;
+  Map<String, dynamic>? get androidUpdateInfo => _androidUpdateInfo;
 
   bool get isAuthenticated => _currentUser != null;
 
@@ -50,7 +54,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> checkLicense() async {
-    final status = await _authService.checkLicenseStatus();
+    final status = await _authService.checkLicenseStatus(checkUpdate: false);
     _isBlocked = status['isBlocked'] ?? false;
     _needsActivation = status['needsActivation'] ?? false;
     _hasAcceptedTerms = await _authService.hasAcceptedTerms();
@@ -67,6 +71,17 @@ class AuthProvider extends ChangeNotifier {
     
     _statusMessage = status['message'] ?? '';
     _updateInfo = status['updateInfo'];
+    notifyListeners();
+  }
+
+  Future<void> checkUpdate() async {
+    final status = await _authService.checkLicenseStatus(checkUpdate: true);
+    _updateInfo = status['updateInfo'];
+    
+    // Also fetch latest Android update info for the Companion App Cache
+    final androidStatus = await _authService.checkLicenseStatus(checkUpdate: true, platform: 'android');
+    _androidUpdateInfo = androidStatus['updateInfo'];
+    
     notifyListeners();
   }
 
