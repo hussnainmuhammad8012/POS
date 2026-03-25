@@ -10,7 +10,7 @@ class AuthService {
 
   // Points to our RaiRoyals Management Website API
   static const String _baseUrl = 'https://rairoyalscodebackend-production.up.railway.app/api';
-  static const String APP_VERSION = '1.0.0';
+  static const String APP_VERSION = '1.0.1';
   
   Future<UserAccount?> login(String username, String password) async {
     final List<Map<String, dynamic>> maps = await _db.query(
