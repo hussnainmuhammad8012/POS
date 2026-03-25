@@ -1,16 +1,7 @@
 import 'dart:io';
-
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-
-/// Centralized SQLite database initialization and access.
-///
-/// Uses `sqflite_common_ffi` so it works on Windows/macOS/Linux without a
-/// separate database server.
-import 'dart:io';
-
-import 'package:path/path.dart' as p;
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:path_provider/path_provider.dart';
 import 'migrations/migration_v2.dart';
 import 'migrations/migration_v3.dart';
 import 'migrations/migration_v4.dart';
@@ -138,8 +129,8 @@ class AppDatabase {
   }
 
   Future<Directory> _resolveAppDataDirectory() async {
-    final currentDir = Directory.current;
-    final dataDir = Directory(p.join(currentDir.path, 'data'));
+    final supportDir = await getApplicationSupportDirectory();
+    final dataDir = Directory(p.join(supportDir.path, 'data'));
     if (!await dataDir.exists()) {
       await dataDir.create(recursive: true);
     }

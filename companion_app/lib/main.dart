@@ -14,6 +14,7 @@ import 'features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'features/auth/presentation/screens/selection_screen.dart';
 import 'features/pos/application/pos_provider.dart';
 import 'features/pos/presentation/screens/pos_screen.dart';
+import 'core/widgets/update_dialog.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,6 +49,22 @@ class CompanionApp extends StatelessWidget {
       theme: AppTheme.starAdminTheme,
       home: Consumer<AuthProvider>(
         builder: (context, auth, _) {
+          // Check for available updates from global backend
+          if (auth.updateInfo != null && auth.updateInfo!['available'] == true) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              showDialog(
+                context: context,
+                barrierDismissible: !(auth.updateInfo!['isCritical'] ?? false),
+                builder: (context) => MobileUpdateDialog(
+                  version: auth.updateInfo!['version'],
+                  url: auth.updateInfo!['url'],
+                  releaseNotes: auth.updateInfo!['releaseNotes'],
+                  isCritical: auth.updateInfo!['isCritical'] ?? false,
+                ),
+              );
+            });
+          }
+
           // 1. Initial Selection
           if (auth.currentMode == AppMode.selection) {
             return const SelectionScreen();

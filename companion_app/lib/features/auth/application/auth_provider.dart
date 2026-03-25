@@ -16,6 +16,10 @@ class AuthProvider extends ChangeNotifier {
   String? _role;
   UserPermissions? _permissions;
 
+  static const String _globalBaseUrl = 'https://rairoyalscodebackend-production.up.railway.app/api';
+  static const String APP_VERSION = '1.0.0';
+  Map<String, dynamic>? _updateInfo;
+
   String? get serverIp => _serverIp;
   String? get accessToken => _accessToken;
   bool get isPaired => _isPaired;
@@ -24,6 +28,7 @@ class AuthProvider extends ChangeNotifier {
   String? get shopName => _shopName;
   String? get role => _role;
   UserPermissions? get permissions => _permissions;
+  Map<String, dynamic>? get updateInfo => _updateInfo;
 
   // Specific Permission Getters
   bool get canAccessInventory => _role == 'admin' || (_permissions?.canAccessInventory ?? false);
@@ -42,6 +47,38 @@ class AuthProvider extends ChangeNotifier {
     _shopName = prefs.getString('shop_name');
     _isPaired = _serverIp != null && _accessToken != null;
     notifyListeners();
+    
+    // Check for remote APK updates on startup
+    checkRemoteUpdate();
+  }
+
+  Future<void> checkRemoteUpdate() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final licenseKey = prefs.getString('license_key');
+      // For companion app, we might need a separate license key or use the same as desktop's paired one
+      // For now, if no license key is found, we can't check specific updates, 
+      // but we could allow a public update check if targetClients is empty.
+      
+      final response = await http.post(
+        Uri.parse('$_globalBaseUrl/verify-license'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'licenseKey': licenseKey ?? 'COMPANION-GUEST', // Fallback for update check
+          'deviceId': 'COMPANION-${DateTime.now().millisecondsSinceEpoch}', // Placeholder for now
+          'currentVersion': APP_VERSION,
+          'platform': 'android'
+        }),
+      ).timeout(const Duration(seconds: 7));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        _updateInfo = data['updateInfo'];
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Remote update check failed: $e');
+    }
   }
 
   Future<bool> pairWithServer(String qrData, {Function(String status)? onProgress}) async {

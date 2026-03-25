@@ -10,6 +10,7 @@ class AuthService {
 
   // Points to our RaiRoyals Management Website API
   static const String _baseUrl = 'https://rairoyalscodebackend-production.up.railway.app/api';
+  static const String APP_VERSION = '1.0.0';
   
   Future<UserAccount?> login(String username, String password) async {
     final List<Map<String, dynamic>> maps = await _db.query(
@@ -82,7 +83,9 @@ class AuthService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'licenseKey': key,
-          'deviceId': deviceId
+          'deviceId': deviceId,
+          'currentVersion': APP_VERSION,
+          'platform': 'windows'
         }),
       ).timeout(const Duration(seconds: 10));
 
@@ -124,7 +127,15 @@ class AuthService {
 
   Future<Map<String, dynamic>> checkLicenseStatus() async {
     try {
-      final String? licenseKey = await getLicenseKey();
+      // 1. Try to see if we have a staged 'next_license_key' from an update
+      final List<Map<String, dynamic>> nextKeyMaps = await _db.query('settings', where: 'key = ?', whereArgs: ['next_license_key']);
+      String? nextKey = nextKeyMaps.isNotEmpty ? nextKeyMaps.first['value'] as String : null;
+      
+      final String? currentKey = await getLicenseKey();
+      
+      // We prioritize activation of the 'nextKey' if it exists (Updated Version first run)
+      final String? licenseKey = nextKey ?? currentKey;
+
       if (licenseKey == null) {
         return {
           'valid': false,
@@ -140,12 +151,35 @@ class AuthService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'licenseKey': licenseKey,
-          'deviceId': deviceId
+          'deviceId': deviceId,
+          'currentVersion': APP_VERSION,
+          'platform': 'windows'
         }),
       ).timeout(const Duration(seconds: 7));
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        final data = jsonDecode(response.body);
+        
+        // If we used a 'nextKey' and it's valid, perform the rotation locally
+        if (data['valid'] == true && nextKey != null) {
+          await _db.insert(
+            'settings',
+            {'key': 'license_key', 'value': nextKey},
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+          await _db.delete('settings', where: 'key = ?', whereArgs: ['next_license_key']);
+        }
+
+        // If a nextLicenseKey is provided for a future update, we should store it
+        if (data['updateInfo'] != null && data['updateInfo']['nextLicenseKey'] != null) {
+          await _db.insert(
+            'settings',
+            {'key': 'next_license_key', 'value': data['updateInfo']['nextLicenseKey']},
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+
+        return data;
       }
       return {
         'valid': true, // Fail open if offline but previously activated

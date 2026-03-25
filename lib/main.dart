@@ -41,6 +41,7 @@ import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/screens/license_screen.dart';
 import 'features/auth/presentation/screens/consent_screen.dart';
 import 'core/widgets/block_screen.dart';
+import 'core/widgets/update_dialog.dart';
 
 // ... other imports ...
 
@@ -323,6 +324,23 @@ class _AppBootstrapperState extends State<_AppBootstrapper> with TrayListener {
                 return const LoginScreen();
               }
               
+              // Check for available updates
+              if (auth.updateInfo != null && auth.updateInfo!['available'] == true) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  // Only show if not already showing (optional check)
+                  showDialog(
+                    context: context,
+                    barrierDismissible: !(auth.updateInfo!['isCritical'] ?? false),
+                    builder: (context) => UpdateDialog(
+                      version: auth.updateInfo!['version'],
+                      url: auth.updateInfo!['url'],
+                      releaseNotes: auth.updateInfo!['releaseNotes'],
+                      isCritical: auth.updateInfo!['isCritical'] ?? false,
+                    ),
+                  );
+                });
+              }
+
               return const NavShell();
             },
           ),

@@ -23,6 +23,9 @@ class AuthProvider extends ChangeNotifier {
   String _statusMessage = '';
   String get statusMessage => _statusMessage;
 
+  Map<String, dynamic>? _updateInfo;
+  Map<String, dynamic>? get updateInfo => _updateInfo;
+
   bool get isAuthenticated => _currentUser != null;
 
   Future<bool> login(String username, String password) async {
@@ -63,6 +66,7 @@ class AuthProvider extends ChangeNotifier {
     }
     
     _statusMessage = status['message'] ?? '';
+    _updateInfo = status['updateInfo'];
     notifyListeners();
   }
 
