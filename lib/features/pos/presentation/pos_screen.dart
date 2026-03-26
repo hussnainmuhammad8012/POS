@@ -26,6 +26,7 @@ import '../application/product_scanner.dart';
 import 'widgets/invoice_dialog.dart';
 import 'widgets/searchable_customer_dropdown.dart';
 import 'widgets/uom_selector.dart';
+import 'widgets/product_name_search.dart';
 // Notifications moved to nav_shell.dart
 
 class PosScreen extends StatefulWidget {
@@ -155,6 +156,9 @@ class _PosScreenState extends State<PosScreen> {
                           ],
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      // Product Name Search
+                      const ProductNameSearch(),
                       const SizedBox(height: 16),
                       // Robust Cart Header
                       if (pos.cartItems.isNotEmpty)
@@ -760,7 +764,18 @@ class _SplitPaymentDialogState extends State<_SplitPaymentDialog> {
   }
 
   @override
+  void dispose() {
+    _cashController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // Get customer credit if a customer is attached
+    final pos = context.read<PosProvider>();
+    final customer = pos.selectedCustomer;
+    final double? customerCredit = customer is Customer ? customer.currentCredit : null;
+
     return AlertDialog(
       title: const Text('Confirm Payment'),
       content: Column(
@@ -773,6 +788,32 @@ class _SplitPaymentDialogState extends State<_SplitPaymentDialog> {
               Text('Rs ${widget.total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
             ],
           ),
+          // Show customer credit if a customer is attached
+          if (customerCredit != null && customerCredit > 0) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.DANGER.withOpacity(0.07),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.DANGER.withOpacity(0.3)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Customer Credit Due:', style: TextStyle(fontSize: 12)),
+                  Text(
+                    'Rs ${customerCredit.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.DANGER,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 24),
           CustomTextField(
             controller: _cashController,

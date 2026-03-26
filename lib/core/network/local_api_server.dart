@@ -240,7 +240,43 @@ class LocalApiServer {
           'units': isUomEnabled ? (await _productRepository?.getUnitsByProductId(variant.productId))?.map((u) => u.toJson()).toList() : [],
         }));
       }
+      // ── Fallback: try looking up directly by variant ID or unit ID ──
+      final variantById = await _productRepository?.getVariantById(barcode);
+      if (variantById != null) {
+        final prodData = await _productRepository?.getProductWithVariants(variantById.productId);
+        return Response.ok(jsonEncode({
+          'type': 'variant',
+          'productId': variantById.productId,
+          'variant': variantById.toJson(),
+          'productName': prodData?['product']?.name,
+          'productSku': prodData?['product']?.baseSku,
+          'units': isUomEnabled ? (await _productRepository?.getUnitsByProductId(variantById.productId))?.map((u) => u.toJson()).toList() : [],
+        }));
+      }
+
+      final unitById = await _productRepository?.getUnitById(barcode);
+      if (unitById != null && (isUomEnabled || unitById.conversionRate == 1)) {
+        final prodData = await _productRepository?.getProductWithVariants(unitById.productId);
+        return Response.ok(jsonEncode({
+          'type': 'unit',
+          'productId': unitById.productId,
+          'unit': unitById.toJson(),
+          'productName': prodData?['product']?.name,
+          'productSku': prodData?['product']?.baseSku,
+          'units': isUomEnabled ? (await _productRepository?.getUnitsByProductId(unitById.productId))?.map((u) => u.toJson()).toList() : [],
+        }));
+      }
+
       return Response.notFound(jsonEncode({'error': 'Product not found'}));
+    });
+
+    router.get('/inventory/products/search', (Request request) async {
+      final q = request.url.queryParameters['q'] ?? '';
+      final limit = int.tryParse(request.url.queryParameters['limit'] ?? '10') ?? 10;
+      if (q.isEmpty) return Response.ok(jsonEncode([]));
+
+      final products = await _productRepository?.searchProductsByName(q, limit: limit) ?? [];
+      return Response.ok(jsonEncode(products));
     });
 
     router.post('/pos/cart/reserve', (Request request) async {

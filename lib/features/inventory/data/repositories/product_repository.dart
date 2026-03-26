@@ -349,6 +349,17 @@ class ProductRepository {
     return ProductUnit.fromJson(result.first);
   }
 
+  /// Looks up a product unit directly by its ID.
+  Future<ProductUnit?> getUnitById(String id) async {
+    final result = await _db.query(
+      'product_units',
+      where: 'id = ? AND is_active = 1',
+      whereArgs: [id],
+    );
+    if (result.isEmpty) return null;
+    return ProductUnit.fromJson(result.first);
+  }
+
   Future<ProductUnit?> getBaseUnitByProductId(String productId) async {
     final result = await _db.query(
       'product_units',
@@ -817,6 +828,27 @@ class ProductRepository {
         isLowStockWarning: (row['is_low_stock_warning'] as int?) == 1,
       );
     }).toList();
+  }
+
+  /// Search products by name — returns lightweight maps for the API search endpoint.
+  Future<List<Map<String, dynamic>>> searchProductsByName(String query, {int limit = 10}) async {
+    final pattern = '%${query.toLowerCase()}%';
+    final rows = await _db.rawQuery('''
+      SELECT
+        p.id,
+        p.name,
+        p.base_sku as sku,
+        pv.id as variantId,
+        COALESCE(pv.barcode, pu.barcode) as barcode
+      FROM products p
+      LEFT JOIN product_variants pv ON pv.product_id = p.id AND pv.is_active = 1
+      LEFT JOIN product_units pu ON pu.product_id = p.id AND pu.is_base_unit = 1 AND pu.is_active = 1
+      WHERE p.is_active = 1 AND LOWER(p.name) LIKE ?
+      GROUP BY p.id
+      ORDER BY p.name ASC
+      LIMIT ?
+    ''', [pattern, limit]);
+    return rows.map((r) => Map<String, dynamic>.from(r)).toList();
   }
 
   // Get product with all variants

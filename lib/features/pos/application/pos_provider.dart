@@ -33,7 +33,16 @@ class PosProvider extends ChangeNotifier {
   bool _isProcessing = false;
   String? _error;
 
-  PosProvider(this._transactionRepository, this._settingsProvider, [this._syncService]);
+  PosProvider(this._transactionRepository, this._settingsProvider, [this._syncService]) {
+    // Listen to settings changes to automatically recalculate taxes/remainders
+    _settingsProvider.addListener(notifyListeners);
+  }
+
+  @override
+  void dispose() {
+    _settingsProvider.removeListener(notifyListeners);
+    super.dispose();
+  }
 
   // Getters
   List<CartItem> get cartItems => _cartItems;
@@ -254,6 +263,33 @@ class PosProvider extends ChangeNotifier {
       // ── Step 2: Fall back to classic variant barcode ──
       final variant = await repository.getVariantByBarcode(barcode);
       if (variant == null) {
+        // ── Step 3: Fall back to variant ID direct lookup ──
+        final variantById = await repository.getVariantById(barcode);
+        if (variantById != null) {
+          final productWithVariants = await repository.getProductWithVariants(variantById.productId);
+          if (productWithVariants == null) return false;
+          final product = productWithVariants['product'];
+          final stockLevel = await repository.getStockLevelByVariantId(variantById.id);
+          final availableStock = stockLevel?.availablePieces ?? 0;
+          if (availableStock <= 0) { _error = 'Product out of stock!'; notifyListeners(); return false; }
+          final unitPrice = _isWholesale ? (variantById.wholesalePrice ?? variantById.retailPrice) : variantById.retailPrice;
+          addToCart(
+            variantId: variantById.id, productName: product.name, productSku: product.baseSku,
+            variantName: variantById.variantName ?? '', unitPrice: unitPrice, quantity: _bulkQuantity,
+            profitMargin: unitPrice - variantById.costPrice, availableStock: availableStock,
+            productUnits: isUomEnabled ? await repository.getUnitsByProductId(variantById.productId) : [],
+            unitId: isUomEnabled ? variantById.id : null,
+            unitName: isUomEnabled ? (variantById.variantName ?? 'Piece') : null,
+            baseVariantId: isUomEnabled ? variantById.id : null,
+            taxRate: variantById.taxRate,
+          );
+          return _error == null;
+        }
+        // ── Step 4: Fall back to unit ID direct lookup ──
+        final unitById = await repository.getUnitById(barcode);
+        if (unitById != null && (isUomEnabled || unitById.conversionRate == 1)) {
+          return await _addUomToCart(unitById, repository, isUomEnabled: isUomEnabled);
+        }
         _error = 'Product not found for barcode: $barcode';
         notifyListeners();
         return false;

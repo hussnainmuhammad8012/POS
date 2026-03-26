@@ -190,10 +190,19 @@ class PdfReportService {
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text('Credit Dues: ${_currencyFormat.format(kpi.totalCreditToCollect)}', style: pw.TextStyle(fontSize: 12, color: PdfColors.red800)),
               pw.Text('Transactions: ${kpi.transactions}', style: const pw.TextStyle(fontSize: 12)),
-              pw.Text('Low Stock: ${kpi.lowStockItems}', style: const pw.TextStyle(fontSize: 12)),
+              pw.Text('Low Stock Items: ${kpi.lowStockItems}', style: const pw.TextStyle(fontSize: 12)),
+              _buildKpiItem('Credit Dues*', _currencyFormat.format(kpi.totalCreditToCollect), PdfColors.red800),
+              _buildKpiItem('Supplier Dues*', _currencyFormat.format(kpi.totalSupplierDues), PdfColors.red800),
             ],
+          ),
+          pw.SizedBox(height: 8),
+          pw.Align(
+            alignment: pw.Alignment.centerLeft,
+            child: pw.Text(
+              '* Credit Dues and Supplier Dues are current global balances, not limited to the report date range.',
+              style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+            ),
           ),
         ],
       ),
@@ -276,15 +285,32 @@ class PdfReportService {
   pw.Widget _buildReturnsTable(List<dynamic> transactions) {
     return pw.TableHelper.fromTextArray(
       context: null,
-      headers: ['Date', 'Invoice #', 'Customer', 'Returned Amt', 'Original Amt', 'Status'],
-      data: transactions.map((t) => [
-        DateFormat('dd MMM yyyy, HH:mm').format(t.createdAt),
-        t.invoiceNumber,
-        t.customerName ?? 'Walk-in',
-        _currencyFormat.format(t.returnedAmount),
-        _currencyFormat.format(t.finalAmount),
-        t.isReturned ? 'FULL' : 'PARTIAL',
-      ]).toList(),
+      headers: ['Return Date', 'Invoice #', 'Customer', 'Refund Amt', 'Original Amt', 'Status'],
+      data: transactions.map((t) {
+        // Support both typed Transaction objects and raw Map from the new query
+        final isMap = t is Map<String, dynamic>;
+        final invoiceNumber = isMap ? (t['invoice_number'] as String? ?? 'N/A') : t.invoiceNumber;
+        final customerName = isMap ? (t['customer_name'] as String? ?? 'Walk-in') : (t.customerName ?? 'Walk-in');
+        final returnedAmount = isMap 
+            ? (t['event_refund_amount'] as num?)?.toDouble() ?? (t['returned_amount'] as num?)?.toDouble() ?? 0.0
+            : t.returnedAmount;
+        final finalAmount = isMap ? (t['final_amount'] as num?)?.toDouble() ?? 0.0 : t.finalAmount;
+        final isFullReturn = isMap ? (t['is_returned'] as num?)?.toInt() == 1 : t.isReturned;
+        // return_event_date is the date the return was processed; fall back to created_at
+        final returnDateStr = isMap
+            ? (t['return_event_date'] as String? ?? t['created_at'] as String? ?? '')
+            : t.createdAt.toIso8601String();
+        final returnDate = DateTime.tryParse(returnDateStr) ?? DateTime.now();
+
+        return [
+          DateFormat('dd MMM yyyy, HH:mm').format(returnDate),
+          invoiceNumber,
+          customerName,
+          _currencyFormat.format(returnedAmount),
+          _currencyFormat.format(finalAmount),
+          isFullReturn ? 'FULL' : 'PARTIAL',
+        ];
+      }).toList(),
       headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
       headerDecoration: const pw.BoxDecoration(color: PdfColors.red800),
       cellStyle: const pw.TextStyle(fontSize: 10),

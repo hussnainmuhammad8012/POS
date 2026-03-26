@@ -199,8 +199,9 @@ class AnalyticsProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      final txs = await _transactionRepository.getTransactionsByDateRange(start, end);
-      final returnedTxs = txs.where((t) => t.isReturned || t.returnedAmount > 0).toList();
+      // Fix: filter by return_events.created_at (when the return WAS PROCESSED)
+      // not by the original transaction date
+      final returnedTxs = await _analyticsRepository.getReturnedTransactionsByEventDate(start, end);
       
       return await _pdfService.generateReturnsReport(
         storeName: storeName,

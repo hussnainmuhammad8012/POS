@@ -271,11 +271,10 @@ class _InventoryScreenState extends State<InventoryScreen> with SingleTickerProv
     // User said: "remove the adjustment and return and damage products"
     final movements = inventory.stockMovements.where((m) {
       final reason = m.reason.toLowerCase();
-      // Exclude if explicitly mentioned or is general adjustment
+      // Exclude Adjustment and Damage as per early preference, 
+      // but include Returns as now requested for desktop parity.
       return !reason.contains('adjustment') && 
-             !reason.contains('damage') &&
-             !reason.contains('return'); // Wait, user said remove return too? 
-             // "remove the adjustment and return and damage products"
+             !reason.contains('damage');
     }).toList();
 
     if (inventory.isLoading && movements.isEmpty) {
@@ -293,10 +292,22 @@ class _InventoryScreenState extends State<InventoryScreen> with SingleTickerProv
         itemCount: movements.length,
         itemBuilder: (context, index) {
           final m = movements[index];
+          final isReturn = m.reason.toLowerCase().startsWith('returned');
           final isIn = m.quantityChange > 0;
           
-          final iconColor = isIn ? Colors.green : Colors.red;
-          final icon = isIn ? LucideIcons.arrowDownLeft : LucideIcons.arrowUpRight;
+          Color iconColor;
+          IconData icon;
+          
+          if (isReturn) {
+            iconColor = Colors.orange;
+            icon = LucideIcons.cornerDownLeft;
+          } else if (isIn) {
+            iconColor = Colors.green;
+            icon = LucideIcons.arrowDownLeft;
+          } else {
+            iconColor = Colors.red;
+            icon = LucideIcons.arrowUpRight;
+          }
 
           return Card(
             elevation: 0,

@@ -225,6 +225,10 @@ class _AppBootstrapperState extends State<_AppBootstrapper> with TrayListener {
     // Schedule daily summary and listen for changes
     _scheduleDailySummary(fcmService);
     settings.addListener(() {
+      // 1. Notify Mobile app to sync settings/config
+      context.read<DataSyncService>().notifyMobileUpdate();
+
+      // 2. Re-schedule daily summaries if time changed
       if (_lastScheduledTime != settings.dailyReportTime) {
         print('FCM: Settings changed. Re-scheduling reports...');
         _scheduleDailySummary(fcmService);

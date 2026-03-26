@@ -6,6 +6,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../application/transactions_provider.dart';
 import '../../../inventory/application/inventory_provider.dart';
 import '../../../inventory/application/stock_provider.dart';
+import '../../../../features/analytics/application/analytics_provider.dart';
 
 class ReturnBillDialog extends StatefulWidget {
   final Transaction transaction;
@@ -89,9 +90,10 @@ class _ReturnBillDialogState extends State<ReturnBillDialog> {
       );
       if (mounted) {
         try {
-          // Immediately reload the inventory and stock movements to reflect the return globally
+          // Immediately reload related providers to reflect the return globally
           context.read<InventoryProvider>().loadProducts();
           context.read<StockProvider>().loadMovements();
+          context.read<AnalyticsProvider>().refreshData();
         } catch (_) {}
         Navigator.pop(context, true); // Success
       }

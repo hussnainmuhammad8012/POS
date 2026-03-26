@@ -182,7 +182,8 @@ class AnalyticsRepository {
         ) as total_revenue,
         SUM(
           ( (CAST(ti.quantity AS REAL) - ti.returned_quantity) / ti.quantity ) * 
-          ( ti.subtotal - (CASE WHEN t.is_tax_inclusive = 1 THEN ti.tax_amount ELSE 0 END) - (t.discount * ti.subtotal / NULLIF(t.total_amount, 0)) - (ti.quantity * ti.cost_at_time) )
+          ( ti.subtotal - (CASE WHEN t.is_tax_inclusive = 1 THEN ti.tax_amount ELSE 0 END) - (t.discount * ti.subtotal / NULLIF(t.total_amount, 0)) )
+          - (ti.cost_at_time * (ti.quantity - ti.returned_quantity))
         ) as total_profit
       FROM transaction_items ti
       JOIN transactions t ON ti.transaction_id = t.id
@@ -296,5 +297,37 @@ class AnalyticsRepository {
       'totalPaid': totalPaid,
       'dues': dues,
     };
+  }
+
+  /// Returns transactions that had at least one return event processed in the
+  /// given date range (based on when the return WAS processed, not original bill date).
+  Future<List<Map<String, dynamic>>> getReturnedTransactionsByEventDate(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final rows = await _db.rawQuery('''
+      SELECT DISTINCT
+        t.id,
+        t.invoice_number,
+        t.customer_id,
+        c.name as customer_name,
+        t.total_amount,
+        t.final_amount,
+        t.returned_amount,
+        t.is_returned,
+        t.created_at,
+        t.payment_method,
+        t.payment_status,
+        re.refund_amount as event_refund_amount,
+        re.created_at as return_event_date
+      FROM return_events re
+      JOIN transactions t ON re.transaction_id = t.id
+      LEFT JOIN customers c ON t.customer_id = c.id
+      WHERE re.created_at BETWEEN ? AND ?
+      ORDER BY re.created_at DESC
+    ''', [start.toIso8601String(), end.toIso8601String()]);
+
+    // Convert to a list of dynamic-compatible maps for the PDF service
+    return rows.map((row) => Map<String, dynamic>.from(row)).toList();
   }
 }

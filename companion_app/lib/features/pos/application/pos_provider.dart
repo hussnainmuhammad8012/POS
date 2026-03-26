@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -124,10 +125,47 @@ class PosProvider extends ChangeNotifier {
   String _storePhone = '';
   String _receiptCustomMessage = 'Thank you for shopping!';
 
+  // Polling for settings/config updates
+  Timer? _pollTimer;
+  int _lastKnownVersion = -1;
+
   Future<void> _initialize() async {
     await fetchCustomers();
     await fetchPosConfig();
     await fetchPaymentMethods();
+    _startPolling();
+  }
+
+  void _startPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+      await _checkVersion();
+    });
+  }
+
+  Future<void> _checkVersion() async {
+    try {
+      final res = await http.get(
+        Uri.parse('http://$serverIp/sync/version'),
+        headers: {'Authorization': 'Bearer $accessToken'},
+      ).timeout(const Duration(seconds: 2));
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final version = data['version'] as int? ?? 0;
+        if (version != _lastKnownVersion && _lastKnownVersion != -1) {
+          debugPrint('POS: Sync detected! Refreshing config...');
+          await fetchPosConfig();
+        }
+        _lastKnownVersion = version;
+      }
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
   }
 
   List<CartItem> get cartItems => _cartItems;
@@ -313,6 +351,40 @@ class PosProvider extends ChangeNotifier {
     _isLoading = false;
     notifyListeners();
     return 'ERROR';
+  }
+
+  // Product Name Search --------------------------------------------------------
+  List<Map<String, dynamic>> _searchSuggestions = [];
+  List<Map<String, dynamic>> get searchSuggestions => _searchSuggestions;
+
+  Future<void> searchProductsByName(String query) async {
+    if (query.isEmpty) {
+      _searchSuggestions = [];
+      notifyListeners();
+      return;
+    }
+    try {
+      final response = await http.get(
+        Uri.parse('http://$serverIp/inventory/products/search?q=${Uri.encodeComponent(query)}&limit=8'),
+        headers: {'Authorization': 'Bearer $accessToken'},
+      ).timeout(const Duration(seconds: 4));
+      if (response.statusCode == 200) {
+        final list = jsonDecode(response.body) as List;
+        _searchSuggestions = list.cast<Map<String, dynamic>>();
+        notifyListeners();
+      }
+    } catch (_) {
+      _searchSuggestions = [];
+    }
+  }
+
+  Future<String> addToCartByVariantId(String variantId) async {
+    return addToCartByBarcode(variantId);
+  }
+
+  void clearSearchSuggestions() {
+    _searchSuggestions = [];
+    notifyListeners();
   }
 
   Future<void> _addItemFromLookup(Map<String, dynamic> data) async {

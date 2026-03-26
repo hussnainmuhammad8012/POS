@@ -37,6 +37,7 @@ class _PosScreenState extends State<PosScreen> {
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         backgroundColor: AppColors.STAR_BACKGROUND,
         appBar: AppBar(
           title: Column(
@@ -66,45 +67,50 @@ class _PosScreenState extends State<PosScreen> {
                   color: AppColors.STAR_CARD,
                   border: const Border(bottom: BorderSide(color: AppColors.STAR_BORDER)),
                 ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.STAR_BACKGROUND,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.STAR_BORDER),
-                            ),
-                            child: Row(
-                              children: [
-                                const Text('Qty', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: TextField(
-                                    textAlign: TextAlign.center,
-                                    keyboardType: TextInputType.number,
-                                    decoration: const InputDecoration(border: InputBorder.none, isDense: true, hintText: '1'),
-                                    onChanged: (v) => pos.setBulkQuantity(int.tryParse(v) ?? 1),
+                child: SingleChildScrollView(
+                  physics: const NeverScrollableScrollPhysics(),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.STAR_BACKGROUND,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.STAR_BORDER),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Text('Qty', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: TextField(
+                                      textAlign: TextAlign.center,
+                                      keyboardType: TextInputType.number,
+                                      decoration: const InputDecoration(border: InputBorder.none, isDense: true, hintText: '1'),
+                                      onChanged: (v) => pos.setBulkQuantity(int.tryParse(v) ?? 1),
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          flex: 3,
-                          child: _buildWholesaleButton(pos),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    _buildCustomerField(context, pos),
-                  ],
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 3,
+                            child: _buildWholesaleButton(pos),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _buildCustomerField(context, pos),
+                      const SizedBox(height: 12),
+                      _buildProductNameSearch(context, pos),
+                    ],
+                  ),
                 ),
               ),
             Expanded(
@@ -464,6 +470,118 @@ class _PosScreenState extends State<PosScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildProductNameSearch(BuildContext context, PosProvider pos) {
+    return Autocomplete<Map<String, dynamic>>(
+      optionsBuilder: (textEditingValue) async {
+        if (textEditingValue.text.length < 2) return const Iterable<Map<String, dynamic>>.empty();
+        await pos.searchProductsByName(textEditingValue.text);
+        return pos.searchSuggestions;
+      },
+      displayStringForOption: (option) => option['name'] as String? ?? '',
+      onSelected: (option) async {
+        final variantId = (option['variantId'] ?? option['id']) as String?;
+        if (variantId != null) {
+          final result = await pos.addToCartByVariantId(variantId);
+          if (context.mounted) {
+            final success = result == 'SUCCESS';
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(success ? 'Added to cart' : (pos.error ?? 'Error adding product')),
+              backgroundColor: success ? Colors.green : Colors.red,
+              duration: const Duration(seconds: 2),
+            ));
+          }
+        }
+        pos.clearSearchSuggestions();
+      },
+      fieldViewBuilder: (ctx, controller, focusNode, onFieldSubmitted) {
+        return Container(
+          decoration: BoxDecoration(
+            color: AppColors.STAR_BACKGROUND,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.STAR_BORDER),
+          ),
+          child: TextField(
+            controller: controller,
+            focusNode: focusNode,
+            decoration: const InputDecoration(
+              hintText: 'Search product by name...',
+              prefixIcon: Icon(LucideIcons.search, size: 18, color: AppColors.STAR_PRIMARY),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            ),
+            onSubmitted: (text) async {
+              if (text.trim().isEmpty) return;
+              
+              // If we already have suggestions, pick the first one
+              if (pos.searchSuggestions.isNotEmpty) {
+                final option = pos.searchSuggestions.first;
+                final variantId = (option['variantId'] ?? option['id']) as String?;
+                if (variantId != null) {
+                  final result = await pos.addToCartByVariantId(variantId);
+                  if (context.mounted) {
+                    final success = result == 'SUCCESS';
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text(success ? 'Added to cart' : (pos.error ?? 'Error adding product')),
+                      backgroundColor: success ? Colors.green : Colors.red,
+                      duration: const Duration(seconds: 2),
+                    ));
+                    if (success) {
+                      controller.clear();
+                      focusNode.unfocus();
+                    }
+                  }
+                }
+                pos.clearSearchSuggestions();
+              } else {
+                // If no suggestions yet (maybe user typed fast), try a quick search
+                await pos.searchProductsByName(text);
+                if (pos.searchSuggestions.isNotEmpty && context.mounted) {
+                  // recurse or just handle first one
+                  final option = pos.searchSuggestions.first;
+                  final variantId = (option['variantId'] ?? option['id']) as String?;
+                  if (variantId != null) {
+                    await pos.addToCartByVariantId(variantId);
+                    controller.clear();
+                    focusNode.unfocus();
+                  }
+                }
+              }
+            },
+          ),
+        );
+      },
+      optionsViewBuilder: (ctx, onSelected, options) {
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 8,
+            borderRadius: BorderRadius.circular(12),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 240),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: options.length,
+                itemBuilder: (_, i) {
+                  final option = options.elementAt(i);
+                  final name = option['name'] as String? ?? '';
+                  final sku = option['sku'] as String? ?? '';
+                  return ListTile(
+                    dense: true,
+                    leading: const Icon(LucideIcons.package, size: 16),
+                    title: Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    subtitle: sku.isNotEmpty ? Text('SKU: $sku', style: const TextStyle(fontSize: 11)) : null,
+                    onTap: () => onSelected(option),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 

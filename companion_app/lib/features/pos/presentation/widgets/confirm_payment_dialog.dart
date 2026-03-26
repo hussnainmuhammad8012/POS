@@ -82,7 +82,40 @@ class _ConfirmPaymentDialogState extends State<ConfirmPaymentDialog> {
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            // Show customer's existing credit if attached
+            if (!_isWalkIn) Builder(builder: (context) {
+              final creditRaw = widget.customer?['current_credit'];
+              final double credit = creditRaw != null ? (creditRaw as num).toDouble() : 0.0;
+              if (credit <= 0) return const SizedBox.shrink();
+              return Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.red.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Existing Credit Due:', style: TextStyle(fontSize: 12)),
+                        Text(
+                          'Rs ${credit.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              );
+            }),
             TextField(
               controller: _cashController,
               keyboardType: TextInputType.number,
