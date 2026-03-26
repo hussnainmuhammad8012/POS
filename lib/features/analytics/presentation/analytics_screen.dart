@@ -138,13 +138,20 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     showDialog(
       context: context,
       builder: (context) => _ExportReportDialog(
-        onExport: (start, end) async {
-          final path = await provider.generateReport(
-            storeName: settings.storeName,
-            storeAddress: settings.storeAddress,
-            start: start,
-            end: end,
-          );
+        onExport: (start, end, isReturns) async {
+          final path = isReturns 
+              ? await provider.generateReturnsReport(
+                  storeName: settings.storeName,
+                  storeAddress: settings.storeAddress,
+                  start: start,
+                  end: end,
+                )
+              : await provider.generateReport(
+                  storeName: settings.storeName,
+                  storeAddress: settings.storeAddress,
+                  start: start,
+                  end: end,
+                );
           if (path != null && context.mounted) {
             AppToast.show(
               context,
@@ -160,7 +167,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 }
 
 class _ExportReportDialog extends StatefulWidget {
-  final Future<void> Function(DateTime start, DateTime end) onExport;
+  final Future<void> Function(DateTime start, DateTime end, bool isReturns) onExport;
 
   const _ExportReportDialog({required this.onExport});
 
@@ -171,6 +178,7 @@ class _ExportReportDialog extends StatefulWidget {
 class _ExportReportDialogState extends State<_ExportReportDialog> {
   DateTime _startDate = DateTime.now().subtract(const Duration(days: 7));
   DateTime _endDate = DateTime.now();
+  bool _isReturnsReport = false;
 
   @override
   Widget build(BuildContext context) {
@@ -219,6 +227,17 @@ class _ExportReportDialogState extends State<_ExportReportDialog> {
               ),
             ],
           ),
+          const Divider(),
+          SwitchListTile(
+            title: const Text('Generate Returns Report instead'),
+            subtitle: const Text('Creates a PDF report specifically detailing returned bills and items.'),
+            value: _isReturnsReport,
+            onChanged: (val) {
+              setState(() {
+                _isReturnsReport = val;
+              });
+            },
+          ),
         ],
       ),
       actions: [
@@ -230,7 +249,7 @@ class _ExportReportDialogState extends State<_ExportReportDialog> {
           onPressed: provider.isLoading
               ? null
               : () async {
-                  await widget.onExport(_startDate, _endDate);
+                  await widget.onExport(_startDate, _endDate, _isReturnsReport);
                   if (context.mounted) Navigator.pop(context);
                 },
           child: provider.isLoading

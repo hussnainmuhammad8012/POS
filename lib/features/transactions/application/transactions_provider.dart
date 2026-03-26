@@ -14,18 +14,44 @@ class TransactionsProvider extends ChangeNotifier {
   TransactionFilter _currentFilter = TransactionFilter.today;
   DateTimeRange? _customRange;
   String? _selectedPaymentMethod;
+  String? _selectedCustomer;
 
   List<Transaction> get transactions {
-    if (_selectedPaymentMethod == null || _selectedPaymentMethod == 'ALL') {
-      return _transactions;
+    Iterable<Transaction> filtered = _transactions;
+    
+    if (_selectedPaymentMethod != null && _selectedPaymentMethod != 'ALL') {
+      filtered = filtered.where((tx) => tx.paymentMethod.toUpperCase() == _selectedPaymentMethod);
     }
-    return _transactions.where((tx) => tx.paymentMethod.toUpperCase() == _selectedPaymentMethod).toList();
+    
+    if (_selectedCustomer != null && _selectedCustomer != 'ALL') {
+      if (_selectedCustomer == 'Walk-in') {
+        filtered = filtered.where((tx) => tx.customerName == null || tx.customerName!.isEmpty);
+      } else {
+        filtered = filtered.where((tx) => tx.customerName == _selectedCustomer);
+      }
+    }
+    
+    return filtered.toList();
+  }
+
+  // Get unique customers from currently loaded transactions for the dropdown filter
+  List<String> get availableCustomers {
+    final Set<String> customers = {};
+    for (var tx in _transactions) {
+      if (tx.customerName != null && tx.customerName!.isNotEmpty) {
+        customers.add(tx.customerName!);
+      } else {
+        customers.add('Walk-in');
+      }
+    }
+    return customers.toList()..sort();
   }
 
   bool get isLoading => _isLoading;
   TransactionFilter get currentFilter => _currentFilter;
   DateTimeRange? get customRange => _customRange;
   String? get selectedPaymentMethod => _selectedPaymentMethod;
+  String? get selectedCustomer => _selectedCustomer;
 
   TransactionsProvider({DataSyncService? syncService}) : _syncService = syncService {
     loadTransactions();
@@ -95,11 +121,30 @@ class TransactionsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setCustomerFilter(String? customer) {
+    _selectedCustomer = customer;
+    notifyListeners();
+  }
+
   Future<Transaction?> getTransactionById(String id) async {
     return _repository.getTransactionById(id);
   }
 
   Future<List<Map<String, Object?>>> getTransactionItems(String txId) async {
     return _repository.getItemsForTransaction(txId);
+  }
+
+  Future<void> processReturn({
+    required Transaction transaction,
+    required List<Map<String, Object?>> items,
+    required Map<String, int> quantitiesToReturn,
+  }) async {
+    await _repository.returnItemsFromTransaction(
+      transaction: transaction,
+      items: items,
+      quantitiesToReturn: quantitiesToReturn,
+    );
+    // Reload transactions to reflect updated totals and status
+    await loadTransactions();
   }
 }

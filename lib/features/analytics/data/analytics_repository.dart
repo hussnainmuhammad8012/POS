@@ -18,7 +18,40 @@ class AnalyticsRepository {
   }
 
   Future<double> getTotalRevenue(DateTime? start, DateTime? end) async {
-    String query = 'SELECT SUM(final_amount) as total FROM transactions';
+    // Net Revenue = Final Amount - Returns - Tax (if we want pre-tax revenue)
+    // However, if we want to be consistent with item-level reports, we use:
+    // SUM(LineSubtotal - ProportionateTax - ProportionateBillDiscount)
+    
+    String query = '''
+      SELECT SUM(
+        ( (CAST(ti.quantity AS REAL) - ti.returned_quantity) / ti.quantity ) * 
+        ( ti.subtotal - (CASE WHEN t.is_tax_inclusive = 1 THEN ti.tax_amount ELSE 0 END) - (t.discount * ti.subtotal / NULLIF(t.total_amount, 0)) )
+      ) as total 
+      FROM transaction_items ti
+      JOIN transactions t ON ti.transaction_id = t.id
+    ''';
+    List<String> args = [];
+    
+    if (start != null || end != null) {
+      query += ' WHERE ';
+      if (start != null && end != null) {
+        query += 't.created_at BETWEEN ? AND ?';
+        args.addAll([start.toIso8601String(), end.toIso8601String()]);
+      } else if (start != null) {
+        query += 't.created_at >= ?';
+        args.add(start.toIso8601String());
+      } else {
+        query += 't.created_at <= ?';
+        args.add(end!.toIso8601String());
+      }
+    }
+    
+    final result = await _db.rawQuery(query, args);
+    return (result.first['total'] as num?)?.toDouble() ?? 0.0;
+  }
+
+  Future<double> getTotalReturns(DateTime? start, DateTime? end) async {
+    String query = 'SELECT SUM(refund_amount) as total FROM return_events';
     List<String> args = [];
     
     if (start != null || end != null) {
@@ -41,7 +74,7 @@ class AnalyticsRepository {
 
   Future<double> getTotalCost(DateTime? start, DateTime? end) async {
     String query = '''
-      SELECT SUM(ti.cost_at_time * ti.quantity) as total 
+      SELECT SUM(ti.cost_at_time * (ti.quantity - ti.returned_quantity)) as total 
       FROM transaction_items ti
       JOIN transactions t ON ti.transaction_id = t.id
     ''';
@@ -90,7 +123,7 @@ class AnalyticsRepository {
     final startOfDay = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}%";
 
     final result = await _db.rawQuery('''
-      SELECT c.name as label, SUM(ti.subtotal) as value
+      SELECT c.name as label, SUM((ti.subtotal / ti.quantity) * (ti.quantity - ti.returned_quantity)) as value
       FROM transaction_items ti
       JOIN transactions t ON ti.transaction_id = t.id
       JOIN product_variants pv ON ti.product_variant_id = pv.id
@@ -106,7 +139,11 @@ class AnalyticsRepository {
 
   Future<List<Map<String, dynamic>>> getSalesByCategory(DateTime? start, DateTime? end) async {
     String query = '''
-      SELECT c.name as label, SUM(ti.subtotal) as value
+      SELECT c.name as label, 
+      SUM(
+        ( (CAST(ti.quantity AS REAL) - ti.returned_quantity) / ti.quantity ) * 
+        ( ti.subtotal - (CASE WHEN t.is_tax_inclusive = 1 THEN ti.tax_amount ELSE 0 END) - (t.discount * ti.subtotal / NULLIF(t.total_amount, 0)) )
+      ) as value
       FROM transaction_items ti
       JOIN transactions t ON ti.transaction_id = t.id
       JOIN product_variants pv ON ti.product_variant_id = pv.id
@@ -138,9 +175,15 @@ class AnalyticsRepository {
       SELECT 
         p.name, 
         ti.unit_name,
-        SUM(ti.quantity) as total_qty, 
-        SUM(ti.subtotal) as total_revenue,
-        SUM(ti.subtotal - (ti.cost_at_time * ti.quantity)) as total_profit
+        SUM(ti.quantity - ti.returned_quantity) as total_qty, 
+        SUM(
+          ( (CAST(ti.quantity AS REAL) - ti.returned_quantity) / ti.quantity ) * 
+          ( ti.subtotal - (CASE WHEN t.is_tax_inclusive = 1 THEN ti.tax_amount ELSE 0 END) - (t.discount * ti.subtotal / NULLIF(t.total_amount, 0)) )
+        ) as total_revenue,
+        SUM(
+          ( (CAST(ti.quantity AS REAL) - ti.returned_quantity) / ti.quantity ) * 
+          ( ti.subtotal - (CASE WHEN t.is_tax_inclusive = 1 THEN ti.tax_amount ELSE 0 END) - (t.discount * ti.subtotal / NULLIF(t.total_amount, 0)) - (ti.quantity * ti.cost_at_time) )
+        ) as total_profit
       FROM transaction_items ti
       JOIN transactions t ON ti.transaction_id = t.id
       JOIN product_variants pv ON ti.product_variant_id = pv.id
@@ -209,10 +252,15 @@ class AnalyticsRepository {
 
   Future<Map<String, double>> getRevenueOverTime(DateTime start, DateTime end) async {
     final result = await _db.rawQuery('''
-      SELECT DATE(created_at) as date, SUM(final_amount) as total
-      FROM transactions
-      WHERE created_at BETWEEN ? AND ?
-      GROUP BY DATE(created_at)
+      SELECT DATE(t.created_at) as date, 
+      SUM(
+        ( (CAST(ti.quantity AS REAL) - ti.returned_quantity) / ti.quantity ) * 
+        ( ti.subtotal - (CASE WHEN t.is_tax_inclusive = 1 THEN ti.tax_amount ELSE 0 END) - (t.discount * ti.subtotal / NULLIF(t.total_amount, 0)) )
+      ) as total
+      FROM transaction_items ti
+      JOIN transactions t ON ti.transaction_id = t.id
+      WHERE t.created_at BETWEEN ? AND ?
+      GROUP BY DATE(t.created_at)
       ORDER BY date ASC
     ''', [start.toIso8601String(), end.toIso8601String()]);
 

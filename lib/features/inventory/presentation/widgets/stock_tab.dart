@@ -134,15 +134,31 @@ class _StockTabState extends State<StockTab> {
   }
 
   Widget _buildMovementItem(BuildContext context, dynamic movement) {
+    final bool isReturn = movement.reason != null && movement.reason.toString().startsWith('Returned');
     final bool isIn = movement.quantityChange > 0;
+    
+    Color avatarColor;
+    IconData avatarIcon;
+    Color contentColor;
+
+    if (isReturn) {
+      avatarColor = Colors.orange.withValues(alpha: 0.1);
+      avatarIcon = LucideIcons.cornerDownLeft;
+      contentColor = Colors.orange;
+    } else if (isIn) {
+      avatarColor = Colors.green.withValues(alpha: 0.1);
+      avatarIcon = LucideIcons.arrowDownLeft;
+      contentColor = Colors.green;
+    } else {
+      avatarColor = Colors.red.withValues(alpha: 0.1);
+      avatarIcon = LucideIcons.arrowUpRight;
+      contentColor = Colors.red;
+    }
+
     return ListTile(
       leading: CircleAvatar(
-        backgroundColor: isIn ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
-        child: Icon(
-          isIn ? LucideIcons.arrowDownLeft : LucideIcons.arrowUpRight,
-          color: isIn ? Colors.green : Colors.red,
-          size: 20,
-        ),
+        backgroundColor: avatarColor,
+        child: Icon(avatarIcon, color: contentColor, size: 20),
       ),
       title: Text(movement.productName ?? 'Unknown Product', style: const TextStyle(fontWeight: FontWeight.bold)),
       subtitle: Column(
@@ -169,7 +185,7 @@ class _StockTabState extends State<StockTab> {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 16,
-              color: isIn ? Colors.green : Colors.red,
+              color: contentColor,
             ),
           ),
           const SizedBox(height: 4),

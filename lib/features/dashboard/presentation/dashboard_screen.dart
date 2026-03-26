@@ -186,7 +186,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               const SizedBox(width: 24),
-              const Expanded(child: SizedBox()), // Empty space to keep card sizes equal
+              Expanded(
+                child: KpiCard(
+                  title: 'Returns Today',
+                  value: 'Rs ${kpi.totalReturns.toStringAsFixed(0)}',
+                  icon: LucideIcons.undo2,
+                  accentColor: isStarAdmin ? AppColors.STAR_PRIMARY : AppColors.DANGER,
+                  softBackground: isDark ? null : (isStarAdmin ? AppColors.STAR_PRIMARY.withAlpha(20) : AppColors.DANGER.withValues(alpha: 0.1)),
+                  isTrendPositive: false,
+                ),
+              ),
             ],
           ),
         ),

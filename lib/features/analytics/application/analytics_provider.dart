@@ -10,6 +10,7 @@ class AnalyticsKpi {
   final double totalCost;
   final double totalCreditToCollect;
   final double totalSupplierDues;
+  final double totalReturns;
   final int transactions;
   final int lowStockItems;
 
@@ -17,6 +18,7 @@ class AnalyticsKpi {
     required this.totalRevenue,
     required this.netProfit,
     required this.totalCost,
+    required this.totalReturns,
     required this.totalCreditToCollect,
     required this.totalSupplierDues,
     required this.transactions,
@@ -55,6 +57,7 @@ class AnalyticsProvider extends ChangeNotifier {
     totalRevenue: 0,
     netProfit: 0,
     totalCost: 0,
+    totalReturns: 0,
     totalCreditToCollect: 0,
     totalSupplierDues: 0,
     transactions: 0,
@@ -101,6 +104,7 @@ class AnalyticsProvider extends ChangeNotifier {
 
       // 1. KPIs for "Today" (Strict 24h range)
       final revenueToday = await _analyticsRepository.getTotalRevenue(todayStart, todayEnd);
+      final returnsToday = await _analyticsRepository.getTotalReturns(todayStart, todayEnd);
       final costToday = await _analyticsRepository.getTotalCost(todayStart, todayEnd);
       final transactionsToday = await _transactionRepository.getTransactionsByDateRange(todayStart, todayEnd);
       final creditToday = await _analyticsRepository.getTodayCreditSales(); // Specifically today's credits
@@ -112,6 +116,7 @@ class AnalyticsProvider extends ChangeNotifier {
       _kpi = AnalyticsKpi(
         totalRevenue: revenueToday,
         totalCost: costToday,
+        totalReturns: returnsToday,
         netProfit: revenueToday - costToday,
         totalCreditToCollect: creditToday, // Card says "Credit Today"
         totalSupplierDues: supplierDues,
@@ -147,6 +152,7 @@ class AnalyticsProvider extends ChangeNotifier {
     try {
       // Fetch specific data for the report range if it differs from current view
       final revenue = await _analyticsRepository.getTotalRevenue(start, end);
+      final returns = await _analyticsRepository.getTotalReturns(start, end);
       final cost = await _analyticsRepository.getTotalCost(start, end);
       final credit = await _analyticsRepository.getTotalCreditToCollect();
       final lowStock = await _analyticsRepository.getLowStockCount();
@@ -155,6 +161,7 @@ class AnalyticsProvider extends ChangeNotifier {
       final reportKpi = AnalyticsKpi(
         totalRevenue: revenue,
         totalCost: cost,
+        totalReturns: returns,
         netProfit: revenue - cost,
         totalCreditToCollect: credit,
         totalSupplierDues: await _analyticsRepository.getTotalSupplierDues(),
@@ -176,6 +183,34 @@ class AnalyticsProvider extends ChangeNotifier {
       );
     } catch (e) {
       debugPrint('Error generating report: $e');
+      return null;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<String?> generateReturnsReport({
+    required String storeName,
+    required String storeAddress,
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final txs = await _transactionRepository.getTransactionsByDateRange(start, end);
+      final returnedTxs = txs.where((t) => t.isReturned || t.returnedAmount > 0).toList();
+      
+      return await _pdfService.generateReturnsReport(
+        storeName: storeName,
+        storeAddress: storeAddress,
+        start: start,
+        end: end,
+        returnedTransactions: returnedTxs,
+      );
+    } catch (e) {
+      debugPrint('Error generating returns report: $e');
       return null;
     } finally {
       _isLoading = false;

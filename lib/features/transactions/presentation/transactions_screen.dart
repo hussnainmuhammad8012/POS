@@ -53,26 +53,26 @@ class TransactionsScreen extends StatelessWidget {
     
     return ModernCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 12,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           _FilterChip(
             label: 'Today',
             isSelected: provider.currentFilter == TransactionFilter.today,
             onTap: () => provider.setFilter(TransactionFilter.today),
           ),
-          const SizedBox(width: 8),
           _FilterChip(
             label: 'Last 7 Days',
             isSelected: provider.currentFilter == TransactionFilter.last7Days,
             onTap: () => provider.setFilter(TransactionFilter.last7Days),
           ),
-          const SizedBox(width: 8),
           _FilterChip(
             label: 'Last 30 Days',
             isSelected: provider.currentFilter == TransactionFilter.lastMonth,
             onTap: () => provider.setFilter(TransactionFilter.lastMonth),
           ),
-          const SizedBox(width: 8),
           _FilterChip(
             label: provider.currentFilter == TransactionFilter.custom && provider.customRange != null
                 ? '${DateFormat('MMM dd').format(provider.customRange!.start)} - ${DateFormat('MMM dd').format(provider.customRange!.end)}'
@@ -99,9 +99,21 @@ class TransactionsScreen extends StatelessWidget {
               }
             },
           ),
-          const SizedBox(width: 16),
           SizedBox(
-            width: 200,
+            width: 180,
+            child: AppDropdown<String>(
+              value: provider.selectedCustomer ?? 'ALL',
+              items: ['ALL', ...provider.availableCustomers].map((c) => AppDropdownItem<String>(
+                value: c,
+                label: c,
+                icon: LucideIcons.user,
+              )).toList(),
+              onChanged: (v) => provider.setCustomerFilter(v),
+              hint: 'Filter by Customer',
+            ),
+          ),
+          SizedBox(
+            width: 180,
             child: Consumer<SettingsProvider>(
               builder: (context, settings, _) {
                 final methods = ['ALL', ...settings.paymentMethods];
@@ -121,10 +133,12 @@ class TransactionsScreen extends StatelessWidget {
               },
             ),
           ),
-          const Spacer(),
-          Text(
-            '${provider.transactions.length} Transactions Found',
-            style: theme.textTheme.bodySmall,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Text(
+              '${provider.transactions.length} Transactions Found',
+              style: theme.textTheme.bodySmall,
+            ),
           ),
         ],
       ),
@@ -167,9 +181,21 @@ class TransactionsScreen extends StatelessWidget {
                       DataCell(Text(currencyFormat.format(tx.finalAmount), style: const TextStyle(fontWeight: FontWeight.bold))),
                       DataCell(Text(tx.paymentMethod.toUpperCase())),
                       DataCell(
-                        BadgeWidget(
-                          label: tx.paymentStatus,
-                          type: tx.paymentStatus.toLowerCase() == 'completed' ? BadgeType.success : BadgeType.warning,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            BadgeWidget(
+                              label: tx.paymentStatus,
+                              type: tx.paymentStatus.toLowerCase() == 'completed' ? BadgeType.success : BadgeType.warning,
+                            ),
+                            if (tx.isReturned || tx.returnedAmount > 0) ...[
+                              const SizedBox(width: 8),
+                              BadgeWidget(
+                                label: tx.isReturned ? 'RETURNED' : 'PARTIAL',
+                                type: BadgeType.error,
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                       DataCell(

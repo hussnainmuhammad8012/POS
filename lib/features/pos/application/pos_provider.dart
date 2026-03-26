@@ -811,13 +811,18 @@ class PosProvider extends ChangeNotifier {
       int microsecondOffset = 0;
       final txItems = _cartItems.map<TransactionItem>((CartItem item) {
         microsecondOffset++;
+        final normalizedPrice = item.isUomItem ? (item.unitPrice / item.conversionRate) : item.unitPrice;
+        final normalizedCost = item.isUomItem 
+            ? ((item.unitPrice - item.profitMargin) / item.conversionRate) 
+            : (item.unitPrice - item.profitMargin);
+            
         return TransactionItem(
           id: 'txi_${DateTime.now().microsecondsSinceEpoch + microsecondOffset}_${item.variantId.replaceAll('__', '_')}',
           transactionId: transactionId,
           variantId: item.baseVariantId ?? item.variantId,
           quantity: item.isUomItem ? (item.quantity * item.conversionRate) : item.quantity,
-          priceAtTime: item.unitPrice,
-          costAtTime: item.unitPrice - item.profitMargin,
+          priceAtTime: normalizedPrice,
+          costAtTime: normalizedCost,
           subtotal: item.subtotal,
           discount: item.totalDiscount,
           discountPercent: item.unitDiscountPercent,

@@ -183,6 +183,8 @@ class Transaction {
   final String paymentMethod;
   final String paymentStatus;
   final DateTime createdAt;
+  final bool isReturned;
+  final double returnedAmount;
 
   const Transaction({
     this.id,
@@ -200,6 +202,8 @@ class Transaction {
     required this.paymentMethod,
     required this.paymentStatus,
     required this.createdAt,
+    this.isReturned = false,
+    this.returnedAmount = 0.0,
   });
 
   Transaction copyWith({
@@ -218,6 +222,8 @@ class Transaction {
     String? paymentMethod,
     String? paymentStatus,
     DateTime? createdAt,
+    bool? isReturned,
+    double? returnedAmount,
   }) {
     return Transaction(
       id: id ?? this.id,
@@ -235,6 +241,8 @@ class Transaction {
       paymentMethod: paymentMethod ?? this.paymentMethod,
       paymentStatus: paymentStatus ?? this.paymentStatus,
       createdAt: createdAt ?? this.createdAt,
+      isReturned: isReturned ?? this.isReturned,
+      returnedAmount: returnedAmount ?? this.returnedAmount,
     );
   }
 }
@@ -277,6 +285,7 @@ class TransactionItem {
   final double taxAmount;  // Calculated tax amount
   final String? unitId;     // UOM: which unit was sold
   final String? unitName;   // UOM: human-readable unit name for receipt
+  final int returnedQuantity;
 
   const TransactionItem({
     this.id,
@@ -292,6 +301,7 @@ class TransactionItem {
     this.taxAmount = 0.0,
     this.unitId,
     this.unitName,
+    this.returnedQuantity = 0,
   });
 
   TransactionItem copyWith({
@@ -308,6 +318,7 @@ class TransactionItem {
     double? taxAmount,
     String? unitId,
     String? unitName,
+    int? returnedQuantity,
   }) {
     return TransactionItem(
       id: id ?? this.id,
@@ -323,6 +334,7 @@ class TransactionItem {
       taxAmount: taxAmount ?? this.taxAmount,
       unitId: unitId ?? this.unitId,
       unitName: unitName ?? this.unitName,
+      returnedQuantity: returnedQuantity ?? this.returnedQuantity,
     );
   }
 }

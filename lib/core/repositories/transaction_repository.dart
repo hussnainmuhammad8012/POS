@@ -29,6 +29,8 @@ class TransactionRepository {
         'payment_method': transaction.paymentMethod,
         'payment_status': transaction.paymentStatus,
         'created_at': transaction.createdAt.toIso8601String(),
+        'is_returned': transaction.isReturned ? 1 : 0,
+        'returned_amount': transaction.returnedAmount,
       });
 
       for (final item in items) {
@@ -47,6 +49,7 @@ class TransactionRepository {
           'tax_amount': item.taxAmount,
           'unit_id': item.unitId,       // UOM: null for classic items
           'unit_name': item.unitName,   // UOM: null for classic items
+          'returned_quantity': item.returnedQuantity,
         });
 
         // Safety Check: Ensure enough stock exists before deducting
@@ -167,6 +170,8 @@ class TransactionRepository {
         paymentStatus: transaction.paymentStatus,
         createdAt: transaction.createdAt,
         discountPercent: transaction.discountPercent,
+        isReturned: transaction.isReturned,
+        returnedAmount: transaction.returnedAmount,
       );
     });
   }
@@ -199,13 +204,138 @@ class TransactionRepository {
     ''', [txId]);
   }
 
+  Future<void> returnItemsFromTransaction({
+    required Transaction transaction,
+    required List<Map<String, Object?>> items,
+    required Map<String, int> quantitiesToReturn, // Map of variantId to quantity
+  }) async {
+    return _db.transaction((txn) async {
+      double totalRefundAmountForThisReturn = 0.0;
+      final nowStr = DateTime.now().toIso8601String();
+
+      for (final item in items) {
+        final variantId = item['product_variant_id'] as String;
+        final itemId = item['id'] as String;
+        final returnQty = quantitiesToReturn[variantId] ?? 0;
+
+        if (returnQty > 0) {
+          final priceAtTime = (item['price_at_time'] as num).toDouble();
+          final discount = (item['item_discount'] as num?)?.toDouble() ?? 0.0;
+          final taxAmount = (item['tax_amount'] as num?)?.toDouble() ?? 0.0;
+          final originalQty = (item['quantity'] as num).toInt();
+
+          // Calculate proportionate tax and discount
+          final double itemNetValue = ((priceAtTime * originalQty) - discount + taxAmount);
+          final double valuePerItem = itemNetValue / originalQty;
+
+          final refundValue = valuePerItem * returnQty;
+          totalRefundAmountForThisReturn += refundValue;
+
+          // Update the transaction_item
+          await txn.rawUpdate(
+            'UPDATE transaction_items SET returned_quantity = returned_quantity + ? WHERE id = ?',
+            [returnQty, itemId],
+          );
+
+          // Restore stock
+          await txn.rawUpdate(
+            '''
+            UPDATE stock_levels 
+            SET available_pieces = available_pieces + ?, 
+                total_pieces = total_pieces + ?,
+                updated_at = ? 
+            WHERE product_variant_id = ?
+            ''',
+            [returnQty, returnQty, nowStr, variantId],
+          );
+
+          // Remove low stock warning if it went above threshold
+          final stockLevels = await txn.query('stock_levels', where: 'product_variant_id = ?', whereArgs: [variantId]);
+          if (stockLevels.isNotEmpty) {
+             final stockMap = stockLevels.first;
+             final int available = (stockMap['available_pieces'] as num).toInt();
+             final int threshold = (stockMap['low_stock_threshold'] as num).toInt();
+             if (available > threshold) {
+                await txn.update('stock_levels', {'is_low_stock_warning': 0}, where: 'product_variant_id = ?', whereArgs: [variantId]);
+             }
+          }
+
+          // Log stock movement
+          final movementId = 'mov_${DateTime.now().microsecondsSinceEpoch}_ret';
+          await txn.insert('stock_movements', {
+            'id': movementId,
+            'product_variant_id': variantId,
+            'movement_type': 'IN',
+            'quantity_change': returnQty,
+            'quantity_before': 0, // Simplified out of context
+            'quantity_after': 0,
+            'reason': 'Returned Item from Bill ${transaction.invoiceNumber}',
+            'reference_id': transaction.id,
+            'created_at': nowStr,
+          });
+        }
+      }
+
+      // Check if the bill is fully returned now
+      bool isFullyReturned = false;
+      double newReturnedAmount = transaction.returnedAmount + totalRefundAmountForThisReturn;
+      if (newReturnedAmount >= transaction.finalAmount - 0.01) {
+         isFullyReturned = true;
+         // Clip it to prevent floating point overflows making it slightly higher
+         newReturnedAmount = transaction.finalAmount; 
+      }
+
+      // Update the transaction 
+      await txn.rawUpdate(
+        'UPDATE transactions SET returned_amount = ?, is_returned = ? WHERE id = ?',
+        [newReturnedAmount, isFullyReturned ? 1 : 0, transaction.id],
+      );
+
+      // Log the specific isolated financial return event
+      if (totalRefundAmountForThisReturn > 0) {
+        await txn.insert('return_events', {
+          'id': 'ret_ev_${DateTime.now().microsecondsSinceEpoch}',
+          'transaction_id': transaction.id,
+          'refund_amount': totalRefundAmountForThisReturn,
+          'created_at': nowStr,
+        });
+      }
+
+      // Handle Customer Ledgers/Credit if returning an unpaid/credit bill
+      // If customer had credit, reduce their debt by the refund amount (up to their total credit on this transaction)
+      if (transaction.customerId != null && transaction.creditAmount > 0) {
+          final maxCreditRefund = transaction.creditAmount;
+          // Assume returning items refunds the credit first
+          final amountToRefundCredit = (totalRefundAmountForThisReturn < maxCreditRefund) ? totalRefundAmountForThisReturn : maxCreditRefund;
+          
+          if (amountToRefundCredit > 0) {
+             final ledgerId = 'cred_${DateTime.now().microsecondsSinceEpoch}_ret';
+             await txn.insert('credit_ledgers', {
+                'id': ledgerId,
+                'customer_id': transaction.customerId,
+                'transaction_id': transaction.id,
+                'type': 'PAYMENT', // Represents reducing debt
+                'amount': amountToRefundCredit,
+                'notes': 'Bill Return Credit Adjustment',
+                'created_at': nowStr,
+             });
+
+             await txn.rawUpdate(
+               'UPDATE customers SET current_credit = current_credit - ? WHERE id = ?',
+               [amountToRefundCredit, transaction.customerId]
+             );
+          }
+      }
+    });
+  }
+
   Future<double> getSalesTotalForDateRange(
     DateTime start,
     DateTime end,
   ) async {
     final rows = await _db.rawQuery(
       '''
-      SELECT SUM(final_amount) as total
+      SELECT SUM(final_amount - returned_amount) as total
       FROM transactions
       WHERE created_at >= ? AND created_at < ?
       ''',
@@ -247,7 +377,7 @@ class TransactionRepository {
         .subtract(Duration(days: days - 1));
     final rows = await _db.rawQuery(
       '''
-      SELECT substr(created_at, 1, 10) AS day, SUM(final_amount) AS total
+      SELECT substr(created_at, 1, 10) AS day, SUM(final_amount - returned_amount) AS total
       FROM transactions
       WHERE created_at >= ?
       GROUP BY day
@@ -281,6 +411,8 @@ class TransactionRepository {
       paymentMethod: row['payment_method'] as String,
       paymentStatus: row['payment_status'] as String,
       createdAt: DateTime.parse(row['created_at'] as String),
+      isReturned: (row['is_returned'] as num?)?.toInt() == 1,
+      returnedAmount: (row['returned_amount'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }

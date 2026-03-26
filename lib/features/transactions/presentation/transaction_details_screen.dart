@@ -9,6 +9,7 @@ import '../../../core/widgets/badge_widget.dart';
 import '../../../core/widgets/glass_header.dart';
 import '../../../core/widgets/modern_card.dart';
 import '../application/transactions_provider.dart';
+import 'widgets/return_bill_dialog.dart';
 
 class TransactionDetailsScreen extends StatelessWidget {
   static const routeName = '/transaction-details';
@@ -96,12 +97,40 @@ class TransactionDetailsScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              BadgeWidget(
-                label: transaction.paymentStatus.toUpperCase(),
-                type: transaction.paymentStatus.toLowerCase() == 'completed' 
-                  ? BadgeType.success 
-                  : BadgeType.warning,
-              ),
+              Row(
+                children: [
+                  if (!transaction.isReturned)
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        final result = await showDialog(
+                          context: context,
+                          builder: (context) => ReturnBillDialog(transaction: transaction),
+                        );
+                        if (result == true) {
+                          Navigator.pop(context); // Go back to transactions list to see update
+                        }
+                      },
+                      icon: const Icon(LucideIcons.undo2, size: 16),
+                      label: const Text('Return Items'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.DANGER.withValues(alpha: 0.1),
+                        foregroundColor: AppColors.DANGER,
+                        elevation: 0,
+                      ),
+                    ),
+                  const SizedBox(width: 12),
+                  BadgeWidget(
+                    label: transaction.isReturned 
+                        ? 'RETURNED' 
+                        : (transaction.returnedAmount > 0 ? 'PARTIAL RETURN' : transaction.paymentStatus.toUpperCase()),
+                    type: (transaction.isReturned || transaction.returnedAmount > 0)
+                        ? BadgeType.error
+                        : (transaction.paymentStatus.toLowerCase() == 'completed' 
+                            ? BadgeType.success 
+                            : BadgeType.warning),
+                  ),
+                ],
+              )
             ],
           ),
           const Divider(height: 32),
@@ -233,6 +262,7 @@ class TransactionDetailsScreen extends StatelessWidget {
                   final variantName = item['variant_name'] as String?;
                   final unitName = item['unit_name'] as String?;
                   final quantity = (item['quantity'] as num).toInt();
+                  final returnedQty = (item['returned_quantity'] as num?)?.toInt() ?? 0;
                   final price = (item['price_at_time'] as num).toDouble();
                   final subtotal = (item['subtotal'] as num).toDouble();
 
@@ -260,8 +290,12 @@ class TransactionDetailsScreen extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                '$quantity ${unitName ?? ""}',
-                                style: const TextStyle(fontWeight: FontWeight.w600),
+                                '$quantity ${unitName ?? ""}' + (returnedQty > 0 ? ' (Ret: $returnedQty)' : ''),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: returnedQty > 0 ? AppColors.DANGER : null,
+                                  fontSize: 13,
+                                ),
                               ),
                               Text(
                                 'x ${currencyFormat.format(price)}',
@@ -324,6 +358,18 @@ class TransactionDetailsScreen extends StatelessWidget {
               ),
             ],
           ),
+          if (transaction.returnedAmount > 0) ...[
+            const Divider(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Amount Returned', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.DANGER)),
+                Text(currencyFormat.format(transaction.returnedAmount), 
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.DANGER)
+                ),
+              ],
+            ),
+          ]
         ],
       ),
     );

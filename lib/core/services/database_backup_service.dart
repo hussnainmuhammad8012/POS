@@ -1,13 +1,14 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import '../database/app_database.dart';
 
 class DatabaseBackupService {
   static const String _databaseName = 'utility_store_pos.db';
 
   Future<String> getDatabasePath() async {
-    final currentDir = Directory.current;
-    return p.join(currentDir.path, 'data', _databaseName);
+    final supportDir = await getApplicationSupportDirectory();
+    return p.join(supportDir.path, 'data', _databaseName);
   }
 
   Future<void> exportDatabase(String targetPath) async {
