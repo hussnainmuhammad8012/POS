@@ -6,9 +6,15 @@ class DataSyncService extends ChangeNotifier {
   factory DataSyncService() => _instance;
   DataSyncService._internal();
 
+  /// Monotonic counter incremented on every DB-mutating event.
+  /// Companion app polls /sync/version and refreshes when this changes.
+  int _dbVersion = 0;
+  int get dbVersion => _dbVersion;
+
   /// Notify that a product was added or stock was updated from a mobile device
   void notifyMobileUpdate() {
-    debugPrint('DataSyncService: Notifying mobile update event');
+    _dbVersion++;
+    debugPrint('DataSyncService: DB version → $_dbVersion');
     notifyListeners();
   }
 }

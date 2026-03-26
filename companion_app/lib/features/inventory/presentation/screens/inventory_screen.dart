@@ -7,7 +7,12 @@ import 'package:companion_app/features/inventory/application/inventory_provider.
 import 'package:companion_app/core/theme/app_theme.dart';
 import 'package:companion_app/core/widgets/custom_text_field.dart';
 import 'package:companion_app/features/inventory/data/models/product_model.dart';
+import 'package:companion_app/features/inventory/data/models/category_model.dart';
+import 'package:companion_app/features/inventory/data/models/stock_movement_model.dart';
 import 'package:companion_app/features/inventory/presentation/widgets/add_product_dialog.dart';
+import 'package:companion_app/features/inventory/presentation/widgets/edit_product_dialog.dart';
+import 'package:companion_app/features/inventory/presentation/widgets/add_edit_category_dialog.dart';
+import 'package:companion_app/features/inventory/presentation/widgets/mobile_print_label_dialog.dart';
 import 'package:companion_app/core/widgets/app_dropdown.dart';
 import 'package:companion_app/features/inventory/presentation/widgets/add_supplier_dialog.dart';
 import 'package:companion_app/features/inventory/presentation/widgets/product_details_dialog.dart';
@@ -20,18 +25,29 @@ class InventoryScreen extends StatefulWidget {
   State<InventoryScreen> createState() => _InventoryScreenState();
 }
 
-class _InventoryScreenState extends State<InventoryScreen> {
+class _InventoryScreenState extends State<InventoryScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   final _searchController = TextEditingController();
+  final _catSearchController = TextEditingController();
+  String _selectedMovementType = 'ALL';
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.index == 2) {
+        context.read<InventoryProvider>().fetchStockMovements(type: _selectedMovementType);
+      }
+    });
     Future.microtask(() => context.read<InventoryProvider>().fetchInventory());
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _searchController.dispose();
+    _catSearchController.dispose();
     super.dispose();
   }
 
@@ -39,11 +55,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
   Widget build(BuildContext context) {
     final inventory = context.watch<InventoryProvider>();
     final auth = context.watch<AuthProvider>();
-
-    final filteredProducts = inventory.products.where((p) {
-      final query = _searchController.text.toLowerCase();
-      return p.name.toLowerCase().contains(query) || p.baseSku.toLowerCase().contains(query);
-    }).toList();
 
     return Scaffold(
       backgroundColor: AppColors.STAR_BACKGROUND,
@@ -58,75 +69,76 @@ class _InventoryScreenState extends State<InventoryScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              auth.shopName ?? 'Inventory Manager', 
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)
-            ),
-            Text(
-              auth.serverIp ?? 'Local Server', 
-              style: const TextStyle(fontSize: 10, color: AppColors.STAR_TEXT_SECONDARY),
-            ),
+            Text(auth.shopName ?? 'Inventory Manager', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(auth.serverIp ?? 'Local Server', style: const TextStyle(fontSize: 10, color: Colors.white70)),
           ],
         ),
         actions: [
           IconButton(
             icon: const Icon(LucideIcons.refreshCw, size: 20),
-            onPressed: () => inventory.fetchInventory(),
-          ),
-          IconButton(
-            icon: const Icon(LucideIcons.plusCircle),
             onPressed: () {
-              final provider = context.read<InventoryProvider>();
-              showDialog(
-                context: context,
-                builder: (context) => ChangeNotifierProvider.value(
-                  value: provider,
-                  child: const AddProductDialog(),
-                ),
-              );
+               inventory.fetchInventory();
+               if (_tabController.index == 2) {
+                 inventory.fetchStockMovements(type: _selectedMovementType);
+               }
             },
           ),
         ],
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white.withOpacity(0.7),
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          tabs: const [
+            Tab(text: 'Products', icon: Icon(LucideIcons.package, size: 20)),
+            Tab(text: 'Categories', icon: Icon(LucideIcons.folder, size: 20)),
+            Tab(text: 'Stock Log', icon: Icon(LucideIcons.history, size: 20)),
+          ],
+        ),
       ),
-      body: Column(
+      body: TabBarView(
+        controller: _tabController,
         children: [
-          _buildSearchBar(),
-          Expanded(
-            child: inventory.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _buildProductList(filteredProducts),
-          ),
+          _buildProductsTab(inventory),
+          _buildCategoriesTab(inventory),
+          _buildStockLogTab(inventory),
         ],
       ),
+      floatingActionButton: _tabController.index != 2 
+        ? FloatingActionButton(
+            backgroundColor: AppColors.STAR_PRIMARY,
+            child: const Icon(LucideIcons.plus, color: Colors.white),
+            onPressed: () {
+              if (_tabController.index == 0) {
+                _showAddProduct();
+              } else {
+                _showAddCategory();
+              }
+            },
+          )
+        : null,
     );
   }
 
-  Widget _buildSearchBar() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: AppColors.STAR_PRIMARY,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(12),
+  // ── PRODUCTS TAB ──
+
+  Widget _buildProductsTab(InventoryProvider inventory) {
+    final filteredProducts = inventory.products.where((p) {
+      final query = _searchController.text.toLowerCase();
+      return p.name.toLowerCase().contains(query) || p.baseSku.toLowerCase().contains(query);
+    }).toList();
+
+    return Column(
+      children: [
+        _buildSearchBar(_searchController, 'Search products by name or SKU...'),
+        Expanded(
+          child: inventory.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _buildProductList(filteredProducts),
         ),
-        child: TextField(
-          controller: _searchController,
-          style: const TextStyle(color: Colors.white, fontSize: 16),
-          onChanged: (v) => setState(() {}),
-          decoration: InputDecoration(
-            hintText: 'Search by name or SKU...',
-            hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            filled: false,
-            contentPadding: const EdgeInsets.symmetric(vertical: 12),
-            prefixIcon: const Icon(LucideIcons.search, color: Colors.white, size: 20),
-          ),
-        ),
-      ),
+      ],
     );
   }
 
@@ -164,52 +176,192 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 _buildStockDisplay(p),
               ],
             ),
-            trailing: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisAlignment: MainAxisAlignment.center,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  'Rs. ${p.price.toStringAsFixed(0)}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.STAR_PRIMARY, fontSize: 13),
+                IconButton(
+                  icon: const Icon(LucideIcons.pencil, size: 18, color: AppColors.STAR_TEXT_SECONDARY),
+                  onPressed: () => _showEditProduct(p),
                 ),
-                const SizedBox(height: 4),
-                Material(
-                  color: AppColors.STAR_PRIMARY.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  child: InkWell(
-                    onTap: () => _showAddStockDialog(p),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(LucideIcons.plus, size: 14, color: AppColors.STAR_PRIMARY),
-                          const SizedBox(width: 4),
-                          const Icon(LucideIcons.package, size: 14, color: AppColors.STAR_PRIMARY),
-                        ],
-                      ),
-                    ),
-                  ),
+                IconButton(
+                  icon: const Icon(LucideIcons.printer, size: 18, color: AppColors.STAR_PRIMARY),
+                  onPressed: () => _showPrintLabel(p),
                 ),
               ],
             ),
             onTap: () {
-              final provider = context.read<InventoryProvider>();
-              showDialog(
-                context: context,
-                builder: (context) => ChangeNotifierProvider.value(
-                  value: provider,
-                  child: ProductDetailsDialog(
-                    product: p,
-                    onAddStock: () => _showAddStockDialog(p),
-                  ),
-                ),
-              );
+              _showProductDetails(p);
             },
           ),
         );
       },
+    );
+  }
+
+  // ── CATEGORIES TAB ──
+
+  Widget _buildCategoriesTab(InventoryProvider inventory) {
+    final query = _catSearchController.text.toLowerCase();
+    final filteredCategories = inventory.categories.where((c) => c.name.toLowerCase().contains(query)).toList();
+
+    return Column(
+      children: [
+        _buildSearchBar(_catSearchController, 'Search categories...'),
+        Expanded(
+          child: inventory.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _buildCategoryList(filteredCategories),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategoryList(List<Category> categories) {
+    if (categories.isEmpty) {
+      return const Center(child: Text('No categories found', style: TextStyle(color: AppColors.STAR_TEXT_SECONDARY)));
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: categories.length,
+      itemBuilder: (context, index) {
+        final cat = categories[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 10),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: ExpansionTile(
+            leading: const Icon(LucideIcons.folder, color: AppColors.STAR_PRIMARY),
+            title: Text(cat.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text(cat.description ?? '${cat.subcategories.length} subcategories', style: const TextStyle(fontSize: 12)),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                 IconButton(
+                   icon: const Icon(LucideIcons.pencil, size: 18),
+                   onPressed: () => _showEditCategory(cat),
+                 ),
+                 IconButton(
+                   icon: const Icon(LucideIcons.plusCircle, size: 18, color: AppColors.STAR_PRIMARY),
+                   onPressed: () => _showAddSubcategory(cat),
+                 ),
+              ],
+            ),
+            children: cat.subcategories.map((sub) => ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 32),
+              leading: const Icon(LucideIcons.folderOpen, size: 16, color: Colors.blueGrey),
+              title: Text(sub.name, style: const TextStyle(fontSize: 13)),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                   IconButton(icon: const Icon(LucideIcons.pencil, size: 16), onPressed: () => _showEditCategory(sub)),
+                   IconButton(icon: const Icon(LucideIcons.trash2, size: 16, color: AppColors.DANGER), onPressed: () => _confirmDeleteCategory(sub)),
+                ],
+              ),
+            )).toList(),
+          ),
+        );
+      },
+    );
+  }
+
+  // ── STOCK LOG TAB ──
+
+  Widget _buildStockLogTab(InventoryProvider inventory) {
+    // Filter out Adjustment, Return, and Damage as requested?
+    // User said: "remove the adjustment and return and damage products"
+    final movements = inventory.stockMovements.where((m) {
+      final reason = m.reason.toLowerCase();
+      // Exclude if explicitly mentioned or is general adjustment
+      return !reason.contains('adjustment') && 
+             !reason.contains('damage') &&
+             !reason.contains('return'); // Wait, user said remove return too? 
+             // "remove the adjustment and return and damage products"
+    }).toList();
+
+    if (inventory.isLoading && movements.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (movements.isEmpty) {
+      return const Center(child: Text('No relevant movements found', style: TextStyle(color: AppColors.STAR_TEXT_SECONDARY)));
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => inventory.fetchStockMovements(),
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: movements.length,
+        itemBuilder: (context, index) {
+          final m = movements[index];
+          final isIn = m.quantityChange > 0;
+          
+          final iconColor = isIn ? Colors.green : Colors.red;
+          final icon = isIn ? LucideIcons.arrowDownLeft : LucideIcons.arrowUpRight;
+
+          return Card(
+            elevation: 0,
+            margin: const EdgeInsets.only(bottom: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.withOpacity(0.1))),
+            child: ListTile(
+              contentPadding: const EdgeInsets.all(12),
+              leading: CircleAvatar(
+                backgroundColor: iconColor.withOpacity(0.1),
+                child: Icon(icon, color: iconColor, size: 20),
+              ),
+              title: Text(m.productName ?? 'Unknown Product', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(m.reason, style: const TextStyle(fontSize: 12)),
+                  Text(DateFormat('MMM dd, hh:mm a').format(m.createdAt), style: const TextStyle(fontSize: 10, color: AppColors.STAR_TEXT_SECONDARY)),
+                ],
+              ),
+              trailing: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                   Text(
+                    '${isIn ? "+" : ""}${m.quantityChange}',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: iconColor, fontSize: 16),
+                  ),
+                  Text('Bal: ${m.quantityAfter}', style: const TextStyle(fontSize: 10, color: AppColors.STAR_TEXT_SECONDARY)),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ── HELPER WIDGETS ──
+
+  Widget _buildSearchBar(TextEditingController controller, String hint) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: AppColors.STAR_PRIMARY,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: TextField(
+          controller: controller,
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+          onChanged: (v) => setState(() {}),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14),
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            filled: false,
+            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+            prefixIcon: const Icon(LucideIcons.search, color: Colors.white, size: 18),
+          ),
+        ),
+      ),
     );
   }
 
@@ -223,13 +375,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final multiplierUnits = p.units.where((u) => !u.isBaseUnit).toList()
       ..sort((a, b) => b.conversionRate.compareTo(a.conversionRate));
 
-    if (multiplierUnits.isEmpty) {
-      return Text('Stock: ${p.currentStock} ${baseUnit.unitName}', style: _getStockStyle(p.currentStock));
-    }
-
     int remaining = p.currentStock;
     List<String> parts = [];
-
     for (var unit in multiplierUnits) {
        int rate = unit.conversionRate.toInt();
        if (rate > 0) {
@@ -240,32 +387,133 @@ class _InventoryScreenState extends State<InventoryScreen> {
          }
        }
     }
-
     if (remaining > 0 || parts.isEmpty) {
       parts.add('$remaining ${baseUnit.unitName}');
     }
 
-    return Text(
-      'Stock: ${parts.join(', ')}',
-      style: _getStockStyle(p.currentStock),
-    );
+    return Text('Stock: ${parts.join(', ')}', style: _getStockStyle(p.currentStock));
   }
 
   TextStyle _getStockStyle(int stock) {
      return TextStyle(
-       fontSize: 13,
+       fontSize: 12,
        color: stock <= 5 ? AppColors.DANGER : AppColors.STAR_TEXT_SECONDARY,
        fontWeight: stock <= 5 ? FontWeight.bold : FontWeight.normal,
      );
   }
 
+  // ── DIALOG HELPERS ──
+
+  void _showAddProduct() {
+    final provider = context.read<InventoryProvider>();
+    showDialog(
+      context: context, 
+      builder: (context) => ChangeNotifierProvider.value(
+        value: provider,
+        child: const AddProductDialog(),
+      ),
+    );
+  }
+
+  void _showEditProduct(Product p) {
+    final provider = context.read<InventoryProvider>();
+    showDialog(
+      context: context, 
+      builder: (context) => ChangeNotifierProvider.value(
+        value: provider,
+        child: EditProductDialog(product: p),
+      ),
+    );
+  }
+
+  void _showPrintLabel(Product p) {
+    final provider = context.read<InventoryProvider>();
+    showDialog(
+      context: context, 
+      builder: (context) => ChangeNotifierProvider.value(
+        value: provider,
+        child: MobilePrintLabelDialog(product: p),
+      ),
+    );
+  }
+
+  void _showProductDetails(Product p) {
+    final provider = context.read<InventoryProvider>();
+    showDialog(
+      context: context, 
+      builder: (context) => ChangeNotifierProvider.value(
+        value: provider,
+        child: ProductDetailsDialog(
+          product: p,
+          onAddStock: () => _showAddStockDialog(p),
+        ),
+      ),
+    );
+  }
+
+  void _showAddCategory() {
+    final provider = context.read<InventoryProvider>();
+    showDialog(
+      context: context, 
+      builder: (context) => ChangeNotifierProvider.value(
+        value: provider,
+        child: const AddEditCategoryDialog(),
+      ),
+    );
+  }
+
+  void _showAddSubcategory(Category parent) {
+    final provider = context.read<InventoryProvider>();
+    showDialog(
+      context: context, 
+      builder: (context) => ChangeNotifierProvider.value(
+        value: provider,
+        child: AddEditCategoryDialog(parentId: parent.id),
+      ),
+    );
+  }
+
+  void _showEditCategory(Category cat) {
+    final provider = context.read<InventoryProvider>();
+    showDialog(
+      context: context, 
+      builder: (context) => ChangeNotifierProvider.value(
+        value: provider,
+        child: AddEditCategoryDialog(category: cat),
+      ),
+    );
+  }
+
+  void _confirmDeleteCategory(Category cat) {
+    final provider = context.read<InventoryProvider>();
+    showDialog(
+      context: context,
+      builder: (context) => ChangeNotifierProvider.value(
+        value: provider,
+        child: AlertDialog(
+          title: const Text('Delete Category'),
+          content: Text('Are you sure you want to delete "${cat.name}"? This will not delete products but they will become uncategorized.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                final error = await provider.deleteCategory(cat.id);
+                if (error != null && mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error), backgroundColor: AppColors.DANGER));
+                }
+              },
+              child: const Text('Delete', style: TextStyle(color: AppColors.DANGER)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showAddStockDialog(Product product) {
     final inventoryProvider = context.read<InventoryProvider>();
-    
-    // Check if we need units. If UOM is disabled or no units found but UOM is enabled, handle gracefully.
     final hasUnits = product.units.isNotEmpty;
-    
-    // Create a fallback base unit if none exists (for old products)
     final baseUnit = hasUnits 
         ? product.units.firstWhere((u) => u.isBaseUnit, orElse: () => product.units.first)
         : ProductUnit(
@@ -284,7 +532,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final qtyController = TextEditingController();
     final totalCostController = TextEditingController(text: '0.0');
     final paidAmountController = TextEditingController(text: '0.0');
-    final reasonController = TextEditingController(text: 'Purchased from mobile');
+    final reasonController = TextEditingController(text: 'Stock added from mobile');
     final formKey = GlobalKey<FormState>();
     
     ProductUnit selectedUnit = baseUnit;
@@ -293,8 +541,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
     showDialog(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setState) {
+      builder: (dialogContext) => ChangeNotifierProvider.value(
+        value: inventoryProvider,
+        child: StatefulBuilder(
+          builder: (context, setState) {
           return AlertDialog(
             backgroundColor: AppColors.STAR_BACKGROUND,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
@@ -312,21 +562,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
                      child: Column(
                        crossAxisAlignment: CrossAxisAlignment.start,
                        children: [
-                         Text(
-                           'Add Stock: ${product.name}', 
-                           style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
-                         ),
-                         Text(
-                           'Current: ${product.currentStock} ${baseUnit.unitName}',
-                           style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
-                         ),
+                         Text('Add Stock: ${product.name}', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                         Text('Current: ${product.currentStock} ${baseUnit.unitName}', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 11)),
                        ],
                      ),
                    ),
-                   IconButton(
-                     icon: const Icon(LucideIcons.x, color: Colors.white, size: 20),
-                     onPressed: () => Navigator.pop(dialogContext),
-                   ),
+                   IconButton(icon: const Icon(LucideIcons.x, color: Colors.white, size: 20), onPressed: () => Navigator.pop(dialogContext)),
                 ],
               ),
             ),
@@ -341,210 +582,57 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     children: [
                       const SizedBox(height: 12),
                       Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
-                            flex: 2,
                             child: CustomTextField(
-                              label: 'Quantity',
-                              hint: 'e.g. 10',
-                              keyboardType: TextInputType.number,
+                              label: 'Qty',
                               controller: qtyController,
+                              keyboardType: TextInputType.number,
                               prefixIcon: LucideIcons.boxes,
-                              validator: (v) {
-                                if (v == null || v.isEmpty) return 'Required';
-                                if (int.tryParse(v) == null) return 'Invalid';
-                                return null;
-                              },
+                              validator: (v) => (v == null || v.isEmpty || int.tryParse(v) == null) ? 'Required' : null,
                             ),
                           ),
                           if (inventoryProvider.isUomEnabled && hasUnits) ...[
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 12),
                             Expanded(
-                              flex: 3,
                               child: AppDropdown<ProductUnit>(
                                 label: 'Unit',
-                                hint: 'Select Unit',
-                                prefixIcon: LucideIcons.layers,
                                 value: selectedUnit,
                                 items: product.units.map((u) => AppDropdownItem<ProductUnit>(
                                   value: u,
                                   label: u.unitName,
-                                  subtitle: 'x${u.conversionRate.toInt()} ${baseUnit.unitName}',
-                                  icon: u.isBaseUnit ? LucideIcons.box : LucideIcons.layers,
+                                  icon: LucideIcons.package,
                                 )).toList(),
-                                onChanged: (v) {
-                                  if (v != null) setState(() => selectedUnit = v);
-                                },
+                                onChanged: (v) { if (v != null) setState(() => selectedUnit = v); },
                               ),
                             ),
                           ],
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      CustomTextField(
-                        label: 'Optional Notes',
-                        hint: 'e.g. Purchased 10 ${selectedUnit.unitName}...',
-                        controller: reasonController,
-                        prefixIcon: LucideIcons.fileText,
+                      const SizedBox(height: 12),
+                      CustomTextField(label: 'Notes', controller: reasonController, prefixIcon: LucideIcons.fileText),
+                      const SizedBox(height: 12),
+                      AppDropdown<String>(
+                        label: 'Supplier (Opt)',
+                        value: selectedSupplierId,
+                        items: inventoryProvider.suppliers.map((s) => AppDropdownItem<String>(value: s.id, label: s.name, icon: LucideIcons.user)).toList(),
+                        onChanged: (v) => setState(() => selectedSupplierId = v),
                       ),
-                      const SizedBox(height: 16),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: AppDropdown<String>(
-                              label: 'Supplier (Optional)',
-                              hint: 'Select Supplier',
-                              prefixIcon: LucideIcons.truck,
-                              value: selectedSupplierId,
-                              items: inventoryProvider.suppliers.map((s) => AppDropdownItem<String>(
-                                value: s.id,
-                                label: '${s.name}${s.contactPerson != null && s.contactPerson!.isNotEmpty ? ' - ${s.contactPerson}' : ''}',
-                                icon: LucideIcons.user,
-                              )).toList(),
-                              onChanged: (v) => setState(() => selectedSupplierId = v),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            margin: const EdgeInsets.only(top: 24),
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.STAR_PRIMARY.withOpacity(0.1),
-                                foregroundColor: AppColors.STAR_PRIMARY,
-                                elevation: 0,
-                                padding: const EdgeInsets.all(12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              ),
-                              onPressed: () {
-                                showDialog(
-                                  context: context,
-                                  barrierDismissible: false,
-                                  builder: (c) => const AddSupplierDialog(),
-                                );
-                              },
-                              child: const Icon(LucideIcons.plusCircle, size: 20),
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (selectedSupplierId != null) ...[
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: CustomTextField(
-                                label: 'Total Cost',
-                                keyboardType: TextInputType.number,
-                                controller: totalCostController,
-                                prefixIcon: LucideIcons.banknote,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: CustomTextField(
-                                label: 'Paid Now',
-                                keyboardType: TextInputType.number,
-                                controller: paidAmountController,
-                                prefixIcon: LucideIcons.coins,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        InkWell(
-                          onTap: () async {
-                            final date = await showDatePicker(
-                              context: context,
-                              initialDate: dueDate ?? DateTime.now(),
-                              firstDate: DateTime.now(),
-                              lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
-                            );
-                            if (date != null) {
-                              setState(() => dueDate = date);
-                            }
-                          },
-                          child: InputDecorator(
-                            decoration: InputDecoration(
-                              labelText: 'Due Date (For unpaid balance)',
-                              prefixIcon: const Icon(LucideIcons.calendar),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            ),
-                            child: Text(
-                              dueDate == null ? 'Select Date' : DateFormat('MMM dd, yyyy').format(dueDate!),
-                              style: TextStyle(
-                                color: dueDate == null ? Theme.of(context).hintColor : null,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ),
               ),
             ),
-            actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext), 
-                child: const Text('Cancel', style: TextStyle(color: AppColors.STAR_TEXT_SECONDARY))
-              ),
+              TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.STAR_PRIMARY,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
                 onPressed: () async {
                   if (!formKey.currentState!.validate()) return;
-                  
-                  final qty = int.parse(qtyController.text);
-                  // COMPUTE REAL STOCK BASED ON UOM
-                  final totalBasePieces = (qty * selectedUnit.conversionRate).toInt();
-                  bool success = false;
-
-                  // Show loading
-                  showDialog(
-                    context: context,
-                    barrierDismissible: false,
-                    builder: (context) => const Center(child: CircularProgressIndicator()),
-                  );
-
-                  try {
-                    final stockReason = '${reasonController.text} (Added $qty ${selectedUnit.unitName})';
-                    if (selectedSupplierId != null) {
-                      success = await inventoryProvider.receiveCarton(
-                        productId: product.id,
-                        quantity: totalBasePieces,
-                        totalCost: double.tryParse(totalCostController.text) ?? 0,
-                        paidAmount: double.tryParse(paidAmountController.text) ?? 0,
-                        supplierId: selectedSupplierId,
-                        notes: stockReason,
-                        dueDate: dueDate,
-                      );
-                    } else {
-                      success = await inventoryProvider.updateStock(
-                        product.id, 
-                        totalBasePieces, 
-                        stockReason,
-                      );
-                    }
-                  } finally {
-                    Navigator.of(context).pop(); // Close loading
-                  }
-
+                  final totalBasePieces = (int.parse(qtyController.text) * selectedUnit.conversionRate).toInt();
+                  final success = await inventoryProvider.updateStock(product.id, totalBasePieces, reasonController.text);
                   if (dialogContext.mounted && success) {
                     Navigator.pop(dialogContext);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Stock updated successfully!'),
-                        backgroundColor: AppColors.STAR_PRIMARY,
-                      ),
-                    );
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Stock updated!'), backgroundColor: AppColors.STAR_PRIMARY));
                   }
                 },
                 child: const Text('Add Stock'),
@@ -553,6 +641,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
           );
         },
       ),
+    ),
     );
   }
 }
+
