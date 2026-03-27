@@ -1,5 +1,9 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/pos/presentation/pos_screen.dart';
@@ -119,55 +123,11 @@ class _Sidebar extends StatelessWidget {
       child: Column(
         children: [
           // Logo Area
-          Container(
-            height: 100,
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            alignment: Alignment.centerLeft,
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: theme.primaryColor.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    LucideIcons.store, 
-                    color: isDark ? AppColors.PRIMARY_ACCENT_DARK : theme.primaryColor,
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        settings.storeName.isEmpty ? "Hunain Mart" : settings.storeName,
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          overflow: TextOverflow.ellipsis,
-                          color: (isDark || isStarAdmin) ? Colors.white : AppColors.LIGHT_TEXT_PRIMARY,
-                        ),
-                      ),
-                      Text(
-                        "Point of Sale",
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: (isDark || isStarAdmin) ? Colors.white54 : AppColors.LIGHT_TEXT_TERTIARY,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+          Padding(
+            padding: const EdgeInsets.only(top: 12.0),
+            child: _buildLogoWidget(settings, theme, isDark, isStarAdmin),
           ),
+          const SizedBox(height: 8),
           const SizedBox(height: 16),
           
           // Navigation Items
@@ -220,6 +180,112 @@ class _Sidebar extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildLogoWidget(SettingsProvider settings, ThemeData theme, bool isDark, bool isStarAdmin) {
+    final storeName = settings.storeName.isEmpty ? 'Hunain Mart' : settings.storeName;
+    
+    try {
+      Widget? logoImage;
+      
+      // 1. Try file-based logo (Priority)
+      if (settings.storeLogoPath != null) {
+        final file = File(settings.storeLogoPath!);
+        if (file.existsSync()) {
+          final isSvg = settings.storeLogoPath!.toLowerCase().endsWith('.svg');
+          logoImage = isSvg 
+              ? SvgPicture.file(file, fit: BoxFit.contain)
+              : Image.file(file, fit: BoxFit.contain);
+        }
+      }
+      
+      // 2. Fallback to base64
+      if (logoImage == null && settings.storeLogo != null && settings.storeLogo!.isNotEmpty) {
+        final base64 = settings.storeLogo!;
+        final bytes = base64.contains(',') ? base64Decode(base64.split(',').last) : base64Decode(base64);
+        final isSvg = base64.contains('/svg') || (base64.length > 20 && utf8.decode(bytes.take(20).toList(), allowMalformed: true).contains('<svg'));
+        logoImage = isSvg ? SvgPicture.memory(bytes, fit: BoxFit.contain) : Image.memory(bytes, fit: BoxFit.contain);
+      }
+
+      // 3. Render Custom Logo Plate
+      if (logoImage != null) {
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.all(4), // Minimal padding to maximize image size
+          decoration: BoxDecoration(
+            color: Colors.white, // High contrast
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.12),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 140), // Maximize height for readability
+            child: logoImage,
+          ),
+        );
+      }
+
+      // 4. Fallback Branding (Themed Row)
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: theme.primaryColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                LucideIcons.store, 
+                color: isDark ? AppColors.PRIMARY_ACCENT_DARK : theme.primaryColor,
+                size: 26,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    storeName,
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    'Point of Sale',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.white54,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      return Container(
+        height: 80,
+        alignment: Alignment.center,
+        child: const Icon(LucideIcons.store, color: Colors.white54),
+      );
+    }
   }
 }
 

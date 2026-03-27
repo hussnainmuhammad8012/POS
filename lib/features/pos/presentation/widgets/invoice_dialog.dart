@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -22,6 +24,7 @@ import '../../../../core/widgets/toast_notification.dart';
 import '../../../../core/repositories/customer_repository.dart';
 import '../../application/pos_provider.dart';
 import 'package:utility_store_pos/features/pos/data/models/cart_item.dart';
+import '../../../../core/services/receipt_printer.dart';
 
 class InvoiceDialog extends StatefulWidget {
   final Transaction transaction;
@@ -206,6 +209,11 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
           Consumer<SettingsProvider>(
             builder: (context, settings, _) => Column(
               children: [
+                if (settings.storeLogo != null || settings.storeLogoPath != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Center(child: _buildLogoPreview(settings)),
+                  ),
                 Center(
                   child: Text(
                     settings.storeName.toUpperCase(),
@@ -421,6 +429,61 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
     );
   }
 
+  Widget _buildLogoPreview(SettingsProvider settings) {
+    try {
+      Widget? logoImage;
+      
+      // 1. Try file-based logo
+      if (settings.storeLogoPath != null) {
+        final file = File(settings.storeLogoPath!);
+        if (file.existsSync()) {
+          final isSvg = settings.storeLogoPath!.toLowerCase().endsWith('.svg');
+          logoImage = isSvg 
+              ? SvgPicture.file(file, fit: BoxFit.contain)
+              : Image.file(file, fit: BoxFit.contain);
+        }
+      }
+      
+      // 2. Fallback to base64 if no file
+      if (logoImage == null && settings.storeLogo != null && settings.storeLogo!.isNotEmpty) {
+        final base64 = settings.storeLogo!;
+        final bytes = base64.contains(',') ? base64Decode(base64.split(',').last) : base64Decode(base64);
+        final isSvg = base64.contains('/svg') || (base64.length > 20 && utf8.decode(bytes.take(20).toList(), allowMalformed: true).contains('<svg'));
+        logoImage = isSvg ? SvgPicture.memory(bytes, fit: BoxFit.contain) : Image.memory(bytes, fit: BoxFit.contain);
+      }
+
+      if (logoImage != null) {
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 5,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 110),
+            child: logoImage,
+          ),
+        );
+      }
+
+      return const SizedBox.shrink();
+    } catch (e) {
+      debugPrint('Error building logo preview: $e');
+      return const SizedBox.shrink();
+    }
+  }
+
+
+
   Widget _buildReceiptRow(String label, String value) {
     final theme = Theme.of(context);
     return Padding(
@@ -450,177 +513,14 @@ class _InvoiceDialogState extends State<InvoiceDialog> {
 
   // Generate PDF Document
   Future<Uint8List> _generatePdf() async {
-    final pdf = pw.Document();
     final settings = context.read<SettingsProvider>();
-
-    pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.roll80, // Thermal printer 80mm roll standard
-        build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-            children: [
-              pw.Center(
-                child: pw.Text(settings.storeName.toUpperCase(), style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16)),
-              ),
-              pw.Center(
-                child: pw.Text(settings.storeAddress, style: const pw.TextStyle(fontSize: 10)),
-              ),
-              pw.Center(
-                child: pw.Text('PH: ${settings.storePhone}', style: const pw.TextStyle(fontSize: 10)),
-              ),
-              pw.SizedBox(height: 10),
-              pw.Center(
-                child: pw.Text('STORE RECEIPT', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
-              ),
-              pw.SizedBox(height: 10),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text('Invoice:', style: const pw.TextStyle(fontSize: 10)),
-                  pw.Text('#${widget.transaction.invoiceNumber}', style: const pw.TextStyle(fontSize: 10)),
-                ],
-              ),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                   pw.Text('Date:', style: const pw.TextStyle(fontSize: 10)),
-                   pw.Text(DateFormat('MM/dd/yyyy HH:mm').format(widget.transaction.createdAt), style: const pw.TextStyle(fontSize: 10)),
-                ],
-              ),
-              if (widget.transaction.customerId != null)
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('Customer ID:', style: const pw.TextStyle(fontSize: 10)),
-                    pw.Text(widget.transaction.customerId!, style: const pw.TextStyle(fontSize: 10)),
-                  ],
-                ),
-              pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('Payment Method:', style: const pw.TextStyle(fontSize: 10)),
-                    pw.Text(widget.transaction.paymentMethod, style: const pw.TextStyle(fontSize: 10)),
-                  ],
-                ),
-              pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('Status:', style: const pw.TextStyle(fontSize: 10)),
-                    pw.Text(widget.transaction.paymentStatus, style: const pw.TextStyle(fontSize: 10)),
-                  ],
-                ),
-              pw.SizedBox(height: 10),
-              pw.Divider(),
-              ...widget.cartItems.map((CartItem item) {
-                return pw.Padding(
-                  padding: const pw.EdgeInsets.only(bottom: 4),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Row(
-                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                        children: [
-                          pw.Expanded(
-                            child: pw.Column(
-                              crossAxisAlignment: pw.CrossAxisAlignment.start,
-                              children: [
-                                pw.Text(item.productName, style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-                                pw.Text('[${item.productSku}]', style: const pw.TextStyle(fontSize: 7)),
-                              ],
-                            ),
-                          ),
-                          pw.Text(_currencyFormat.format(item.subtotal), style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-                        ],
-                      ),
-                      pw.Text(
-                        '  ${item.quantity} ${item.unitName ?? item.variantName} x ${_currencyFormat.format(item.unitPrice)}',
-                        style: const pw.TextStyle(fontSize: 8),
-                      ),
-                      if (item.unitDiscount > 0)
-                        pw.Text(
-                          '  Discount: ${item.unitDiscountPercent.toStringAsFixed(1)}% (-${_currencyFormat.format(item.totalDiscount)})',
-                          style: pw.TextStyle(fontSize: 7, color: PdfColors.green),
-                        ),
-                      if (item.taxAmount > 0)
-                        pw.Text(
-                          '  Tax (${item.taxRate.toStringAsFixed(1)}%): +${_currencyFormat.format(item.taxAmount)}',
-                          style: pw.TextStyle(fontSize: 7, color: PdfColors.orange),
-                        ),
-                    ],
-                  ),
-                );
-              }),
-              pw.Divider(),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text('Gross Total:', style: const pw.TextStyle(fontSize: 10)),
-                  pw.Text(_currencyFormat.format(widget.transaction.totalAmount), style: const pw.TextStyle(fontSize: 10)),
-                ],
-              ),
-              if (widget.transaction.tax > 0)
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text(
-                      widget.transaction.isTaxInclusive ? 'Tax (Incl.):' : 'Tax (Excl.):', 
-                      style: const pw.TextStyle(fontSize: 10)
-                    ),
-                    pw.Text(_currencyFormat.format(widget.transaction.tax), style: const pw.TextStyle(fontSize: 10)),
-                  ],
-                ),
-              if (widget.transaction.discount > 0)
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('Total Discount (${widget.transaction.discountPercent.toStringAsFixed(1)}%):', style: const pw.TextStyle(fontSize: 10)),
-                    pw.Text(_currencyFormat.format(-widget.transaction.discount), style: const pw.TextStyle(fontSize: 10)),
-                  ],
-                ),
-               if (widget.transaction.discount > 0) ...[
-                pw.SizedBox(height: 5),
-                 pw.Center(
-                  child: pw.Text('YOU SAVED: ${_currencyFormat.format(widget.transaction.discount)}', 
-                    style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.green)),
-                ),
-              ],
-              pw.SizedBox(height: 5),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text('TOTAL:', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-                  pw.Text(_currencyFormat.format(widget.transaction.finalAmount), style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-                ],
-              ),
-              if (widget.transaction.creditAmount > 0) ...[
-                pw.Divider(),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('Cash Paid:', style: const pw.TextStyle(fontSize: 10)),
-                    pw.Text(_currencyFormat.format(widget.transaction.cashPaid), style: const pw.TextStyle(fontSize: 10)),
-                  ],
-                ),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('Remaining Credit:', style: const pw.TextStyle(fontSize: 10)),
-                    pw.Text(_currencyFormat.format(widget.transaction.creditAmount), style: const pw.TextStyle(fontSize: 10)),
-                  ],
-                ),
-              ],
-              pw.SizedBox(height: 20),
-              pw.Center(
-                child: pw.Text(settings.receiptCustomMessage.isNotEmpty ? settings.receiptCustomMessage : 'Thank you for shopping!', style: pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic)),
-              ),
-            ],
-          );
-        },
-      ),
+    
+    // Use the centralized ReceiptPrinter to ensure branding consistency (massive logo, no text if logo present)
+    return await ReceiptPrinter.generateReceiptPdf(
+      transaction: widget.transaction,
+      cartItems: widget.cartItems,
+      settings: settings,
     );
-
-    return pdf.save();
   }
 
   Future<void> _handlePrint() async {

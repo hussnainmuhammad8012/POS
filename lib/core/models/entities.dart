@@ -206,6 +206,46 @@ class Transaction {
     this.returnedAmount = 0.0,
   });
 
+  factory Transaction.fromMap(Map<String, dynamic> map) => Transaction(
+    id: map['id']?.toString(),
+    invoiceNumber: map['invoice_number'] ?? map['invoiceNumber'] ?? '',
+    customerId: map['customer_id']?.toString() ?? map['customerId']?.toString(),
+    customerName: map['customer_name'] ?? map['customerName'],
+    totalAmount: (map['total_amount'] ?? map['totalAmount'] ?? 0.0) as double,
+    discount: (map['discount'] ?? 0.0) as double,
+    discountPercent: (map['discount_percent'] ?? map['discountPercent'] ?? 0.0) as double,
+    tax: (map['tax'] ?? 0.0) as double,
+    isTaxInclusive: (map['is_tax_inclusive'] ?? map['isTaxInclusive'] ?? 0) == 1 || (map['is_tax_inclusive'] ?? map['isTaxInclusive'] ?? false) == true,
+    finalAmount: (map['final_amount'] ?? map['finalAmount'] ?? 0.0) as double,
+    cashPaid: (map['cash_paid'] ?? map['cashPaid'] ?? 0.0) as double,
+    creditAmount: (map['credit_amount'] ?? map['creditAmount'] ?? 0.0) as double,
+    paymentMethod: map['payment_method'] ?? map['paymentMethod'] ?? 'CASH',
+    paymentStatus: map['payment_status'] ?? map['paymentStatus'] ?? 'PAID',
+    createdAt: map['created_at'] != null ? DateTime.parse(map['created_at']) : (map['createdAt'] != null ? DateTime.parse(map['createdAt']) : DateTime.now()),
+    isReturned: (map['is_returned'] ?? map['isReturned'] ?? 0) == 1 || (map['is_returned'] ?? map['isReturned'] ?? false) == true,
+    returnedAmount: (map['returned_amount'] ?? map['returnedAmount'] ?? 0.0) as double,
+  );
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'invoice_number': invoiceNumber,
+    'customer_id': customerId,
+    'customer_name': customerName,
+    'total_amount': totalAmount,
+    'discount': discount,
+    'discount_percent': discountPercent,
+    'tax': tax,
+    'is_tax_inclusive': isTaxInclusive ? 1 : 0,
+    'final_amount': finalAmount,
+    'cash_paid': cashPaid,
+    'credit_amount': creditAmount,
+    'payment_method': paymentMethod,
+    'payment_status': paymentStatus,
+    'created_at': createdAt.toIso8601String(),
+    'is_returned': isReturned ? 1 : 0,
+    'returned_amount': returnedAmount,
+  };
+
   Transaction copyWith({
     String? id,
     String? invoiceNumber,
@@ -303,6 +343,40 @@ class TransactionItem {
     this.unitName,
     this.returnedQuantity = 0,
   });
+
+  factory TransactionItem.fromMap(Map<String, dynamic> map) => TransactionItem(
+    id: map['id']?.toString(),
+    transactionId: map['transaction_id'] ?? map['transactionId'] ?? '',
+    variantId: map['variant_id'] ?? map['variantId'] ?? '',
+    quantity: (map['quantity'] ?? 0) as int,
+    priceAtTime: (map['price_at_time'] ?? map['priceAtTime'] ?? 0.0) as double,
+    costAtTime: map['cost_at_time'] != null ? (map['cost_at_time'] as num).toDouble() : (map['costAtTime'] != null ? (map['costAtTime'] as num).toDouble() : null),
+    subtotal: (map['subtotal'] ?? 0.0) as double,
+    discount: (map['discount'] ?? 0.0) as double,
+    discountPercent: (map['discount_percent'] ?? map['discountPercent'] ?? 0.0) as double,
+    taxRate: (map['tax_rate'] ?? map['taxRate'] ?? 0.0) as double,
+    taxAmount: (map['tax_amount'] ?? map['taxAmount'] ?? 0.0) as double,
+    unitId: map['unit_id'] ?? map['unitId'],
+    unitName: map['unit_name'] ?? map['unitName'],
+    returnedQuantity: (map['returned_quantity'] ?? map['returnedQuantity'] ?? 0) as int,
+  );
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'transaction_id': transactionId,
+    'variant_id': variantId,
+    'quantity': quantity,
+    'price_at_time': priceAtTime,
+    'cost_at_time': costAtTime,
+    'subtotal': subtotal,
+    'discount': discount,
+    'discount_percent': discountPercent,
+    'tax_rate': taxRate,
+    'tax_amount': taxAmount,
+    'unit_id': unitId,
+    'unit_name': unitName,
+    'returned_quantity': returnedQuantity,
+  };
 
   TransactionItem copyWith({
     String? id,

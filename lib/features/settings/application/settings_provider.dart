@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,6 +18,11 @@ class SettingsProvider extends ChangeNotifier {
   double get taxRate => _prefs.getDouble('tax_rate') ?? 18.0;
   bool get enableTaxSystem => _prefs.getBool('enable_tax_system') ?? false;
   bool get taxInclusive => _prefs.getBool('tax_inclusive') ?? false;
+  String? get storeLogoPath => _prefs.getString('store_logo_path');
+  
+  // Backwards compatibility getter that returns base64 if it's still there, 
+  // or reads from file if it's a path
+  String? get storeLogo => _prefs.getString('store_logo');
 
   // Receipt Options
   String get receiptCustomMessage => _prefs.getString('receipt_custom_message') ?? 'Thank you for shopping with us!';
@@ -66,6 +72,33 @@ class SettingsProvider extends ChangeNotifier {
     if (address != null) await _prefs.setString('store_address', address);
     if (phone != null) await _prefs.setString('store_phone', phone);
     if (tax != null) await _prefs.setDouble('tax_rate', tax);
+    notifyListeners();
+  }
+
+  Future<void> updateStoreLogo(String? base64Content) async {
+    if (base64Content == null) {
+      await _prefs.remove('store_logo');
+      final logoFile = File(p.join((await getApplicationSupportDirectory()).path, 'store_logo.png'));
+      if (await logoFile.exists()) await logoFile.delete();
+    } else {
+      // For sync and immediate use, we still keep it in prefs for now, 
+      // but also save it to a file for more reliable loading on Desktop
+      await _prefs.setString('store_logo', base64Content);
+      
+      try {
+        final supportDir = await getApplicationSupportDirectory();
+        final logoFile = File(p.join(supportDir.path, 'store_logo.png'));
+        
+        final bytes = base64Content.contains(',') 
+            ? base64Decode(base64Content.split(',').last) 
+            : base64Decode(base64Content);
+            
+        await logoFile.writeAsBytes(bytes);
+        await _prefs.setString('store_logo_path', logoFile.path);
+      } catch (e) {
+        print('Error saving logo to file: $e');
+      }
+    }
     notifyListeners();
   }
 

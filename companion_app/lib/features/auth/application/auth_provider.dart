@@ -16,6 +16,7 @@ class AuthProvider extends ChangeNotifier {
   bool _isLoggedIn = false;
   AppMode _currentMode = AppMode.selection;
   String? _shopName;
+  String? _storeLogo;
   String? _role;
   UserPermissions? _permissions;
 
@@ -37,6 +38,7 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoggedIn => _isLoggedIn;
   AppMode get currentMode => _currentMode;
   String? get shopName => _shopName;
+  String? get storeLogo => _storeLogo;
   String? get role => _role;
   UserPermissions? get permissions => _permissions;
   Map<String, dynamic>? get updateInfo => _updateInfo;
@@ -68,6 +70,7 @@ class AuthProvider extends ChangeNotifier {
     _serverIp = prefs.getString('server_ip');
     _accessToken = prefs.getString('access_token');
     _shopName = prefs.getString('shop_name');
+    _storeLogo = prefs.getString('store_logo');
     _isPaired = _serverIp != null && _accessToken != null;
     notifyListeners();
     
@@ -213,10 +216,13 @@ class AuthProvider extends ChangeNotifier {
             headers: {'Authorization': 'Bearer $sessionToken'},
           ).timeout(Duration(seconds: isLocalhost ? 2 : 5));
           
+          
           if (response.statusCode == 200) {
-            final String name = jsonDecode(response.body)['appName'] ?? 'Gravity POS';
+            final data = jsonDecode(response.body);
+            final String name = data['appName'] ?? 'Gravity POS';
+            final String? logo = data['storeLogo'];
             debugPrint('[AUTH] SUCCESS on $targetIp');
-            await _savePairing('$targetIp:$serverPort', sessionToken, name);
+            await _savePairing('$targetIp:$serverPort', sessionToken, name, logo);
             return true;
           }
         } catch (_) {}
@@ -243,14 +249,20 @@ class AuthProvider extends ChangeNotifier {
     return false;
   }
 
-  Future<void> _savePairing(String address, String token, String name) async {
+  Future<void> _savePairing(String address, String token, String name, String? logo) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('server_ip', address);
     await prefs.setString('access_token', token);
     await prefs.setString('shop_name', name);
+    if (logo != null) {
+      await prefs.setString('store_logo', logo);
+    } else {
+      await prefs.remove('store_logo');
+    }
     _serverIp = address;
     _accessToken = token;
     _shopName = name;
+    _storeLogo = logo;
     _isPaired = true;
     notifyListeners();
   }
@@ -300,9 +312,11 @@ class AuthProvider extends ChangeNotifier {
     await prefs.remove('server_ip');
     await prefs.remove('access_token');
     await prefs.remove('shop_name');
+    await prefs.remove('store_logo');
     _serverIp = null;
     _accessToken = null;
     _shopName = null;
+    _storeLogo = null;
     _isPaired = false;
     _isLoggedIn = false;
     _currentMode = AppMode.selection;

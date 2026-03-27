@@ -2,7 +2,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 Future<void> migrateV20(Database db) async {
   await db.execute('''
-    CREATE TABLE return_events (
+    CREATE TABLE IF NOT EXISTS return_events (
       id TEXT PRIMARY KEY,
       transaction_id TEXT NOT NULL,
       refund_amount REAL NOT NULL,
@@ -13,10 +13,14 @@ Future<void> migrateV20(Database db) async {
   
   // Backfill existing returns from transactions table
   // Assuming the return happened at the exact same time as the invoice generation for older untracked data.
-  await db.execute('''
-    INSERT INTO return_events (id, transaction_id, refund_amount, created_at)
-    SELECT id || '_ret_mig', id, returned_amount, created_at
-    FROM transactions
-    WHERE returned_amount > 0
-  ''');
+  try {
+    await db.execute('''
+      INSERT INTO return_events (id, transaction_id, refund_amount, created_at)
+      SELECT id || '_ret_mig', id, returned_amount, created_at
+      FROM transactions
+      WHERE returned_amount > 0 AND (id || '_ret_mig') NOT IN (SELECT id FROM return_events)
+    ''');
+  } catch (e) {
+    print('Error backfilling returns in migrateV20: $e');
+  }
 }

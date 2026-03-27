@@ -12,6 +12,8 @@ import 'features/settings/application/settings_provider.dart';
 import 'features/pos/application/pos_provider.dart';
 import 'features/inventory/application/inventory_provider.dart';
 import 'features/inventory/application/stock_provider.dart';
+import 'features/inventory/data/models/product_unit_model.dart';
+import 'features/pos/data/models/cart_item.dart';
 import 'features/inventory/data/repositories/category_repository.dart';
 import 'features/inventory/data/repositories/product_repository.dart';
 import 'features/inventory/data/repositories/carton_repository.dart';
@@ -31,6 +33,7 @@ import 'core/application/global_search_provider.dart';
 import 'core/network/local_api_server.dart';
 import 'core/services/fcm_service.dart';
 import 'core/services/data_sync_service.dart';
+import 'core/services/receipt_printer.dart';
 import 'package:tray_manager/tray_manager.dart';
 
 import 'core/repositories/supplier_repository.dart';
@@ -216,6 +219,117 @@ class _AppBootstrapperState extends State<_AppBootstrapper> with TrayListener {
       dataSyncService: context.read<DataSyncService>(),
       authService: AuthService(),
       desktopAuthProvider: auth,
+    );
+    
+    // Set server callbacks for remote printing
+    server.setCallbacks(
+      onRemoteCheckout: (tx, items) async {
+        print('REMOTE PRINT: Checkout triggered from mobile for INV#${tx.invoiceNumber}');
+        
+        final List<CartItem> cartItems = [];
+        for (final i in items) {
+          final v = await widget.productRepo.getVariantById(i.variantId);
+          String productName = 'Unknown Product';
+          String sku = '';
+          List<ProductUnit> units = [];
+          
+          if (v != null) {
+            final pData = await widget.productRepo.getProductWithVariants(v.productId);
+            productName = pData?['product']?.name ?? 'Unknown';
+            sku = pData?['product']?.baseSku ?? '';
+            units = await widget.productRepo.getUnitsByProductId(v.productId);
+          }
+
+          cartItems.add(CartItem(
+            id: 'remote_${i.variantId}',
+            variantId: i.variantId,
+            productName: productName,
+            productSku: sku,
+            variantName: i.unitName ?? '',
+            unitPrice: i.priceAtTime,
+            quantity: i.quantity,
+            profitMargin: 0.0,
+            availableStock: i.quantity,
+            unitId: i.unitId,
+            unitName: i.unitName,
+            conversionRate: 1, 
+            taxRate: i.taxRate,
+            taxAmount: i.taxAmount,
+            unitDiscount: i.discount,
+            productUnits: units,
+          ));
+        }
+
+        await ReceiptPrinter.printReceipt(
+          transaction: tx,
+          cartItems: cartItems,
+          settings: settings,
+        );
+      },
+      onRemotePrint: (printData) async {
+         print('REMOTE PRINT: Manual print requested from mobile: $printData');
+         try {
+           final settings = context.read<SettingsProvider>();
+           final String? type = printData['type'];
+
+           if (type == 'receipt') {
+              final String? invoiceNumber = printData['invoiceNumber'] ?? printData['invoice_number'];
+              if (invoiceNumber != null) {
+                final tx = await widget.transactionRepo.getTransactionByInvoice(invoiceNumber);
+                if (tx != null) {
+                   final items = await widget.transactionRepo.getItemsForTransaction(tx.id!);
+                   final List<CartItem> cartItems = [];
+                   for (final i in items) {
+                      final v = await widget.productRepo.getVariantById(i['product_variant_id'] as String);
+                      String productName = i['product_name'] as String? ?? 'Unknown';
+                      String sku = i['product_sku'] as String? ?? '';
+                      
+                      cartItems.add(CartItem(
+                        id: i['id'] as String,
+                        variantId: i['product_variant_id'] as String,
+                        productName: productName,
+                        productSku: sku,
+                        variantName: i['variant_name'] as String? ?? '',
+                        unitPrice: (i['price_at_time'] as num).toDouble(),
+                        quantity: (i['quantity'] as num).toInt(),
+                        unitDiscount: (i['item_discount'] as num?)?.toDouble() ?? 0.0,
+                        profitMargin: 0.0,
+                        availableStock: 0,
+                      ));
+                   }
+
+                   await ReceiptPrinter.printReceipt(
+                      transaction: tx,
+                      cartItems: cartItems,
+                      settings: settings,
+                   );
+                }
+              }
+           } else if (type == 'label') {
+              double price = 0.0;
+              final String? unitId = printData['unitId'];
+              final String? productId = printData['productId'];
+              
+              if (unitId != null && unitId.isNotEmpty) {
+                final unit = await widget.productRepo.getUnitById(unitId);
+                price = unit?.retailPrice ?? 0.0;
+              } else if (productId != null && productId.isNotEmpty) {
+                final baseUnit = await widget.productRepo.getBaseUnitByProductId(productId);
+                price = baseUnit?.retailPrice ?? 0.0;
+              }
+              
+              final Map<String, dynamic> labelData = Map<String, dynamic>.from(printData);
+              labelData['price'] = price;
+              
+              await ReceiptPrinter.printLabel(
+                labelData: labelData,
+                settings: settings,
+              );
+           }
+         } catch (e) {
+           print('REMOTE PRINT ERROR: $e');
+         }
+      },
     );
 
     if (settings.isServerEnabled) {

@@ -357,6 +357,18 @@ class TransactionRepository {
     return _fromRow(rows.first);
   }
 
+  Future<Transaction?> getTransactionByInvoice(String invoiceNumber) async {
+    final rows = await _db.rawQuery('''
+      SELECT t.*, c.name as customer_name
+      FROM transactions t
+      LEFT JOIN customers c ON t.customer_id = c.id
+      WHERE t.invoice_number = ?
+    ''', [invoiceNumber]);
+    
+    if (rows.isEmpty) return null;
+    return _fromRow(rows.first);
+  }
+
   Future<List<Transaction>> getTransactionsByDateRange(
     DateTime start,
     DateTime end,

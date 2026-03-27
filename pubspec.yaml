@@ -27,6 +27,7 @@ dependencies:
   # UI helpers
   intl: 0.20.2
   google_fonts: ^6.2.1
+  flutter_svg: ^2.0.10+1
 
   # File handling (backup/restore, imports)
   file_picker: ^8.0.3

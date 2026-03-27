@@ -1,5 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
@@ -151,6 +154,10 @@ class _StoreInfoPanel extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _buildLogoUpload(context, settings),
+              const SizedBox(height: 32),
+              const Divider(),
+              const SizedBox(height: 32),
               CustomTextField(
                 label: 'Store Name',
                 initialValue: settings.storeName,
@@ -330,6 +337,135 @@ class _StoreInfoPanel extends StatelessWidget {
         ],
       ],
     );
+  }
+
+  Widget _buildLogoUpload(BuildContext context, SettingsProvider settings) {
+    final theme = Theme.of(context);
+    
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // Logo Preview
+        Container(
+          width: 120,
+          height: 120,
+          decoration: BoxDecoration(
+            color: theme.scaffoldBackgroundColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: settings.storeLogo != null
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: _buildLogoPreview(settings.storeLogo!),
+                )
+              : Center(
+                  child: Icon(LucideIcons.image, size: 40, color: theme.hintColor),
+                ),
+        ),
+        const SizedBox(width: 32),
+        // Upload Actions
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Store Logo', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text(
+                'Upload your store logo to display on receipts, reports, and the sidebar. Supports PNG, JPG, and SVG.',
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () => _handleLogoPick(context, settings),
+                    icon: const Icon(LucideIcons.upload, size: 16),
+                    label: const Text('Upload Image'),
+                  ),
+                  if (settings.storeLogo != null) ...[
+                    const SizedBox(width: 12),
+                    TextButton.icon(
+                      onPressed: () => settings.updateStoreLogo(null),
+                      icon: const Icon(LucideIcons.trash2, size: 16, color: Colors.red),
+                      label: const Text('Remove', style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLogoPreview(String base64) {
+    try {
+      final bytes = base64.startsWith('data:image') 
+          ? base64Decode(base64.split(',').last) 
+          : base64Decode(base64);
+      
+      final isSvg = base64.contains('/svg') || 
+                   (base64.length > 20 && utf8.decode(bytes.take(20).toList(), allowMalformed: true).contains('<svg'));
+
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: isSvg 
+            ? SvgPicture.memory(bytes, fit: BoxFit.contain)
+            : Image.memory(bytes, fit: BoxFit.contain),
+      );
+    } catch (e) {
+      return const Center(child: Icon(LucideIcons.alertTriangle, color: Colors.red));
+    }
+  }
+
+  Future<void> _handleLogoPick(BuildContext context, SettingsProvider settings) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['png', 'jpg', 'jpeg', 'svg'],
+      );
+
+      if (result != null && result.files.single.path != null) {
+        final file = File(result.files.single.path!);
+        final bytes = await file.readAsBytes();
+        
+        String prefix = '';
+        final ext = result.files.single.extension?.toLowerCase();
+        if (ext == 'svg') prefix = 'data:image/svg+xml;base64,';
+        else if (ext == 'png') prefix = 'data:image/png;base64,';
+        else prefix = 'data:image/jpeg;base64,';
+
+        final base64String = prefix + base64Encode(bytes);
+        await settings.updateStoreLogo(base64String);
+        
+        if (context.mounted) {
+          AppToast.show(
+            context,
+            title: 'Logo Updated',
+            message: 'Your store logo has been saved successfully.',
+            type: ToastType.success,
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.show(
+          context,
+          title: 'Upload Failed',
+          message: e.toString(),
+          type: ToastType.error,
+        );
+      }
+    }
   }
 
   Widget _buildSettingRow(

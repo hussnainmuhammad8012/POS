@@ -1,10 +1,11 @@
 import 'dart:io';
+import 'dart:convert';
 import 'dart:typed_data';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:file_picker/file_picker.dart';
+import '../../settings/application/settings_provider.dart';
 import '../application/analytics_provider.dart';
 
 class PdfReportService {
@@ -14,11 +15,13 @@ class PdfReportService {
   Future<String?> generateAndSaveReport({
     required String storeName,
     required String storeAddress,
+    String? storeLogo,
     required DateTime start,
     required DateTime end,
     required AnalyticsKpi kpi,
     required List<Map<String, dynamic>> topProducts,
     required List<Map<String, dynamic>> topCategories,
+    required SettingsProvider settings,
   }) async {
     final pdf = pw.Document();
 
@@ -28,7 +31,7 @@ class PdfReportService {
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
         build: (context) => [
-          _buildHeader(storeName, storeAddress, start, end),
+          _buildHeader(storeName, storeAddress, start, end, settings, storeLogo: storeLogo),
           pw.SizedBox(height: 24),
           _buildKpiSummary(kpi),
           pw.SizedBox(height: 32),
@@ -69,9 +72,11 @@ class PdfReportService {
   Future<String?> generateReturnsReport({
     required String storeName,
     required String storeAddress,
+    String? storeLogo,
     required DateTime start,
     required DateTime end,
     required List<dynamic> returnedTransactions,
+    required SettingsProvider settings,
   }) async {
     final pdf = pw.Document();
     
@@ -85,7 +90,7 @@ class PdfReportService {
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
         build: (context) => [
-          _buildHeader(storeName, storeAddress, start, end, title: 'RETURNED BILLS REPORT'),
+          _buildHeader(storeName, storeAddress, start, end, settings, title: 'RETURNED BILLS REPORT', storeLogo: storeLogo),
           pw.SizedBox(height: 24),
           pw.Container(
             padding: const pw.EdgeInsets.all(16),
@@ -133,10 +138,18 @@ class PdfReportService {
     return null;
   }
 
-  pw.Widget _buildHeader(String name, String address, DateTime start, DateTime end, {String title = 'BUSINESS REPORT'}) {
+  pw.Widget _buildHeader(String name, String address, DateTime start, DateTime end, SettingsProvider settings, {String title = 'BUSINESS REPORT', String? storeLogo}) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
+        if (settings.storeLogo != null || settings.storeLogoPath != null)
+           pw.Center(
+             child: pw.Container(
+               height: 60,
+               margin: const pw.EdgeInsets.only(bottom: 20),
+               child: _buildPdfLogo(settings),
+             ),
+           ),
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
@@ -164,6 +177,42 @@ class PdfReportService {
         pw.Divider(thickness: 2, color: PdfColors.blue900),
       ],
     );
+  }
+
+  pw.Widget _buildPdfLogo(SettingsProvider settings) {
+    try {
+      Uint8List? bytes;
+      bool isSvg = false;
+
+      if (settings.storeLogoPath != null) {
+        final file = File(settings.storeLogoPath!);
+        if (file.existsSync()) {
+          bytes = file.readAsBytesSync();
+          isSvg = settings.storeLogoPath!.toLowerCase().endsWith('.svg');
+        }
+      } else if (settings.storeLogo != null) {
+        final base64 = settings.storeLogo!;
+        if (base64.isNotEmpty) {
+          final decodedBytes = base64.contains(',') 
+              ? base64Decode(base64.split(',').last) 
+              : base64Decode(base64);
+          bytes = decodedBytes;
+          isSvg = base64.contains('/svg') || 
+                  (decodedBytes.length > 20 && utf8.decode(decodedBytes.take(20).toList(), allowMalformed: true).contains('<svg'));
+        }
+      }
+
+      if (bytes == null || bytes.isEmpty) return pw.SizedBox();
+
+      if (isSvg) {
+        return pw.SvgImage(svg: utf8.decode(bytes));
+      } else {
+        return pw.Image(pw.MemoryImage(bytes));
+      }
+    } catch (e) {
+      print('PdfReportService Logo Error: $e');
+      return pw.SizedBox();
+    }
   }
 
   pw.Widget _buildKpiSummary(AnalyticsKpi kpi) {

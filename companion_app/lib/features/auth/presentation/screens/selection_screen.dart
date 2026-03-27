@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -14,6 +16,7 @@ class SelectionScreen extends StatefulWidget {
 class _SelectionScreenState extends State<SelectionScreen> {
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: AppColors.STAR_BACKGROUND,
       body: SafeArea(
@@ -22,20 +25,51 @@ class _SelectionScreenState extends State<SelectionScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Logo/Brand Area
-              const Icon(LucideIcons.shieldCheck, size: 80, color: AppColors.STAR_PRIMARY),
-              const SizedBox(height: 20),
-              const Text(
-                'POS COMPANION',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
-                ),
-              ),
-              const Text(
-                'Select your workspace',
-                style: TextStyle(color: AppColors.STAR_TEXT_SECONDARY),
+              // Brand Area
+              Consumer<AuthProvider>(
+                builder: (context, auth, _) {
+                  return Column(
+                    children: [
+                      if (auth.storeLogo != null)
+                        _buildLogoWidget(auth.storeLogo!)
+                      else ...[
+                        const Icon(LucideIcons.shieldCheck, size: 80, color: AppColors.STAR_PRIMARY),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'POS COMPANION',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 2,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const Text(
+                          'Select your workspace',
+                          style: TextStyle(color: AppColors.STAR_TEXT_SECONDARY),
+                        ),
+                      ],
+                      if (auth.storeLogo != null) ...[
+                        const SizedBox(height: 24),
+                        Text(
+                          auth.shopName ?? 'Gravity POS',
+                          style: theme.textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Companion App',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ],
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 60),
 
@@ -187,5 +221,52 @@ class _SelectionScreenState extends State<SelectionScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildLogoWidget(String base64) {
+    try {
+      final bytes = base64.contains(',') 
+          ? base64Decode(base64.split(',').last) 
+          : base64Decode(base64);
+      
+      final isSvg = base64.contains('/svg') || 
+                   (bytes.length > 20 && utf8.decode(bytes.take(20).toList(), allowMalformed: true).contains('<svg'));
+
+      Widget fallback = Container(
+        height: 100,
+        width: 100,
+        decoration: BoxDecoration(
+          color: AppColors.STAR_PRIMARY.withOpacity(0.1),
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(LucideIcons.store, size: 50, color: AppColors.STAR_PRIMARY),
+      );
+
+      return Container(
+        height: 120,
+        constraints: const BoxConstraints(maxWidth: 250),
+        child: isSvg 
+            ? SvgPicture.memory(
+                bytes, 
+                fit: BoxFit.contain,
+                placeholderBuilder: (context) => fallback,
+              )
+            : Image.memory(
+                bytes, 
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => fallback,
+              ),
+      );
+    } catch (e) {
+      return Container(
+        height: 100,
+        width: 100,
+        decoration: BoxDecoration(
+          color: AppColors.STAR_PRIMARY.withOpacity(0.1),
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(LucideIcons.store, size: 50, color: AppColors.STAR_PRIMARY),
+      );
+    }
   }
 }

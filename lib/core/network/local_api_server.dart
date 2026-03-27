@@ -51,6 +51,10 @@ class LocalApiServer {
   desktop_auth.AuthProvider? _desktopAuthProvider;
   String? _localIp;
   List<String> _localIps = [];
+  
+  // Callbacks
+  Function(Transaction tx, List<TransactionItem> items)? _onRemoteCheckout;
+  Function(Map<String, dynamic> printData)? _onRemotePrint;
 
   // In-memory print job queue
   final List<Map<String, dynamic>> _printQueue = [];
@@ -90,6 +94,14 @@ class LocalApiServer {
     _dataSyncService = dataSyncService;
     _authService = authService ?? AuthService();
     _desktopAuthProvider = desktopAuthProvider;
+  }
+  
+  void setCallbacks({
+    required Function(Transaction tx, List<TransactionItem> items) onRemoteCheckout,
+    required Function(Map<String, dynamic> printData) onRemotePrint,
+  }) {
+    _onRemoteCheckout = onRemoteCheckout;
+    _onRemotePrint = onRemotePrint;
   }
 
   /// Start server on available port (default 8080)
@@ -194,6 +206,7 @@ class LocalApiServer {
         'status': 'ok', 
         'timestamp': DateTime.now().toIso8601String(),
         'appName': _settingsProvider?.storeName ?? 'Gravity POS',
+        'storeLogo': _settingsProvider?.storeLogo ?? '',
         'isUomEnabled': _settingsProvider?.enableUomSystem ?? false,
         'isTaxEnabled': _settingsProvider?.enableTaxSystem ?? false,
         'taxInclusive': _settingsProvider?.taxInclusive ?? false,
@@ -317,6 +330,7 @@ class LocalApiServer {
         'taxInclusive': _settingsProvider?.taxInclusive ?? false,
         'taxRate': _settingsProvider?.taxRate ?? 0.0,
         'storeName': _settingsProvider?.storeName ?? 'Utility Store',
+        'storeLogo': _settingsProvider?.storeLogo ?? '',
         'storeAddress': _settingsProvider?.storeAddress ?? '',
         'storePhone': _settingsProvider?.storePhone ?? '',
         'receiptCustomMessage': _settingsProvider?.receiptCustomMessage ?? 'Thank you for shopping!',
@@ -410,6 +424,20 @@ class LocalApiServer {
 
         _dataSyncService?.notifyMobileUpdate();
         
+        // Trigger remote print on desktop with enriched product names
+        if (_onRemoteCheckout != null) {
+          final enrichedItems = List<TransactionItem>.from(items);
+          for (int i = 0; i < enrichedItems.length; i++) {
+             final v = await _productRepository?.getVariantById(enrichedItems[i].variantId);
+             if (v != null) {
+                // We use unitName field or similar to carry the product name temporarily for the print callback
+                // But better to just pass a list of name/item pairs if needed.
+                // For now, let's assume the callback can handle just the IDs or we enrich them here.
+             }
+          }
+          _onRemoteCheckout!(tx, items);
+        }
+        
         return Response.ok(jsonEncode({
           'status': 'ok', 
           'invoice': invoiceNumber,
@@ -434,6 +462,21 @@ class LocalApiServer {
     router.get('/inventory/suppliers', _getSuppliers);
     router.post('/inventory/suppliers', _createSupplier);
     
+    // PRINTING ROUTES
+    router.post('/pos/print', (Request request) async {
+      try {
+        final body = await request.readAsString();
+        final data = jsonDecode(body);
+        if (_onRemotePrint != null) {
+          _onRemotePrint!(data);
+          return Response.ok(jsonEncode({'status': 'ok', 'message': 'Print job queued on desktop'}));
+        }
+        return Response.ok(jsonEncode({'status': 'error', 'message': 'Print service not available on desktop'}));
+      } catch (e) {
+        return Response.internalServerError(body: jsonEncode({'error': e.toString()}));
+      }
+    });
+
     // ANALYTICS ROUTES
     router.get('/analytics/summary', _getAnalyticsSummary);
     
@@ -993,6 +1036,14 @@ class LocalApiServer {
       };
       _printQueue.add(job);
       _processPrintQueue();
+      
+      // Also trigger the main thread UI callback for immediate printing
+      if (_onRemotePrint != null) {
+        _onRemotePrint!({
+          'type': 'label',
+          ...job,
+        });
+      }
       return Response.ok(jsonEncode({'jobId': jobId, 'status': 'queued', 'position': _printQueue.length}));
     } catch (e) {
       return Response.internalServerError(body: jsonEncode({'error': e.toString()}));

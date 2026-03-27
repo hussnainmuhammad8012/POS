@@ -143,14 +143,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ? await provider.generateReturnsReport(
                   storeName: settings.storeName,
                   storeAddress: settings.storeAddress,
+                  storeLogo: settings.storeLogo,
                   start: start,
                   end: end,
+                  settings: settings,
                 )
               : await provider.generateReport(
                   storeName: settings.storeName,
                   storeAddress: settings.storeAddress,
+                  storeLogo: settings.storeLogo,
                   start: start,
                   end: end,
+                  settings: settings,
                 );
           if (path != null && context.mounted) {
             AppToast.show(

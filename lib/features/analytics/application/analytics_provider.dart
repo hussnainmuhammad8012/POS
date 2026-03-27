@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../data/analytics_repository.dart';
 import '../../../core/repositories/transaction_repository.dart';
 import '../../../core/services/data_sync_service.dart';
+import '../../settings/application/settings_provider.dart';
 import 'pdf_report_service.dart';
 
 class AnalyticsKpi {
@@ -143,8 +144,10 @@ class AnalyticsProvider extends ChangeNotifier {
   Future<String?> generateReport({
     required String storeName,
     required String storeAddress,
+    String? storeLogo,
     required DateTime start,
     required DateTime end,
+    required SettingsProvider settings,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -175,11 +178,13 @@ class AnalyticsProvider extends ChangeNotifier {
       return await _pdfService.generateAndSaveReport(
         storeName: storeName,
         storeAddress: storeAddress,
+        storeLogo: storeLogo,
         start: start,
         end: end,
         kpi: reportKpi,
         topProducts: reportProducts,
         topCategories: reportCategories,
+        settings: settings,
       );
     } catch (e) {
       debugPrint('Error generating report: $e');
@@ -193,8 +198,10 @@ class AnalyticsProvider extends ChangeNotifier {
   Future<String?> generateReturnsReport({
     required String storeName,
     required String storeAddress,
+    String? storeLogo,
     required DateTime start,
     required DateTime end,
+    required SettingsProvider settings,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -206,9 +213,11 @@ class AnalyticsProvider extends ChangeNotifier {
       return await _pdfService.generateReturnsReport(
         storeName: storeName,
         storeAddress: storeAddress,
+        storeLogo: storeLogo,
         start: start,
         end: end,
         returnedTransactions: returnedTxs,
+        settings: settings,
       );
     } catch (e) {
       debugPrint('Error generating returns report: $e');
