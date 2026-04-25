@@ -358,23 +358,31 @@ class PosProvider extends ChangeNotifier {
   List<Map<String, dynamic>> get searchSuggestions => _searchSuggestions;
 
   Future<void> searchProductsByName(String query) async {
-    if (query.isEmpty) {
+    final trimmedQuery = query.trim();
+    if (trimmedQuery.isEmpty) {
       _searchSuggestions = [];
+      _error = null;
       notifyListeners();
       return;
     }
     try {
       final response = await http.get(
-        Uri.parse('http://$serverIp/inventory/products/search?q=${Uri.encodeComponent(query)}&limit=8'),
+        Uri.parse('http://$serverIp/inventory/products/search?q=${Uri.encodeComponent(trimmedQuery)}&limit=8'),
         headers: {'Authorization': 'Bearer $accessToken'},
       ).timeout(const Duration(seconds: 4));
       if (response.statusCode == 200) {
         final list = jsonDecode(response.body) as List;
         _searchSuggestions = list.cast<Map<String, dynamic>>();
-        notifyListeners();
+        _error = null;
+      } else {
+        _searchSuggestions = [];
+        _error = 'Search failed (${response.statusCode})';
       }
-    } catch (_) {
+      notifyListeners();
+    } catch (e) {
       _searchSuggestions = [];
+      _error = 'Search connection error: $e';
+      notifyListeners();
     }
   }
 

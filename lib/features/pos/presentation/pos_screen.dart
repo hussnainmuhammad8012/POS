@@ -47,6 +47,10 @@ class _PosScreenState extends State<PosScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final inventory = context.read<InventoryProvider>();
+      if (inventory.filteredProducts.isEmpty) {
+        inventory.initialize();
+      }
       if (widget.isVisible) {
         _barcodeFocusNode.requestFocus();
       }
@@ -57,6 +61,10 @@ class _PosScreenState extends State<PosScreen> {
   void didUpdateWidget(covariant PosScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.isVisible && !oldWidget.isVisible) {
+      final inventory = context.read<InventoryProvider>();
+      if (inventory.filteredProducts.isEmpty) {
+        inventory.initialize();
+      }
       _barcodeFocusNode.requestFocus();
     }
   }
@@ -650,11 +658,10 @@ class _CheckoutSummaryState extends State<_CheckoutSummary> {
               );
             }
           ),
-          const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: pos.cartItems.isEmpty ? null : () async {
+              onPressed: (pos.cartItems.isEmpty || pos.isProcessing) ? null : () async {
                 double cashPaid = pos.totalAmount;
                 double creditAmount = 0.0;
                 DateTime? dueDate;

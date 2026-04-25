@@ -194,7 +194,8 @@ class _AppBootstrapperState extends State<_AppBootstrapper> with TrayListener {
     final settings = context.read<SettingsProvider>();
     final auth = context.read<AuthProvider>();
     
-    // Check license/trial status from remote server (placeholder)
+    await auth.restoreSession();
+    
     auth.checkLicense();
     
     final fcmService = FCMService(

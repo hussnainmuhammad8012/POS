@@ -15,6 +15,7 @@ import '../../../../core/widgets/app_dropdown.dart';
 import '../../../settings/application/settings_provider.dart';
 import '../../../suppliers/application/suppliers_provider.dart';
 import '../../../suppliers/presentation/widgets/add_supplier_dialog.dart';
+import '../../../../core/utils/id_generator.dart';
 
 class AddStockDialog extends StatefulWidget {
   final ProductSummary productSummary;
@@ -388,7 +389,7 @@ class _AddStockDialogState extends State<AddStockDialog> {
         
         final cartonId = await stockProvider.receiveCarton(
           productVariantId: effectiveVariantId,
-          cartonNumber: 'CTN-${DateTime.now().millisecondsSinceEpoch}',
+          cartonNumber: IdGenerator.generate('CTN'),
           piecesPerCarton: baseQtyToAdd,
           costPerPiece: costPerPiece,
           receivedQuantity: baseQtyToAdd,

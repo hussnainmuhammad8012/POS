@@ -6,6 +6,7 @@ import '../models/product_summary_model.dart';
 import '../models/product_variant_model.dart';
 import '../models/product_unit_model.dart';
 import '../models/stock_level_model.dart';
+import '../../../../core/utils/id_generator.dart';
 
 class ProductRepository {
   final AppDatabase database;
@@ -24,7 +25,7 @@ class ProductRepository {
     required String unitType,
     String? supplierId,
   }) async {
-    final id = 'prod_${DateTime.now().millisecondsSinceEpoch}';
+    final id = IdGenerator.generate('prod');
     await _db.insert('products', {
       'id': id,
       'category_id': categoryId,
@@ -61,7 +62,7 @@ class ProductRepository {
   }) async {
     return await _db.transaction((txn) async {
       final now = DateTime.now().toIso8601String();
-      final productId = 'prod_${DateTime.now().millisecondsSinceEpoch}';
+      final productId = IdGenerator.generate('prod');
       
       // 1. Create Product
       await txn.insert('products', {
@@ -78,7 +79,7 @@ class ProductRepository {
       });
 
       // 2. Create Default Variant
-      final variantId = 'var_${DateTime.now().millisecondsSinceEpoch}';
+      final variantId = IdGenerator.generate('var');
       await txn.insert('product_variants', {
         'id': variantId,
         'product_id': productId,
@@ -97,7 +98,7 @@ class ProductRepository {
       });
 
       // 3. Create Stock Level
-      final stockId = 'stk_${DateTime.now().millisecondsSinceEpoch}';
+      final stockId = IdGenerator.generate('stk');
       await txn.insert('stock_levels', {
         'id': stockId,
         'product_variant_id': variantId,
@@ -115,7 +116,7 @@ class ProductRepository {
       // 4. Record Initial Stock Movement
       if (initialStock > 0) {
         await txn.insert('stock_movements', {
-          'id': 'mov_${DateTime.now().microsecondsSinceEpoch}',
+          'id': IdGenerator.generate('mov'),
           'product_variant_id': variantId,
           'movement_type': 'IN',
           'quantity_change': initialStock,
@@ -164,7 +165,7 @@ class ProductRepository {
     if (productCheck.isNotEmpty) {
       print('REPAIR: Product $cleanId exists but has NO variants. Creating default...');
       final product = productCheck.first;
-      final newVariantId = 'var_repair_${DateTime.now().millisecondsSinceEpoch}';
+      final newVariantId = IdGenerator.generate('var_rep');
       
       await _db.transaction((txn) async {
         await txn.insert('product_variants', {
@@ -180,7 +181,7 @@ class ProductRepository {
         });
         
         await txn.insert('stock_levels', {
-          'id': 'stk_repair_${DateTime.now().millisecondsSinceEpoch}',
+          'id': IdGenerator.generate('stk_rep'),
           'product_variant_id': newVariantId,
           'total_pieces': 0,
           'available_pieces': 0,
@@ -219,7 +220,7 @@ class ProductRepository {
   }) async {
     return await _db.transaction((txn) async {
       final now = DateTime.now().toIso8601String();
-      final productId = 'prod_${DateTime.now().millisecondsSinceEpoch}';
+      final productId = IdGenerator.generate('prod');
       
       // 1. Create Product
       await txn.insert('products', {
@@ -276,7 +277,7 @@ class ProductRepository {
       }
 
       // 4. Create Primary Variant for Stock tracking
-      final variantId = 'v_${DateTime.now().millisecondsSinceEpoch}';
+      final variantId = IdGenerator.generate('v');
       await txn.insert('product_variants', {
         'id': variantId,
         'product_id': productId,
@@ -295,7 +296,7 @@ class ProductRepository {
       });
 
       // 5. Create Stock Level
-      final stockId = 'stk_${DateTime.now().millisecondsSinceEpoch}';
+      final stockId = IdGenerator.generate('stk');
       await txn.insert('stock_levels', {
         'id': stockId,
         'product_variant_id': variantId, 
@@ -313,7 +314,7 @@ class ProductRepository {
       // 5. Record Initial Stock Movement
       if (initialBaseStock > 0) {
         await txn.insert('stock_movements', {
-          'id': 'mov_${DateTime.now().microsecondsSinceEpoch}',
+          'id': IdGenerator.generate('mov'),
           'product_variant_id': variantId,
           'movement_type': 'IN',
           'quantity_change': initialBaseStock,
@@ -499,7 +500,7 @@ class ProductRepository {
         if (manualBaseStockAdjust != null && manualBaseStockAdjust != prevStock) {
            final int diff = manualBaseStockAdjust - prevStock;
            await txn.insert('stock_movements', {
-             'id': 'mov_${DateTime.now().microsecondsSinceEpoch}',
+             'id': IdGenerator.generate('mov'),
              'product_variant_id': primaryVariantId,
              'movement_type': diff > 0 ? 'ADJUSTMENT' : 'OUT',
              'quantity_change': diff,
@@ -606,7 +607,7 @@ class ProductRepository {
           if (initialStock != null && initialStock != prevStock) {
              final int diff = initialStock - prevStock;
              await txn.insert('stock_movements', {
-               'id': 'mov_${DateTime.now().microsecondsSinceEpoch}',
+               'id': IdGenerator.generate('mov'),
                'product_variant_id': variantId,
                'movement_type': diff > 0 ? 'ADJUSTMENT' : 'OUT',
                'quantity_change': diff,
@@ -639,7 +640,7 @@ class ProductRepository {
     int initialStock = 0,
     int lowStockThreshold = 10,
   }) async {
-    final id = 'var_${DateTime.now().millisecondsSinceEpoch}';
+    final id = IdGenerator.generate('var');
     await _db.insert('product_variants', {
       'id': id,
       'product_id': productId,
@@ -981,7 +982,7 @@ class ProductRepository {
 
       // 2. Track reservation
       await txn.insert('mobile_cart_reservations', {
-        'id': 'res_${DateTime.now().microsecondsSinceEpoch}',
+        'id': IdGenerator.generate('res'),
         'device_id': deviceId,
         'product_variant_id': variantId,
         'quantity': quantity,
@@ -1034,7 +1035,7 @@ class ProductRepository {
 
   // Private helper to create stock level
   Future<void> _createStockLevel(String variantId, int initialStock, int threshold) async {
-    final id = 'stk_${DateTime.now().millisecondsSinceEpoch}';
+    final id = IdGenerator.generate('stk');
     final now = DateTime.now().toIso8601String();
     await _db.insert('stock_levels', {
       'id': id,

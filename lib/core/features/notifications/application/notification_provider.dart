@@ -4,6 +4,7 @@ import '../../../models/notification_model.dart';
 import '../../../repositories/notification_repository.dart';
 import '../../../../features/pos/application/pos_provider.dart';
 import '../../../../core/database/app_database.dart';
+import '../../../utils/id_generator.dart';
 
 class NotificationProvider extends ChangeNotifier {
   final NotificationRepository _repository;
@@ -30,7 +31,7 @@ class NotificationProvider extends ChangeNotifier {
     String? payload,
   }) async {
     final notification = AppNotification(
-      id: 'notif_${DateTime.now().microsecondsSinceEpoch}',
+      id: IdGenerator.generate('notif'),
       title: title,
       message: message,
       type: type,

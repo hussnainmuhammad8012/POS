@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../../../core/models/entities.dart';
 import '../../../core/repositories/credit_ledger_repository.dart';
+import '../../../core/utils/id_generator.dart';
 
 class CreditLedgerProvider extends ChangeNotifier {
   final CreditLedgerRepository _repository;
@@ -40,7 +41,7 @@ class CreditLedgerProvider extends ChangeNotifier {
 
     try {
       final ledger = CreditLedger(
-        id: 'pay_${DateTime.now().microsecondsSinceEpoch}',
+        id: IdGenerator.generate('pay'),
         customerId: customerId,
         type: 'PAYMENT',
         amount: amount,

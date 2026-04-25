@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/entities.dart';
 import '../../../core/repositories/supplier_repository.dart';
 import '../../../core/services/data_sync_service.dart';
+import '../../../core/utils/id_generator.dart';
 
 class SuppliersProvider extends ChangeNotifier {
   final SupplierRepository _repository;

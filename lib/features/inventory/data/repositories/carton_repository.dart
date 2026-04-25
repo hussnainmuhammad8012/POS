@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import '../../../../core/database/app_database.dart';
 import '../models/carton_model.dart';
 import '../models/stock_level_model.dart';
+import '../../../../core/utils/id_generator.dart';
 
 class CartonRepository {
   final AppDatabase database;
@@ -26,7 +27,7 @@ class CartonRepository {
     String? unitId,
     String? unitName,
   }) async {
-    final id = 'ctn_${DateTime.now().millisecondsSinceEpoch}';
+    final id = IdGenerator.generate('ctn');
     final cartonCost = piecesPerCarton * costPerPiece;
 
     await _db.transaction((txn) async {
@@ -169,7 +170,7 @@ class CartonRepository {
     final stock = StockLevel.fromJson(stockResult.first);
 
     await txn.insert('stock_movements', {
-      'id': 'mov_${DateTime.now().millisecondsSinceEpoch}',
+      'id': IdGenerator.generate('mov'),
       'product_variant_id': variantId,
       'carton_id': cartonId,
       'movement_type': type,

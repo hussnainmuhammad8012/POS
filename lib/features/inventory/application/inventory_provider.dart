@@ -15,7 +15,7 @@ class InventoryProvider extends ChangeNotifier {
   // State
   List<Category> _categories = [];
   List<ProductSummary> _products = [];
-  
+
   // Filters
   String? _selectedCategoryId;
   String _searchQuery = '';
@@ -28,6 +28,9 @@ class InventoryProvider extends ChangeNotifier {
   // Loading states
   bool _isLoading = false;
   String? _error;
+
+  // Memoized POS search suggestions
+  Map<String, String> _posSuggestions = {};
 
   InventoryProvider({
     required CategoryRepository categoryRepository,
@@ -48,16 +51,19 @@ class InventoryProvider extends ChangeNotifier {
 
   // Getters
   List<Category> get categories => _categories;
+  List<ProductSummary> get allProducts => _products;
   List<ProductSummary> get filteredProducts => _getFilteredProducts();
   bool get isLoading => _isLoading;
   String? get error => _error;
   String? get selectedCategoryId => _selectedCategoryId;
-  
+
   double get minPrice => _minPrice;
   double get maxPrice => _maxPrice;
   int get minStock => _minStock;
   int get maxStock => _maxStock;
   bool get showLowStockOnly => _showLowStockOnly;
+  Map<String, String> get posSuggestions => _posSuggestions;
+
   Future<void> initialize() async {
     _setLoading(true);
     try {
@@ -81,10 +87,11 @@ class InventoryProvider extends ChangeNotifier {
     }
   }
 
-  // Load products
+  // Load products and rebuild POS search index
   Future<void> loadProducts() async {
     try {
       _products = await _productRepository.getAllProductSummaries();
+      _buildPosSuggestions();
       notifyListeners();
     } catch (e) {
       _error = 'Failed to load products: $e';
@@ -185,12 +192,13 @@ class InventoryProvider extends ChangeNotifier {
     int? lowStockThreshold,
   }) async {
     try {
-      await _productRepository.updateProduct(id, 
-        categoryId: categoryId, name: name, baseSku: baseSku, 
+      await _productRepository.updateProduct(id,
+        categoryId: categoryId, name: name, baseSku: baseSku,
         description: description, mainImagePath: mainImagePath, unitType: unitType,
         supplierId: supplierId,
         costPrice: costPrice, retailPrice: retailPrice, wholesalePrice: wholesalePrice,
-        mrp: mrp, barcode: barcode, qrCode: qrCode, taxRate: taxRate, initialStock: initialStock, lowStockThreshold: lowStockThreshold,
+        mrp: mrp, barcode: barcode, qrCode: qrCode, taxRate: taxRate,
+        initialStock: initialStock, lowStockThreshold: lowStockThreshold,
       );
       await loadProducts();
     } catch (e) {
@@ -363,7 +371,7 @@ class InventoryProvider extends ChangeNotifier {
       filtered = filtered.where((p) => p.product.categoryId == _selectedCategoryId).toList();
     }
     if (_searchQuery.isNotEmpty) {
-      filtered = filtered.where((p) => 
+      filtered = filtered.where((p) =>
         p.product.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
         p.product.baseSku.toLowerCase().contains(_searchQuery.toLowerCase())
       ).toList();
@@ -383,5 +391,26 @@ class InventoryProvider extends ChangeNotifier {
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();
+  }
+
+  /// Rebuilds the POS name-search index from the currently loaded products.
+  /// Called automatically after every loadProducts(). Each entry maps a
+  /// human-readable label → lookup ID (unit id, primary variant id, or product id).
+  void _buildPosSuggestions() {
+    final Map<String, String> suggestions = {};
+    for (final p in _products) {
+      if (p.units.isNotEmpty) {
+        for (final u in p.units) {
+          // Use a disambiguated label so every unit gets its own entry
+          final label = '${p.product.name} — ${u.unitName}';
+          // Prefer barcode so handleBarcode() resolves via UOM table; fall back to unit id
+          suggestions[label] = u.barcode ?? u.id;
+        }
+      } else {
+        // Classic single-variant product
+        suggestions[p.product.name] = p.barcode ?? p.primaryVariantId ?? p.product.id;
+      }
+    }
+    _posSuggestions = suggestions;
   }
 }

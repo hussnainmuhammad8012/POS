@@ -4,17 +4,72 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/models/auth_models.dart';
+import '../../../core/utils/id_generator.dart';
 
 class AuthService {
   static AuthService get instance => AuthService();
   final Database _db = AppDatabase.instance.db;
+  static const String _sessionKey = 'user_session';
+  static const Duration _sessionDuration = Duration(hours: 24);
 
   // Points to our RaiRoyals Management Website API
   static const String _baseUrl = 'https://rairoyalscodebackend-production.up.railway.app/api';
-  
+
   Future<String> getAppVersion() async {
     final packageInfo = await PackageInfo.fromPlatform();
     return packageInfo.version;
+  }
+
+  Future<void> saveSession(UserAccount user) async {
+    final sessionData = {
+      'user_id': user.id,
+      'username': user.username,
+      'password': user.password,
+      'role': user.role.name,
+      'login_timestamp': DateTime.now().millisecondsSinceEpoch,
+    };
+    await _db.insert(
+      'settings',
+      {'key': _sessionKey, 'value': jsonEncode(sessionData)},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<UserAccount?> getStoredSession() async {
+    final List<Map<String, dynamic>> maps = await _db.query(
+      'settings',
+      where: 'key = ?',
+      whereArgs: [_sessionKey],
+    );
+
+    if (maps.isEmpty) return null;
+
+    final value = maps.first['value'] as String;
+    final sessionData = jsonDecode(value) as Map<String, dynamic>;
+
+    final loginTimestamp = DateTime.fromMillisecondsSinceEpoch(
+      sessionData['login_timestamp'] as int,
+    );
+
+    if (DateTime.now().difference(loginTimestamp) > _sessionDuration) {
+      await clearSession();
+      return null;
+    }
+
+    final userId = sessionData['user_id'] as int?;
+    final userMaps = await _db.query(
+      'users',
+      where: 'id = ?',
+      whereArgs: [userId],
+    );
+
+    if (userMaps.isEmpty) return null;
+
+    return UserAccount.fromMap(userMaps.first);
+  }
+
+  Future<void> clearSession() async {
+    await _db.delete('settings', where: 'key = ?', whereArgs: [_sessionKey]);
   }
   
   Future<UserAccount?> login(String username, String password) async {
@@ -28,11 +83,8 @@ class AuthService {
 
     final user = UserAccount.fromMap(maps.first);
     
-    // Remote verification (placeholder logic)
-    // In a real scenario, we would verify with the website here
-    // and potentially check if this account is already in use elsewhere
-    // await _verifySessionRemotely(user);
-
+    await saveSession(user);
+    
     return user;
   }
 
@@ -45,7 +97,7 @@ class AuthService {
     }
 
     // Generate a new one if not exists
-    final String newId = 'DV-${DateTime.now().millisecondsSinceEpoch}-${_randomString(8)}';
+    final String newId = IdGenerator.generate('DV');
     
     // Check if settings table exists, if not, it will be handled by the database initialize (usually)
     // Here we assume it exists from previous steps or we insert it.

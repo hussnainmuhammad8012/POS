@@ -2,6 +2,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart' hide Transaction;
 
 import '../database/app_database.dart';
 import '../models/entities.dart';
+import '../utils/id_generator.dart';
 
 class TransactionRepository {
   Database get _db => AppDatabase.instance.db;
@@ -12,7 +13,7 @@ class TransactionRepository {
     DateTime? dueDate,
   }) async {
     return _db.transaction((txn) async {
-      final txId = transaction.id ?? 'txn_${DateTime.now().millisecondsSinceEpoch}';
+      final txId = transaction.id ?? IdGenerator.generate('txn');
 
       await txn.insert('transactions', {
         'id': txId,
@@ -34,7 +35,7 @@ class TransactionRepository {
       });
 
       for (final item in items) {
-        final itemId = item.id ?? 'txi_${DateTime.now().microsecondsSinceEpoch}';
+        final itemId = item.id ?? IdGenerator.generate('txi');
         await txn.insert('transaction_items', {
           'id': itemId,
           'transaction_id': txId,
@@ -120,7 +121,7 @@ class TransactionRepository {
         }
 
         // Log stock movement
-        final movementId = 'mov_${DateTime.now().microsecondsSinceEpoch}';
+        final movementId = IdGenerator.generateWithIndex('mov', items.indexOf(item));
         await txn.insert('stock_movements', {
           'id': movementId,
           'product_variant_id': currentVariantId,
@@ -136,7 +137,7 @@ class TransactionRepository {
 
       // Automatically register Split Payment debts onto the Ledger
       if (transaction.creditAmount > 0 && transaction.customerId != null) {
-         final ledgerId = 'cred_${DateTime.now().microsecondsSinceEpoch}';
+         final ledgerId = IdGenerator.generate('cred');
          await txn.insert('credit_ledgers', {
             'id': ledgerId,
             'customer_id': transaction.customerId,
@@ -261,7 +262,7 @@ class TransactionRepository {
           }
 
           // Log stock movement
-          final movementId = 'mov_${DateTime.now().microsecondsSinceEpoch}_ret';
+          final movementId = IdGenerator.generateWithIndex('mov', items.indexOf(item)) + '_ret';
           await txn.insert('stock_movements', {
             'id': movementId,
             'product_variant_id': variantId,
@@ -294,7 +295,7 @@ class TransactionRepository {
       // Log the specific isolated financial return event
       if (totalRefundAmountForThisReturn > 0) {
         await txn.insert('return_events', {
-          'id': 'ret_ev_${DateTime.now().microsecondsSinceEpoch}',
+          'id': IdGenerator.generate('ret_ev'),
           'transaction_id': transaction.id,
           'refund_amount': totalRefundAmountForThisReturn,
           'created_at': nowStr,
@@ -309,7 +310,7 @@ class TransactionRepository {
           final amountToRefundCredit = (totalRefundAmountForThisReturn < maxCreditRefund) ? totalRefundAmountForThisReturn : maxCreditRefund;
           
           if (amountToRefundCredit > 0) {
-             final ledgerId = 'cred_${DateTime.now().microsecondsSinceEpoch}_ret';
+             final ledgerId = IdGenerator.generate('cred') + '_ret';
              await txn.insert('credit_ledgers', {
                 'id': ledgerId,
                 'customer_id': transaction.customerId,

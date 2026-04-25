@@ -1,5 +1,5 @@
 // lib/features/pos/application/pos_provider.dart
-import 'package:flutter/foundation.dart' hide Category, Transaction;
+import 'package:flutter/foundation.dart' hide Category;
 import 'package:intl/intl.dart';
 import '../../../core/models/entities.dart' hide Product; 
 import '../../inventory/data/repositories/product_repository.dart';
@@ -9,6 +9,7 @@ import '../../../core/repositories/transaction_repository.dart';
 import '../../../core/services/data_sync_service.dart';
 import '../../settings/application/settings_provider.dart';
 import 'package:utility_store_pos/features/pos/data/models/cart_item.dart';
+import '../../../core/utils/id_generator.dart';
 
 class PosProvider extends ChangeNotifier {
   final TransactionRepository _transactionRepository;
@@ -407,7 +408,7 @@ class PosProvider extends ChangeNotifier {
         _autoUpscale(existingIndex);
       } else {
         _cartItems.add(CartItem(
-          id: 'cart_${DateTime.now().millisecondsSinceEpoch}',
+          id: IdGenerator.generate('cart'),
           variantId: cartKey, // synthetic key: productId + unitId
           productName: productName,
           productSku: productSku,
@@ -478,7 +479,7 @@ class PosProvider extends ChangeNotifier {
       } else {
         _cartItems.add(
           CartItem(
-            id: 'cart_${DateTime.now().millisecondsSinceEpoch}',
+            id: IdGenerator.generate('cart'),
             variantId: variantId,
             productName: productName,
             productSku: productSku,
@@ -620,7 +621,7 @@ class PosProvider extends ChangeNotifier {
             } else {
               // Mixed quantities: 6 pieces become 1 Pet + remainder 2 pieces stay here
               _cartItems.add(CartItem(
-                id: 'cart_${DateTime.now().microsecondsSinceEpoch}',
+                id: IdGenerator.generate('cart'),
                 variantId: upscaledId,
                 productName: item.productName,
                 productSku: item.productSku,
@@ -709,7 +710,7 @@ class PosProvider extends ChangeNotifier {
             } else {
               final unitPrice = _isWholesale ? (baseUnit.wholesalePrice ?? baseUnit.retailPrice) : baseUnit.retailPrice;
               _cartItems.add(CartItem(
-                id: 'cart_${DateTime.now().microsecondsSinceEpoch}',
+                id: IdGenerator.generate('cart'),
                 variantId: downscaledId,
                 productName: item.productName,
                 productSku: item.productSku,
@@ -819,8 +820,9 @@ class PosProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final transactionId = 'txn_${DateTime.now().microsecondsSinceEpoch}';
-      final invoiceNumber = 'INV-${DateTime.now().millisecondsSinceEpoch}';
+      final transactionId = IdGenerator.generate('txn');
+      // IdGenerator uses a monotonic counter + secure random — guaranteed unique per process
+      final invoiceNumber = IdGenerator.generate('INV');
       
       final grossTotal = _cartItems.fold(0.0, (sum, item) => sum + (item.unitPrice * item.quantity));
       final totalDiscount = totalItemDiscount + _discountAmount;
@@ -844,16 +846,16 @@ class PosProvider extends ChangeNotifier {
         createdAt: DateTime.now(),
       );
 
-      int microsecondOffset = 0;
-      final txItems = _cartItems.map<TransactionItem>((CartItem item) {
-        microsecondOffset++;
+      final List<TransactionItem> txItems = [];
+      for (int i = 0; i < _cartItems.length; i++) {
+        final item = _cartItems[i];
         final normalizedPrice = item.isUomItem ? (item.unitPrice / item.conversionRate) : item.unitPrice;
         final normalizedCost = item.isUomItem 
             ? ((item.unitPrice - item.profitMargin) / item.conversionRate) 
             : (item.unitPrice - item.profitMargin);
             
-        return TransactionItem(
-          id: 'txi_${DateTime.now().microsecondsSinceEpoch + microsecondOffset}_${item.variantId.replaceAll('__', '_')}',
+        txItems.add(TransactionItem(
+          id: IdGenerator.generateWithIndex('txi', i),
           transactionId: transactionId,
           variantId: item.baseVariantId ?? item.variantId,
           quantity: item.isUomItem ? (item.quantity * item.conversionRate) : item.quantity,
@@ -866,8 +868,8 @@ class PosProvider extends ChangeNotifier {
           taxAmount: item.taxAmount,
           unitId: item.unitId,
           unitName: item.unitName ?? item.variantName,
-        );
-      }).toList();
+        ));
+      }
 
       final savedTx = await _transactionRepository.insertTransaction(
         transaction: tx,

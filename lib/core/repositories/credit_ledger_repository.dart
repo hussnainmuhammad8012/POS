@@ -1,6 +1,7 @@
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../database/app_database.dart';
 import '../models/entities.dart';
+import '../utils/id_generator.dart';
 
 class CreditLedgerRepository {
   Database get _db => AppDatabase.instance.db;
@@ -16,7 +17,7 @@ class CreditLedgerRepository {
   }
 
   Future<CreditLedger> insert(CreditLedger ledger) async {
-    final id = ledger.id.isEmpty ? 'cred_${DateTime.now().microsecondsSinceEpoch}' : ledger.id;
+    final id = ledger.id.isEmpty ? IdGenerator.generate('cred') : ledger.id;
     
     await _db.insert('credit_ledgers', {
       'id': id,

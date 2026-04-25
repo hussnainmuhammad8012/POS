@@ -330,4 +330,21 @@ class AnalyticsRepository {
     // Convert to a list of dynamic-compatible maps for the PDF service
     return rows.map((row) => Map<String, dynamic>.from(row)).toList();
   }
+  /// Returns daily sales totals for the last 30 calendar days (newest first).
+  /// Each row: { 'date': 'YYYY-MM-DD', 'total': double }
+  Future<List<Map<String, dynamic>>> getDailySalesLast30Days() async {
+    final end = DateTime.now();
+    final start = end.subtract(const Duration(days: 29));
+    final result = await _db.rawQuery('''
+      SELECT
+        DATE(created_at) AS date,
+        SUM(final_amount)  AS total
+      FROM transactions
+      WHERE created_at BETWEEN ? AND ?
+      GROUP BY DATE(created_at)
+      ORDER BY date DESC
+    ''', [start.toIso8601String(), end.toIso8601String()]);
+
+    return result.map((r) => Map<String, dynamic>.from(r)).toList();
+  }
 }

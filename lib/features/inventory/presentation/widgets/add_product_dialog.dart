@@ -17,6 +17,7 @@ import '../../data/repositories/product_repository.dart';
 import '../../../../features/suppliers/application/suppliers_provider.dart';
 import '../../../../features/suppliers/presentation/widgets/add_supplier_dialog.dart';
 import '../../../../features/settings/application/settings_provider.dart';
+import '../../../../core/utils/id_generator.dart';
 
 class AddProductDialog extends StatefulWidget {
   final ProductSummary? initialProduct;
@@ -726,7 +727,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
                 }
                 setState(() {
                   _multiplierUnits.add(ProductUnit(
-                    id: 'unit_new_${DateTime.now().microsecondsSinceEpoch}',
+                    id: IdGenerator.generate('unit_new'),
                     productId: isEditing ? widget.initialProduct!.product.id : '',
                     unitName: nameCtrl.text,
                     conversionRate: rate,
@@ -923,7 +924,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
           }
         } else {
           if (isUom) {
-            final newBaseUnitId = 'unit_${DateTime.now().microsecondsSinceEpoch}';
+            final newBaseUnitId = IdGenerator.generate('unit');
             final resolvedBaseUnit = ProductUnit(
               id: newBaseUnitId,
               productId: '', // Will be set by the repository after product creation

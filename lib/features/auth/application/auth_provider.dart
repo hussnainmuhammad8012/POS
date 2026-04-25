@@ -50,7 +50,16 @@ class AuthProvider extends ChangeNotifier {
 
   void logout() {
     _currentUser = null;
+    _authService.clearSession();
     notifyListeners();
+  }
+
+  Future<void> restoreSession() async {
+    final user = await _authService.getStoredSession();
+    if (user != null) {
+      _currentUser = user;
+      notifyListeners();
+    }
   }
 
   Future<void> checkLicense() async {

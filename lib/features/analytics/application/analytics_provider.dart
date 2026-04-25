@@ -73,6 +73,7 @@ class AnalyticsProvider extends ChangeNotifier {
   List<Map<String, dynamic>> _leastProducts = [];
   List<Map<String, dynamic>> _topSuppliers = [];
   List<Map<String, dynamic>> _lowStockItems = [];
+  List<Map<String, dynamic>> _dailySales = []; // last 30 days
   Map<String, double> _revenueTrend = {};
   bool _isLoading = false;
 
@@ -84,6 +85,7 @@ class AnalyticsProvider extends ChangeNotifier {
   List<Map<String, dynamic>> get leastProducts => _leastProducts;
   List<Map<String, dynamic>> get topSuppliers => _topSuppliers;
   List<Map<String, dynamic>> get lowStockItems => _lowStockItems;
+  List<Map<String, dynamic>> get dailySales => _dailySales;
   Map<String, double> get revenueTrend => _revenueTrend;
   bool get isLoading => _isLoading;
 
@@ -132,6 +134,7 @@ class AnalyticsProvider extends ChangeNotifier {
       _topSuppliers = await _analyticsRepository.getTopSuppliers(limit: 5);
       _revenueTrend = await _analyticsRepository.getRevenueOverTime(_startDate, _endDate);
       _lowStockItems = await _analyticsRepository.getLowStockItems();
+      _dailySales   = await _analyticsRepository.getDailySalesLast30Days();
 
     } catch (e) {
       debugPrint('Error refreshing analytics: $e');

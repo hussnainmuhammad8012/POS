@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import '../../../../core/database/app_database.dart';
 import '../models/stock_movement_model.dart';
 import '../models/stock_level_model.dart';
+import '../../../../core/utils/id_generator.dart';
 
 class StockMovementRepository {
   final AppDatabase database;
@@ -91,7 +92,7 @@ class StockMovementRepository {
 
       // Record Movement
       await txn.insert('stock_movements', {
-        'id': 'mov_${DateTime.now().millisecondsSinceEpoch}',
+        'id': IdGenerator.generate('mov'),
         'product_variant_id': productVariantId,
         'movement_type': 'ADJUSTMENT',
         'quantity_change': quantityAdjustment,

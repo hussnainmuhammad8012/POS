@@ -22,6 +22,7 @@ import '../services/data_sync_service.dart';
 import '../../features/auth/application/auth_service.dart';
 import '../../core/models/auth_models.dart';
 import '../../features/auth/application/auth_provider.dart' as desktop_auth;
+import '../utils/id_generator.dart';
 
 /// Local HTTP server for Companion App
 /// Runs on background isolate (handled via app initialization)
@@ -350,8 +351,8 @@ class LocalApiServer {
       final deviceId = data['deviceId'];
 
       try {
-        final String invoiceNumber = data['invoice'] ?? 'INV-MOB-${DateTime.now().millisecondsSinceEpoch}';
-        final String txId = 'txn_${DateTime.now().millisecondsSinceEpoch}';
+        final String invoiceNumber = data['invoice'] ?? IdGenerator.generate('INV-MOB');
+        final String txId = IdGenerator.generate('txn');
 
         final List<TransactionItem> items = [];
         for (final item in itemsData) {
@@ -795,7 +796,7 @@ class LocalApiServer {
       final costPerPiece = quantity > 0 ? (totalCost / quantity) : 0.0;
       final cartonId = await _cartonRepository!.receiveCarton(
         productVariantId: variantId,
-        cartonNumber: 'CTN-${DateTime.now().millisecondsSinceEpoch}',
+        cartonNumber: IdGenerator.generate('CTN'),
         piecesPerCarton: quantity,
         costPerPiece: costPerPiece,
         receivedQuantity: quantity,
@@ -806,7 +807,7 @@ class LocalApiServer {
       // 3. Update Supplier Ledger if enabled
       if (supplierId != null && _settingsProvider?.isSupplierLedgerEnabled == true && _supplierRepository != null) {
         await _supplierRepository!.addLedgerEntry(SupplierLedger(
-          id: 'pur_${DateTime.now().millisecondsSinceEpoch}',
+          id: IdGenerator.generate('pur'),
           supplierId: supplierId,
           referenceId: cartonId,
           type: 'PURCHASE',
@@ -818,7 +819,7 @@ class LocalApiServer {
 
         if (paidAmount > 0) {
           await _supplierRepository!.addLedgerEntry(SupplierLedger(
-            id: 'pay_${DateTime.now().millisecondsSinceEpoch}',
+            id: IdGenerator.generate('pay'),
             supplierId: supplierId,
             referenceId: cartonId,
             type: 'PAYMENT',
@@ -1021,7 +1022,7 @@ class LocalApiServer {
   Future<Response> _enqueuePrintLabel(Request request) async {
     try {
       final data = jsonDecode(await request.readAsString());
-      final jobId = 'pj_${DateTime.now().millisecondsSinceEpoch}';
+      final jobId = IdGenerator.generate('pj');
       final job = {
         'id': jobId,
         'productId': data['productId'],

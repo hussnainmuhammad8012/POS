@@ -106,6 +106,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         ],
                       ),
                       const SizedBox(height: 24),
+                      // ── Daily Sales (last 30 days) ──────────────────────
+                      _DailySalesCard(rows: provider.dailySales),
+                      const SizedBox(height: 24),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -503,6 +506,173 @@ class _LowStockItemsCard extends StatelessWidget {
           );
         }).toList(),
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Daily Sales Card — last 30 days, newest first
+// ─────────────────────────────────────────────────────────────────────────────
+class _DailySalesCard extends StatelessWidget {
+  final List<Map<String, dynamic>> rows;
+  const _DailySalesCard({required this.rows});
+
+  static final _currency = NumberFormat.currency(symbol: 'Rs ', decimalDigits: 0);
+  static final _dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+
+    // Compute max for the mini progress bar
+    double maxTotal = 1;
+    for (final r in rows) {
+      final v = (r['total'] as num?)?.toDouble() ?? 0;
+      if (v > maxTotal) maxTotal = v;
+    }
+
+    return ModernCard(
+      title: 'Daily Sales — Last 30 Days',
+      padding: EdgeInsets.zero,
+      child: rows.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.all(32),
+              child: Center(child: Text('No sales data yet for the last 30 days.')),
+            )
+          : Column(
+              children: [
+                // Header row
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 90,
+                        child: Text('Date', style: theme.textTheme.labelSmall?.copyWith(
+                            fontWeight: FontWeight.bold, letterSpacing: 1.1)),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: Text('Day', style: theme.textTheme.labelSmall?.copyWith(
+                            fontWeight: FontWeight.bold, letterSpacing: 1.1)),
+                      ),
+                      Expanded(
+                        flex: 3,
+                        child: Text('Sales', style: theme.textTheme.labelSmall?.copyWith(
+                            fontWeight: FontWeight.bold, letterSpacing: 1.1)),
+                      ),
+                      SizedBox(
+                        width: 100,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Text('Total', style: theme.textTheme.labelSmall?.copyWith(
+                              fontWeight: FontWeight.bold, letterSpacing: 1.1)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                ...rows.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final r = entry.value;
+                  final dateStr = r['date'] as String; // YYYY-MM-DD
+                  final total = (r['total'] as num?)?.toDouble() ?? 0;
+                  final isToday = dateStr == DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+                  DateTime? date;
+                  String formattedDate = dateStr;
+                  String dayName = '';
+                  try {
+                    date = DateTime.parse(dateStr);
+                    formattedDate = DateFormat('dd MMM').format(date);
+                    // weekday: 1=Mon … 7=Sun
+                    dayName = _dayNames[date.weekday - 1];
+                  } catch (_) {}
+
+                  final barFraction = maxTotal > 0 ? total / maxTotal : 0.0;
+                  final isAlt = i % 2 == 1;
+
+                  return Container(
+                    color: isAlt
+                        ? theme.scaffoldBackgroundColor.withValues(alpha: 0.4)
+                        : Colors.transparent,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    child: Row(
+                      children: [
+                        // Date
+                        SizedBox(
+                          width: 90,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                formattedDate,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
+                                  color: isToday ? primary : null,
+                                ),
+                              ),
+                              if (isToday)
+                                Text(
+                                  'Today',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        // Day of week
+                        Expanded(
+                          flex: 2,
+                          child: Text(
+                            dayName,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.hintColor,
+                            ),
+                          ),
+                        ),
+                        // Mini bar
+                        Expanded(
+                          flex: 3,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: barFraction,
+                              minHeight: 8,
+                              backgroundColor:
+                                  theme.dividerTheme.color?.withValues(alpha: 0.2) ??
+                                  Colors.grey.withValues(alpha: 0.15),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                isToday ? primary : primary.withValues(alpha: 0.65),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Amount
+                        SizedBox(
+                          width: 100,
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              _currency.format(total),
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: isToday ? primary : null,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ),
     );
   }
 }

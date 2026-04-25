@@ -41,25 +41,43 @@ class ReceiptPrinter {
   }) async {
     final pdf = pw.Document();
 
+    // Create a very tall page format for thermal printer
+    // Thermal printers work with continuous roll - one tall page, not multiple pages
+    final tallRollFormat = PdfPageFormat(
+      80 * PdfPageFormat.mm,    // 80mm width (standard thermal)
+      2000 * PdfPageFormat.mm,  // Very tall height (2 meters) - way more than needed
+      marginLeft: 8 * PdfPageFormat.mm,
+      marginRight: 8 * PdfPageFormat.mm,
+      marginTop: 12 * PdfPageFormat.mm,
+      marginBottom: 12 * PdfPageFormat.mm,
+    );
+
+    // Use pw.Page (NOT MultiPage) - single continuous page for thermal printer
     pdf.addPage(
       pw.Page(
-        pageFormat: PdfPageFormat.roll80,
+        pageFormat: tallRollFormat,
         build: (pw.Context context) {
           return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+            mainAxisSize: pw.MainAxisSize.min, // Shrink to content size
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               _buildPdfHeader(settings),
               pw.SizedBox(height: 10),
               _buildPdfInfo(transaction),
               pw.SizedBox(height: 10),
               pw.Divider(),
+              
+              // All cart items in one continuous column
               ...cartItems.map((item) => _buildPdfItemRow(item)),
+              
               pw.Divider(),
               _buildPdfTotals(transaction, settings),
               pw.SizedBox(height: 20),
               pw.Center(
                 child: pw.Text(
-                  settings.receiptCustomMessage.isNotEmpty ? settings.receiptCustomMessage : 'Thank you for shopping!', 
+                  settings.receiptCustomMessage.isNotEmpty
+                      ? settings.receiptCustomMessage
+                      : 'Thank you for shopping!',
                   style: pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic),
                 ),
               ),
@@ -130,10 +148,10 @@ class ReceiptPrinter {
 
       return pw.Center(
         child: pw.Container(
-          height: 200, // Even taller for the exclusive header
-          width: double.infinity,
-          margin: const pw.EdgeInsets.only(bottom: 8),
-          child: isSvg 
+          height: 60, // Compact logo — just enough to identify the store
+          width: 160,
+          margin: const pw.EdgeInsets.only(bottom: 6),
+          child: isSvg
               ? pw.SvgImage(svg: utf8.decode(bytes), fit: pw.BoxFit.contain)
               : pw.Image(pw.MemoryImage(bytes), fit: pw.BoxFit.contain),
         ),
@@ -241,7 +259,7 @@ class ReceiptPrinter {
 
     pdf.addPage(
       pw.Page(
-        pageFormat: PdfPageFormat.roll80, // Standardize with BarcodeDialog for clarity
+        pageFormat: PdfPageFormat.roll80,
         build: (pw.Context context) {
           final price = labelData['price'] ?? 0.0;
           final formattedPrice = _currencyFormat.format(price);

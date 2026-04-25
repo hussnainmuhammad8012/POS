@@ -1,6 +1,7 @@
 // lib/features/inventory/data/repositories/category_repository.dart
 import 'package:sqflite/sqflite.dart';
 import '../../../../core/database/app_database.dart';
+import '../../../../core/utils/id_generator.dart';
 import '../models/category_model.dart';
 
 class CategoryRepository {
@@ -75,7 +76,7 @@ class CategoryRepository {
     String? iconName,
     int displayOrder = 0,
   }) async {
-    final id = 'cat_${DateTime.now().millisecondsSinceEpoch}';
+    final id = IdGenerator.generate('cat');
     await _db.insert('categories', {
       'id': id,
       'parent_id': parentId,

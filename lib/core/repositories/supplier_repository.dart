@@ -2,6 +2,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../database/app_database.dart';
 import '../models/entities.dart';
+import '../utils/id_generator.dart';
 
 class SupplierRepository {
   Database get _db => AppDatabase.instance.db;
@@ -32,7 +33,7 @@ class SupplierRepository {
   }
 
   Future<Supplier> insert(Supplier supplier) async {
-    final id = supplier.id ?? 'sup_${DateTime.now().microsecondsSinceEpoch}';
+    final id = supplier.id ?? IdGenerator.generate('sup');
     final payload = {
       'id': id,
       'name': supplier.name,

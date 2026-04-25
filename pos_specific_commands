@@ -1,0 +1,23 @@
+  "C:\Users\HP\AppData\Local\Android\Sdk\platform-tools\adb.exe" reverse tcp:8080 tcp:8080
+
+
+mobile app build command -> flutter build apk --split-per-abi  new and latest one is -> flutter build apk --release
+
+for ios mobile app  command -> flutter build ios
+
+
+
+desktop app build command -> flutter build windows  and then click on file installer_script  -> it will start inno then press  Ctrl + F9  to create new setup file 
+and this is the file location -> New\build\windows\x64\release\utility_store_pos.msix
+
+
+commands to auto increment the version pos through powershell in admnitration mode 
+
+for desktop app -> powershell -ExecutionPolicy Bypass -File "D:\POS-New\scripts\build_pos.ps1"
+
+
+
+for companion app -> powershell -ExecutionPolicy Bypass -File "D:\POS-New\scripts\build_companion.ps1"
+
+
+run this for auto increment ->   powershell -ExecutionPolicy Bypass -File "D:\POS-New\scripts\build_pos.ps1"
